@@ -1,0 +1,152 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { Store, Delete } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+
+export default function EntrancePage() {
+  const [pin, setPin] = useState('');
+  const [isClockingIn, setIsClockingIn] = useState(false);
+  const router = useRouter();
+
+  // Handle number pad inputs
+  const handleKeyPress = (digit: string) => {
+    if (pin.length < 4) {
+      const newPin = pin + digit;
+      setPin(newPin);
+      
+      // Simulate success and reset after a brief delay when 4 digits are entered
+      if (newPin.length === 4) {
+        if (newPin === '0000') {
+          setTimeout(() => {
+            router.push('/pos');
+          }, 300);
+        } else {
+          setTimeout(() => {
+            setPin('');
+            // Here you would typically handle the auth submission logic
+          }, 300);
+        }
+      }
+    }
+  };
+
+  // Handle backspace/delete
+  const handleDelete = () => {
+    if (pin.length > 0) {
+      setPin(pin.slice(0, -1));
+    }
+  };
+
+  return (
+    <div className="relative flex flex-col items-center justify-center min-h-screen bg-white text-slate-900 font-sans selection:bg-none">
+      
+      {/* Top Right Admin Button */}
+      <div className="absolute top-8 right-8">
+        <button 
+          onClick={() => router.push('/admin')}
+          className="flex flex-col items-center justify-center w-[72px] bg-slate-100 hover:bg-slate-200 rounded-xl py-3 px-4 transition-colors focus:outline-none border-none cursor-pointer"
+          aria-label="Admin Access"
+        >
+          <Store className="w-6 h-6 text-emerald-500 mb-1 stroke-[2px]" />
+          <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Admin</span>
+        </button>
+      </div>
+
+      {/* Main Content Container */}
+      <div className="flex flex-col items-center w-full max-w-[400px]">
+        
+        {/* Header Typography */}
+        <div className="text-center mb-8">
+          <h1 className="text-[32px] font-bold tracking-tight text-slate-900 mb-1">
+            Enter PIN
+          </h1>
+          <p className="text-[16px] text-slate-500 m-0">
+            QuickServe Terminal 01
+          </p>
+        </div>
+
+        {/* PIN Entry Display (4 circles) */}
+        <div className="flex items-center gap-5 mb-12" aria-live="polite">
+          {[...Array(4)].map((_, i) => (
+            <div 
+              key={i} 
+              className={`w-5 h-5 rounded-full transition-all duration-100 border-2 ${
+                i < pin.length 
+                  ? 'bg-slate-400 border-slate-400' 
+                  : 'bg-transparent border-slate-200'
+              }`} 
+            />
+          ))}
+        </div>
+
+        {/* Numeric Keypad Grid */}
+        <div className="grid grid-cols-3 gap-4 mb-8">
+          {/* Numbers 1-9 */}
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+            <button
+              key={num}
+              onClick={() => handleKeyPress(num.toString())}
+              className="w-[100px] h-[90px] bg-slate-100 hover:bg-slate-200 rounded-2xl flex items-center justify-center text-[32px] font-semibold text-slate-900 transition-colors active:bg-slate-300 focus:outline-none select-none border-none cursor-pointer"
+              aria-label={`Digit ${num}`}
+            >
+              {num}
+            </button>
+          ))}
+          
+          {/* Empty bottom left cell */}
+          <div className="w-[100px] h-[90px]"></div>
+
+          {/* 0 Button */}
+          <button
+            onClick={() => handleKeyPress('0')}
+            className="w-[100px] h-[90px] bg-slate-100 hover:bg-slate-200 rounded-2xl flex items-center justify-center text-[32px] font-semibold text-slate-900 transition-colors active:bg-slate-300 focus:outline-none select-none border-none cursor-pointer"
+            aria-label="Digit 0"
+          >
+            0
+          </button>
+
+          {/* Delete Button */}
+          <button
+            onClick={handleDelete}
+            className="w-[100px] h-[90px] bg-slate-100 hover:bg-slate-200 rounded-2xl flex items-center justify-center transition-colors active:bg-slate-300 focus:outline-none border-none cursor-pointer select-none"
+            aria-label="Delete last digit"
+          >
+            <Delete className="w-8 h-8 text-slate-900 stroke-[2px] pointer-events-none fill-transparent" />
+          </button>
+        </div>
+
+        {/* Clock-in Toggle container */}
+        <div 
+          className="flex items-center justify-between w-full px-1 mt-4" 
+        >
+          <span className="text-[18px] font-medium text-slate-900 select-none cursor-default">
+            Clock-in for shift
+          </span>
+          <div 
+            onClick={() => setIsClockingIn(!isClockingIn)}
+            role="switch"
+            aria-checked={isClockingIn}
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setIsClockingIn(!isClockingIn);
+              }
+            }}
+            className={`relative w-14 h-8 rounded-full cursor-pointer transition-colors duration-200 ease-in-out ${
+              isClockingIn ? 'bg-emerald-500' : 'bg-slate-200'
+            }`}
+          >
+            <div 
+              className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow-sm transition-transform duration-200 ease-in-out ${
+                isClockingIn ? 'translate-x-6' : 'translate-x-0'
+              }`} 
+            />
+          </div>
+        </div>
+        
+      </div>
+    </div>
+  );
+}
