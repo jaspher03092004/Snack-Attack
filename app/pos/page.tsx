@@ -11,11 +11,13 @@ import {
   ArrowRight,
   Plus,
   Minus,
-  LogOut
+  LogOut,
+  Check
 } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { PaymentModal } from '@/components/payment-modal';
+import { menuItems } from '@/lib/menuData';
 
 // --- Types ---
 type Category = {
@@ -31,6 +33,13 @@ type Product = {
   image: string;
   soldOut?: boolean;
   categoryId: string;
+  description?: string;
+  sizes?: { label: string; price: number }[];
+  addOns?: { name: string; price: number }[];
+  requiresShakeFlavor?: boolean;
+  hasBurgerAddons?: boolean;
+  requiresSiomaiChoice?: boolean;
+  requiresMilkteaFlavor?: boolean;
 };
 
 type CartItem = {
@@ -40,28 +49,60 @@ type CartItem = {
   price: number;
   quantity: number;
   modifiers: string[];
+  selectedSize?: string;
+  selectedAddOns?: string[];
+  selectedShakeFlavor?: string;
+  selectedBurgerAddon?: string;
+  selectedSiomaiChoice?: string;
+  selectedMilkteaFlavor?: string;
 };
 
 // --- Mock Data ---
 const CATEGORIES: Category[] = [
   { id: 'combos', name: 'Combos', icon: Utensils },
-  { id: 'drinks', name: 'Drinks', icon: CupSoda },
-  { id: 'sides', name: 'Sides', icon: Pizza }, // Using Pizza as substitute for Sides icon per prompt
+  { id: 'milktea', name: 'Milktea', icon: CupSoda },
+  { id: 'milk-shakes', name: 'Milk Shakes', icon: CupSoda },
+  { id: 'burgers', name: 'Burgers', icon: Pizza },
   { id: 'pizza', name: 'Pizza', icon: Pizza },
-  { id: 'promos', name: 'Promos', icon: Tag },
+  { id: 'sides', name: 'Sides', icon: Pizza },
+  { id: 'siomai', name: 'Siomai', icon: Utensils },
 ];
 
-const MOCK_PRODUCTS: Product[] = [
-  { id: 'p1', name: 'Classic Cheeseburger', price: 150, image: 'https://picsum.photos/seed/burger1/400/300', categoryId: 'combos' },
-  { id: 'p2', name: 'Double Smash Burger', price: 220, image: 'https://picsum.photos/seed/burger2/400/300', categoryId: 'combos' },
-  { id: 'p3', name: 'Spicy Crispy Chicken', price: 280, image: 'https://picsum.photos/seed/burger3/400/300', soldOut: true, categoryId: 'combos' },
-  { id: 'p4', name: 'Bacon BBQ Stack', price: 280, image: 'https://picsum.photos/seed/burger4/400/300', categoryId: 'combos' },
-  { id: 'p5', name: 'Mushroom Swiss Veggie', price: 190, image: 'https://picsum.photos/seed/burger5/400/300', categoryId: 'combos' },
-  { id: 'p6', name: 'Kids Beef Slider', price: 110, image: 'https://picsum.photos/seed/burger6/400/300', categoryId: 'combos' },
-  // Add some dummy products for other categories just to show state changes
-  { id: 'p7', name: 'Pepperoni Pizza', price: 450, image: 'https://picsum.photos/seed/pizza1/400/300', categoryId: 'pizza' },
-  { id: 'p8', name: 'Cola Regular', price: 60, image: 'https://picsum.photos/seed/cola/400/300', categoryId: 'drinks' },
-];
+const getCategoryId = (menuCategory: string) => {
+  switch (menuCategory) {
+    case 'Combos':
+      return 'combos';
+    case 'Milktea Series':
+      return 'milktea';
+    case 'Milk Shakes':
+      return 'milk-shakes';
+    case 'Burgers & Sandwiches':
+      return 'burgers';
+    case 'Pizza':
+      return 'pizza';
+    case 'Sides & Others':
+      return 'sides';
+    case 'Siomai':
+      return 'siomai';
+    default:
+      return 'sides';
+  }
+};
+
+const PRODUCTS: Product[] = menuItems.map((item) => ({
+  id: item.id,
+  name: item.name,
+  price: item.sizes?.[0]?.price ?? item.basePrice,
+  image: item.image ?? `/images/menu/${item.id}.webp`,
+  categoryId: getCategoryId(item.category),
+  sizes: item.sizes,
+  addOns: item.addOns,
+  requiresShakeFlavor: (item as any).requiresShakeFlavor ?? false,
+  hasBurgerAddons: (item as any).hasBurgerAddons ?? false,
+  requiresSiomaiChoice: (item as any).requiresSiomaiChoice ?? false,
+  requiresMilkteaFlavor: (item as any).requiresMilkteaFlavor ?? false,
+  description: item.description,
+}));
 
 const INITIAL_CART: CartItem[] = [
   {
@@ -87,12 +128,19 @@ export default function POSScreen() {
   const [activeCategory, setActiveCategory] = useState('combos');
   const [searchQuery, setSearchQuery] = useState('');
   const [cart, setCart] = useState<CartItem[]>(INITIAL_CART);
+  const [customizingProduct, setCustomizingProduct] = useState<Product | null>(null);
+  const [selectedSize, setSelectedSize] = useState('');
+  const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
+  const [selectedShakeFlavor, setSelectedShakeFlavor] = useState('');
+  const [selectedBurgerAddon, setSelectedBurgerAddon] = useState('');
+  const [selectedSiomaiChoice, setSelectedSiomaiChoice] = useState('');
+  const [selectedMilkteaFlavor, setSelectedMilkteaFlavor] = useState('');
 
   // --- Derived State ---
   const filteredProducts = useMemo(() => {
-    return MOCK_PRODUCTS.filter(p => {
-      const matchesCategory = p.categoryId === activeCategory;
-      const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
+    return PRODUCTS.filter((product) => {
+      const matchesCategory = product.categoryId === activeCategory;
+      const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
       return matchesCategory && matchesSearch;
     });
   }, [activeCategory, searchQuery]);
@@ -104,31 +152,146 @@ export default function POSScreen() {
   const vat = subtotal * 0.12;
   const total = subtotal + vat;
 
-  // --- Handlers ---
-  const handleAddToCart = (product: Product) => {
+  const getItemPrice = (product: Product, customization?: { sizeLabel?: string; addOns?: string[] }) => {
+    const selectedSizePrice = product.sizes?.find((size) => size.label === customization?.sizeLabel)?.price ?? product.price;
+    const addOnTotal = (customization?.addOns ?? []).reduce((sum, addOnName) => {
+      const matchingAddOn = product.addOns?.find((addOn) => addOn.name === addOnName);
+      return sum + (matchingAddOn?.price ?? 0);
+    }, 0);
+
+    // burger addon prices (optional combo extras)
+    let burgerAddonTotal = 0;
+    const burgerAddonKey = (customization as any)?.burgerAddon as string | undefined;
+    if (burgerAddonKey) {
+      if (burgerAddonKey === 'add-cheese') burgerAddonTotal += 5;
+      if (burgerAddonKey === 'add-egg') burgerAddonTotal += 15;
+      if (burgerAddonKey === 'add-cheese-egg') burgerAddonTotal += 20;
+    }
+
+    return selectedSizePrice + addOnTotal + burgerAddonTotal;
+  };
+
+  const handleProductClick = (product: Product) => {
     if (product.soldOut) return;
 
-    setCart(prev => {
-      // Check if item already exists WITHOUT modifiers (simple case for prototype)
-      const existingItemIndex = prev.findIndex(item => item.productId === product.id && item.modifiers.length === 0);
-      
+    const needsCustomization = Boolean(
+      product.sizes?.length ||
+      product.addOns?.length ||
+      product.requiresShakeFlavor ||
+      product.hasBurgerAddons ||
+      product.requiresSiomaiChoice ||
+      product.requiresMilkteaFlavor
+    );
+
+    if (needsCustomization) {
+      setCustomizingProduct(product);
+      setSelectedSize(product.sizes?.[0]?.label ?? '');
+      setSelectedAddOns([]);
+      setSelectedShakeFlavor('');
+      setSelectedBurgerAddon('');
+      setSelectedSiomaiChoice('');
+      setSelectedMilkteaFlavor('');
+      return;
+    }
+
+    handleAddToCart(product);
+  };
+
+  const handleAddToCart = (product: Product, customization?: { sizeLabel?: string; addOns?: string[] }) => {
+    const finalPrice = getItemPrice(product, customization);
+    const modifiers = [
+      ...(customization?.sizeLabel ? [`Size: ${customization.sizeLabel}`] : []),
+      ...(customization?.addOns?.map((addOnName) => `Add-on: ${addOnName}`) ?? []),
+    ];
+
+    setCart((prev) => {
+      const existingItemIndex = prev.findIndex((item) => {
+        const sameProduct = item.productId === product.id;
+        const sameSize = (item.selectedSize ?? '') === (customization?.sizeLabel ?? '');
+        const sameAddOns = JSON.stringify(item.selectedAddOns ?? []) === JSON.stringify(customization?.addOns ?? []);
+        return sameProduct && sameSize && sameAddOns;
+      });
+
       if (existingItemIndex >= 0) {
-        // Increment quantity
         const newCart = [...prev];
         newCart[existingItemIndex].quantity += 1;
         return newCart;
-      } else {
-        // Add new
-        return [...prev, {
+      }
+
+      return [
+        ...prev,
+        {
           id: `new-${Date.now()}`,
           productId: product.id,
           name: product.name,
-          price: product.price,
+          price: finalPrice,
           quantity: 1,
-          modifiers: []
-        }];
-      }
+          modifiers,
+          selectedSize: customization?.sizeLabel,
+          selectedAddOns: customization?.addOns,
+        },
+      ];
     });
+  };
+
+  const handleConfirmCustomization = () => {
+    if (!customizingProduct) return;
+    // ensure required fields are filled
+    const missingRequired = (
+      (customizingProduct.requiresShakeFlavor && !selectedShakeFlavor) ||
+      (customizingProduct.requiresSiomaiChoice && !selectedSiomaiChoice) ||
+      (customizingProduct.requiresMilkteaFlavor && !selectedMilkteaFlavor)
+    );
+
+    if (missingRequired) {
+      alert('Please select all required options for this combo.');
+      return;
+    }
+
+    const customizationPayload: any = {
+      sizeLabel: selectedSize,
+      addOns: selectedAddOns,
+      burgerAddon: selectedBurgerAddon || undefined,
+    };
+
+    // add non-price selections into modifiers
+    const extraModifiers: string[] = [];
+    if (selectedShakeFlavor) extraModifiers.push(`Shake: ${selectedShakeFlavor}`);
+    if (selectedBurgerAddon) {
+      const label = selectedBurgerAddon === 'add-cheese' ? 'Add Cheese' : selectedBurgerAddon === 'add-egg' ? 'Add Egg' : 'Add Cheese & Egg';
+      extraModifiers.push(`Burger Add-on: ${label}`);
+    }
+    if (selectedSiomaiChoice) extraModifiers.push(`Siomai: ${selectedSiomaiChoice}`);
+    if (selectedMilkteaFlavor) extraModifiers.push(`Milktea: ${selectedMilkteaFlavor}`);
+
+    handleAddToCart(customizingProduct, customizationPayload);
+
+    // after adding, manually append these modifiers to the last added cart item
+    setCart((prev) => {
+      const newPrev = [...prev];
+      const last = newPrev[newPrev.length - 1];
+      if (last) {
+        last.modifiers = [...(last.modifiers ?? []), ...extraModifiers];
+        last.selectedShakeFlavor = selectedShakeFlavor || undefined;
+        last.selectedBurgerAddon = selectedBurgerAddon || undefined;
+        last.selectedSiomaiChoice = selectedSiomaiChoice || undefined;
+        last.selectedMilkteaFlavor = selectedMilkteaFlavor || undefined;
+      }
+      return newPrev;
+    });
+    setCustomizingProduct(null);
+    setSelectedSize('');
+    setSelectedAddOns([]);
+    setSelectedShakeFlavor('');
+    setSelectedBurgerAddon('');
+    setSelectedSiomaiChoice('');
+    setSelectedMilkteaFlavor('');
+  };
+
+  const toggleAddOn = (addOnName: string) => {
+    setSelectedAddOns((prev) =>
+      prev.includes(addOnName) ? prev.filter((item) => item !== addOnName) : [...prev, addOnName],
+    );
   };
 
   const handleUpdateQuantity = (cartItemId: string, change: number) => {
@@ -200,7 +363,7 @@ export default function POSScreen() {
       </aside>
 
       {/* --- Center Main Area (Products) --- */}
-      <main className="flex-1 flex flex-col h-full overflow-hidden bg-[#FAFBFF]">
+      <main className="flex-1 min-w-0 flex flex-col h-full overflow-hidden bg-[#FAFBFF] w-full">
         {/* Header */}
         <header className="flex items-center justify-between px-8 py-6 bg-white/50 backdrop-blur-sm border-b border-slate-100 sticky top-0 z-10">
           <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
@@ -222,25 +385,24 @@ export default function POSScreen() {
         </header>
 
         {/* Product Grid */}
-        <div className="flex-1 overflow-y-auto p-8">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="flex-1 w-full overflow-y-auto p-8">
+          <div className="w-full flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 auto-rows-fr">
             {filteredProducts.map((product) => (
               <div 
                 key={product.id}
-                onClick={() => handleAddToCart(product)}
+                onClick={() => handleProductClick(product)}
                 className={`group relative bg-white rounded-[24px] overflow-hidden border border-slate-200/60 shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer flex flex-col ${
                   product.soldOut ? 'opacity-60 grayscale-[0.5] pointer-events-none' : 'hover:-translate-y-1'
                 }`}
               >
                 {/* Image Container */}
-                <div className="relative w-full aspect-[4/3] bg-slate-100 overflow-hidden">
-                  <Image 
-                    src={product.image} 
+                <div className="relative w-full h-80 overflow-hidden bg-slate-100">
+                  <Image
+                    src={product.image}
                     alt={product.name}
-                    fill
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                    referrerPolicy="no-referrer"
-                    unoptimized
+                    width={400}
+                    height={300}
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                   {/* Price Badge */}
                   <div className="absolute bottom-3 right-3 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-xl shadow-sm text-slate-900 font-bold text-sm tracking-tight border border-slate-100">
@@ -262,6 +424,11 @@ export default function POSScreen() {
                   <h3 className="font-semibold text-slate-800 leading-snug">
                     {product.name}
                   </h3>
+                  {product.description ? (
+                    <p className="mt-2 text-sm text-slate-500 line-clamp-2 leading-snug">
+                      {product.description}
+                    </p>
+                  ) : null}
                 </div>
               </div>
             ))}
@@ -389,6 +556,215 @@ export default function POSScreen() {
       </aside>
     </div>
     
+    {customizingProduct && (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 px-4 py-6">
+        <div className="w-full max-w-lg rounded-[28px] border border-slate-200 bg-white p-6 shadow-2xl">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-400">Customize item</p>
+              <h3 className="mt-1 text-2xl font-bold text-slate-900">{customizingProduct.name}</h3>
+            </div>
+            <button
+              onClick={() => {
+                setCustomizingProduct(null);
+                setSelectedSize('');
+                setSelectedAddOns([]);
+              }}
+              className="rounded-full border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-900"
+            >
+              Cancel
+            </button>
+          </div>
+
+          {customizingProduct.sizes && customizingProduct.sizes.length > 0 && (
+            <div className="mt-6">
+              <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Size</h4>
+              <div className="mt-3 flex flex-wrap gap-3">
+                {customizingProduct.sizes.map((size) => {
+                  const isSelected = selectedSize === size.label;
+                  return (
+                    <button
+                      key={size.label}
+                      onClick={() => setSelectedSize(size.label)}
+                      className={`rounded-full border px-4 py-2 text-sm font-semibold transition-all ${
+                        isSelected
+                          ? 'border-emerald-500 bg-emerald-50 text-emerald-600'
+                          : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                      }`}
+                    >
+                      {size.label} · ₱{size.price}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {customizingProduct.requiresShakeFlavor && (
+            <div className="mt-6">
+              <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Milk Shake Flavor</h4>
+              <div className="mt-3 flex flex-wrap gap-3">
+                {[
+                  'Cookies and Cream',
+                  'Choco Kisses',
+                  'Mango',
+                  'Ube Macapuno',
+                  'Avocado',
+                  'Straw Berry',
+                  'Buco Pandan',
+                  'Melon',
+                ].map((flavor) => {
+                  const isSelected = selectedShakeFlavor === flavor;
+                  return (
+                    <button
+                      key={flavor}
+                      onClick={() => setSelectedShakeFlavor(flavor)}
+                      className={`rounded-full border px-4 py-2 text-sm font-semibold transition-all ${
+                        isSelected
+                          ? 'border-emerald-500 bg-emerald-50 text-emerald-600'
+                          : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                      }`}
+                    >
+                      {flavor}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {customizingProduct.addOns && customizingProduct.addOns.length > 0 && (
+            <div className="mt-6">
+              <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Add-ons</h4>
+              <div className="mt-3 space-y-3">
+                {customizingProduct.addOns.map((addOn) => {
+                  const isActive = selectedAddOns.includes(addOn.name);
+                  return (
+                    <button
+                      key={addOn.name}
+                      onClick={() => toggleAddOn(addOn.name)}
+                      className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left transition-all ${
+                        isActive
+                          ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                          : 'border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span className="font-semibold">{addOn.name}</span>
+                      <span className="text-sm font-medium">+₱{addOn.price}</span>
+                      {isActive && <Check className="ml-3 h-4 w-4" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {customizingProduct.hasBurgerAddons && (
+            <div className="mt-6">
+              <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Burger Add-ons</h4>
+              <div className="mt-3 flex flex-wrap gap-3">
+                {[
+                  { key: '', label: 'None', price: 0 },
+                  { key: 'add-cheese', label: 'Add Cheese', price: 5 },
+                  { key: 'add-egg', label: 'Add Egg', price: 15 },
+                  { key: 'add-cheese-egg', label: 'Add Cheese & Egg', price: 20 },
+                ].map((opt) => {
+                  const isSelected = selectedBurgerAddon === opt.key;
+                  return (
+                    <button
+                      key={opt.key}
+                      onClick={() => setSelectedBurgerAddon(opt.key)}
+                      className={`rounded-full border px-4 py-2 text-sm font-semibold transition-all ${
+                        isSelected
+                          ? 'border-emerald-500 bg-emerald-50 text-emerald-600'
+                          : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                      }`}
+                    >
+                      {opt.label}{opt.price ? ` · +₱${opt.price}` : ''}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {customizingProduct.requiresSiomaiChoice && (
+            <div className="mt-6">
+              <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Siomai Choice</h4>
+              <div className="mt-3 flex flex-wrap gap-3">
+                {['Beef', 'Chicken'].map((opt) => {
+                  const isSelected = selectedSiomaiChoice === opt;
+                  return (
+                    <button
+                      key={opt}
+                      onClick={() => setSelectedSiomaiChoice(opt)}
+                      className={`rounded-full border px-4 py-2 text-sm font-semibold transition-all ${
+                        isSelected
+                          ? 'border-emerald-500 bg-emerald-50 text-emerald-600'
+                          : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                      }`}
+                    >
+                      {opt}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {customizingProduct.requiresMilkteaFlavor && (
+            <div className="mt-6">
+              <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Milktea Flavor</h4>
+              <div className="mt-3 flex flex-wrap gap-3">
+                {['Matcha','Chocolate','Red Velvet','Salted Caramel','Rocky Road','Cookies and Cream'].map((flav) => {
+                  const isSelected = selectedMilkteaFlavor === flav;
+                  return (
+                    <button
+                      key={flav}
+                      onClick={() => setSelectedMilkteaFlavor(flav)}
+                      className={`rounded-full border px-4 py-2 text-sm font-semibold transition-all ${
+                        isSelected
+                          ? 'border-emerald-500 bg-emerald-50 text-emerald-600'
+                          : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                      }`}
+                    >
+                      {flav}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <div className="mt-8 rounded-2xl bg-slate-50 p-4">
+            <div className="flex items-center justify-between text-sm text-slate-600">
+              <span>Selected total</span>
+              <span className="text-xl font-bold text-slate-900">₱{getItemPrice(customizingProduct, { sizeLabel: selectedSize, addOns: selectedAddOns }).toFixed(2)}</span>
+            </div>
+          </div>
+
+          <div className="mt-6 flex justify-end gap-3">
+            <button
+              onClick={() => {
+                setCustomizingProduct(null);
+                setSelectedSize('');
+                setSelectedAddOns([]);
+              }}
+              className="rounded-full border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+            >
+              Close
+            </button>
+            <button
+              onClick={handleConfirmCustomization}
+              className="rounded-full bg-emerald-500 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-600"
+            >
+              Add to Order
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
     <PaymentModal
       isOpen={isPaymentModalOpen}
       onClose={() => setIsPaymentModalOpen(false)}
