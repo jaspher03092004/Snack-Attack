@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Banknote, QrCode, CreditCard, Printer } from 'lucide-react';
+import { ArrowLeft, Printer } from 'lucide-react';
 
 export type PaymentCartItem = {
   id: string;
@@ -33,15 +33,12 @@ export function PaymentModal({
     { id: '2', name: 'Large Fries', price: 85.00, quantity: 1, modifiers: [] }
   ]
 }: PaymentModalProps) {
-  const [activeMethod, setActiveMethod] = useState<'cash'|'ewallet'|'card'>('cash');
   const [tenderedStr, setTenderedStr] = useState<string>('500');
 
   useEffect(() => {
     if (isOpen) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setTenderedStr('500');
-       
-      setActiveMethod('cash');
     }
   }, [isOpen]);
 
@@ -123,46 +120,11 @@ export function PaymentModal({
 
         {/* Right Column - Payment */}
         <div className="flex-1 bg-white p-8 flex flex-col">
-          
-          {/* Tabs */}
-          <div className="grid grid-cols-3 gap-4 mb-8">
-            <button 
-              onClick={() => setActiveMethod('cash')}
-              className={`flex items-center justify-center py-4 rounded-xl border text-[15px] font-bold transition-all focus:outline-none ${
-                activeMethod === 'cash' 
-                  ? 'bg-slate-900 text-white border-slate-900 shadow-md' 
-                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              <Banknote className={`w-5 h-5 mr-2 ${activeMethod === 'cash' ? 'opacity-100' : 'opacity-70'}`} /> Cash
-            </button>
-            <button 
-              onClick={() => setActiveMethod('ewallet')}
-              className={`flex items-center justify-center py-4 rounded-xl border text-[15px] font-bold transition-all focus:outline-none ${
-                activeMethod === 'ewallet' 
-                  ? 'bg-slate-900 text-white border-slate-900 shadow-md' 
-                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              <QrCode className={`w-5 h-5 mr-2 ${activeMethod === 'ewallet' ? 'opacity-100' : 'opacity-70'}`} /> E-Wallet
-            </button>
-            <button 
-              onClick={() => setActiveMethod('card')}
-              className={`flex items-center justify-center py-4 rounded-xl border text-[15px] font-bold transition-all focus:outline-none ${
-                activeMethod === 'card' 
-                  ? 'bg-slate-900 text-white border-slate-900 shadow-md' 
-                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              <CreditCard className={`w-5 h-5 mr-2 ${activeMethod === 'card' ? 'opacity-100' : 'opacity-70'}`} /> Card
-            </button>
-          </div>
-
           {/* Interactive Area */}
-          <div className="flex gap-6 flex-1 h-[calc(100%-100px)]">
+          <div className="flex gap-8 flex-1">
             
             {/* Left Sub-column */}
-            <div className="flex-1 flex flex-col gap-4">
+            <div className="flex-1 flex flex-col gap-5">
               {/* Amount Tendered */}
               <div className="bg-slate-50/80 rounded-[20px] p-6 border border-slate-100/80">
                 <div className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Amount Tendered</div>
@@ -189,16 +151,6 @@ export function PaymentModal({
                 </div>
               </div>
 
-              {/* QR Prompt Box */}
-              <div className="mt-4 bg-[#F0F7FF] border border-[#D6E8FB] rounded-[20px] p-5 flex flex-col gap-3">
-                <div className="text-[14px] leading-snug font-semibold text-[#1e40af] pr-4">
-                  Customer paying with phone? Send QR to facing display.
-                </div>
-                <button className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-[14px] py-3.5 px-4 font-bold text-[14px] transition-all flex items-center justify-center gap-2 shadow-sm focus:outline-none focus:ring-4 focus:ring-blue-500/20 active:scale-[0.98]">
-                  <QrCode className="w-4 h-4 text-blue-100" /> Generate GCash QR
-                </button>
-              </div>
-
               {/* Cancel Button */}
               <button 
                 onClick={onClose}
@@ -209,7 +161,7 @@ export function PaymentModal({
             </div>
 
             {/* Right Sub-column (Keypad) */}
-            <div className="w-[320px] flex flex-col gap-4">
+            <div className="w-[320px] flex flex-col gap-5">
               
               {/* Quick Cash */}
               <div className="grid grid-cols-2 gap-3">
@@ -219,7 +171,7 @@ export function PaymentModal({
                     <button
                       key={amt}
                       onClick={() => handleQuickCash(amt)}
-                      className={`py-3.5 rounded-[16px] font-bold text-[16px] border-2 transition-all active:scale-95 focus:outline-none ${
+                      className={`py-4 rounded-[16px] font-bold text-[16px] border-2 transition-all active:scale-95 focus:outline-none ${
                         isActive 
                           ? 'bg-white border-slate-900 text-slate-900 shadow-sm' 
                           : 'bg-white border-slate-100 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
@@ -233,7 +185,7 @@ export function PaymentModal({
               
               <button 
                 onClick={handleExactAmount}
-                className="w-full py-3.5 rounded-[16px] bg-slate-100 text-slate-700 font-bold text-[16px] border-2 border-transparent hover:bg-slate-200 transition-all active:scale-[0.98] focus:outline-none"
+                className="w-full py-4 rounded-[16px] bg-slate-100 text-slate-700 font-bold text-[16px] border-2 border-transparent hover:bg-slate-200 transition-all active:scale-[0.98] focus:outline-none"
               >
                 Exact Amount (₱{totalDue.toFixed(2)})
               </button>
@@ -244,7 +196,7 @@ export function PaymentModal({
                   <button
                     key={val}
                     onClick={() => handleKeypadPress(val)}
-                    className={`rounded-[18px] text-[28px] font-semibold transition-all active:scale-95 flex items-center justify-center select-none shadow-[0_2px_8px_rgba(0,0,0,0.04)] border focus:outline-none ${
+                    className={`rounded-[18px] py-3 text-[28px] font-semibold transition-all active:scale-95 flex items-center justify-center select-none shadow-[0_2px_8px_rgba(0,0,0,0.04)] border focus:outline-none ${
                       val === 'C' 
                         ? 'bg-[#F8FAFC] text-slate-400 border-transparent hover:bg-slate-100 hover:text-slate-600' 
                         : 'bg-white border-slate-100/80 text-slate-800 hover:bg-slate-50 hover:border-slate-200'

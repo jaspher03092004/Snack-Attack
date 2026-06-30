@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   Utensils, 
   CupSoda, 
   Pizza, 
-  Tag, 
+  Package,
   Search, 
   Trash2, 
   ArrowRight,
@@ -62,9 +62,9 @@ const CATEGORIES: Category[] = [
   { id: 'combos', name: 'Combos', icon: Utensils },
   { id: 'milktea', name: 'Milktea', icon: CupSoda },
   { id: 'milk-shakes', name: 'Milk Shakes', icon: CupSoda },
-  { id: 'burgers', name: 'Burgers', icon: Pizza },
+  { id: 'burgers', name: 'Burgers', icon: Utensils },
   { id: 'pizza', name: 'Pizza', icon: Pizza },
-  { id: 'sides', name: 'Sides', icon: Pizza },
+  { id: 'sides', name: 'Sides', icon: Package },
   { id: 'siomai', name: 'Siomai', icon: Utensils },
 ];
 
@@ -116,7 +116,12 @@ export default function POSScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [orderNumber, setOrderNumber] = useState(() => generateOrderNumber());
-  const [orderType, setOrderType] = useState<'Dine In' | 'Take Out' | null>(null);
+  const [orderType, setOrderType] = useState<'Dine In' | 'Take Out' | null>(() => {
+    const param = searchParams?.get('orderType');
+    if (param === 'dine-in') return 'Dine In';
+    if (param === 'take-out') return 'Take Out';
+    return null;
+  });
   const [customizingProduct, setCustomizingProduct] = useState<Product | null>(null);
   const [selectedSize, setSelectedSize] = useState('');
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
@@ -125,17 +130,9 @@ export default function POSScreen() {
   const [selectedSiomaiChoice, setSelectedSiomaiChoice] = useState('');
   const [selectedMilkteaFlavor, setSelectedMilkteaFlavor] = useState('');
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-
-  useEffect(() => {
-    const param = searchParams?.get('orderType');
-    if (!param) return;
-
-    if (param === 'dine-in') {
-      setOrderType('Dine In');
-    } else if (param === 'take-out') {
-      setOrderType('Take Out');
-    }
-  }, [searchParams]);
+  const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isClearCartModalOpen, setIsClearCartModalOpen] = useState(false);
 
   // --- Derived State ---
   const filteredProducts = useMemo(() => {
@@ -150,8 +147,7 @@ export default function POSScreen() {
     return cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   }, [cart]);
 
-  const vat = subtotal * 0.12;
-  const total = subtotal + vat;
+  const total = subtotal;
 
   const getItemPrice = (product: Product, customization?: { sizeLabel?: string; addOns?: string[] }) => {
     const selectedSizePrice = product.sizes?.find((size) => size.label === customization?.sizeLabel)?.price ?? product.price;
@@ -198,38 +194,55 @@ export default function POSScreen() {
     handleAddToCart(product);
   };
 
-  const handleAddToCart = (product: Product, customization?: { sizeLabel?: string; addOns?: string[] }) => {
+  const handleAddToCart = (
+    product: Product,
+    customization?: {
+      sizeLabel?: string;
+      addOns?: string[];
+      burgerAddon?: string;
+      shakeFlavor?: string;
+      siomaiChoice?: string;
+      milkteaFlavor?: string;
+    },
+    extraModifiers: string[] = [],
+    quantity = 1,
+  ) => {
     const finalPrice = getItemPrice(product, customization);
     const modifiers = [
       ...(customization?.sizeLabel ? [`Size: ${customization.sizeLabel}`] : []),
       ...(customization?.addOns?.map((addOnName) => `Add-on: ${addOnName}`) ?? []),
+      ...extraModifiers,
     ];
 
-    setCart((prev) => {
-      const existingItemIndex = prev.findIndex((item) => {
-        const sameProduct = item.productId === product.id;
-        const sameSize = (item.selectedSize ?? '') === (customization?.sizeLabel ?? '');
-        const sameAddOns = JSON.stringify(item.selectedAddOns ?? []) === JSON.stringify(customization?.addOns ?? []);
-        return sameProduct && sameSize && sameAddOns;
-      });
+    setCart((prevCart) => {
+      const existingItemIndex = prevCart.findIndex((item) => item.productId === product.id || item.name === product.name);
 
       if (existingItemIndex >= 0) {
-        const newCart = [...prev];
-        newCart[existingItemIndex].quantity += 1;
+        const newCart = [...prevCart];
+        const existingItem = newCart[existingItemIndex];
+        newCart[existingItemIndex] = {
+          ...existingItem,
+          quantity: existingItem.quantity + quantity,
+          modifiers: Array.from(new Set([...(existingItem.modifiers ?? []), ...modifiers])),
+        };
         return newCart;
       }
 
       return [
-        ...prev,
+        ...prevCart,
         {
           id: `new-${Date.now()}`,
           productId: product.id,
           name: product.name,
           price: finalPrice,
-          quantity: 1,
+          quantity,
           modifiers,
           selectedSize: customization?.sizeLabel,
           selectedAddOns: customization?.addOns,
+          selectedBurgerAddon: customization?.burgerAddon,
+          selectedShakeFlavor: customization?.shakeFlavor,
+          selectedSiomaiChoice: customization?.siomaiChoice,
+          selectedMilkteaFlavor: customization?.milkteaFlavor,
         },
       ];
     });
@@ -245,7 +258,7 @@ export default function POSScreen() {
     );
 
     if (missingRequired) {
-      alert('Please select all required options for this combo.');
+      setErrorMessage('Please select all required options for this combo.');
       return;
     }
 
@@ -253,6 +266,9 @@ export default function POSScreen() {
       sizeLabel: selectedSize,
       addOns: selectedAddOns,
       burgerAddon: selectedBurgerAddon || undefined,
+      shakeFlavor: selectedShakeFlavor || undefined,
+      siomaiChoice: selectedSiomaiChoice || undefined,
+      milkteaFlavor: selectedMilkteaFlavor || undefined,
     };
 
     // add non-price selections into modifiers
@@ -265,21 +281,7 @@ export default function POSScreen() {
     if (selectedSiomaiChoice) extraModifiers.push(`Siomai: ${selectedSiomaiChoice}`);
     if (selectedMilkteaFlavor) extraModifiers.push(`Milktea: ${selectedMilkteaFlavor}`);
 
-    handleAddToCart(customizingProduct, customizationPayload);
-
-    // after adding, manually append these modifiers to the last added cart item
-    setCart((prev) => {
-      const newPrev = [...prev];
-      const last = newPrev[newPrev.length - 1];
-      if (last) {
-        last.modifiers = [...(last.modifiers ?? []), ...extraModifiers];
-        last.selectedShakeFlavor = selectedShakeFlavor || undefined;
-        last.selectedBurgerAddon = selectedBurgerAddon || undefined;
-        last.selectedSiomaiChoice = selectedSiomaiChoice || undefined;
-        last.selectedMilkteaFlavor = selectedMilkteaFlavor || undefined;
-      }
-      return newPrev;
-    });
+    handleAddToCart(customizingProduct, customizationPayload, extraModifiers);
     setCustomizingProduct(null);
     setSelectedSize('');
     setSelectedAddOns([]);
@@ -306,9 +308,8 @@ export default function POSScreen() {
   };
 
   const handleClearCart = () => {
-    if (window.confirm('Are you sure you want to clear the current order?')) {
-      setCart([]);
-    }
+    setCart([]);
+    setIsClearCartModalOpen(false);
   };
 
   const handleOrderComplete = () => {
@@ -318,12 +319,20 @@ export default function POSScreen() {
     router.push('/start-order');
   };
 
+  const selectedTotal = customizingProduct
+    ? getItemPrice(customizingProduct, {
+        sizeLabel: selectedSize,
+        addOns: selectedAddOns,
+        burgerAddon: selectedBurgerAddon,
+      })
+    : 0;
+
   return (
     <>
     <div className="flex h-screen w-full bg-[#FAFAFA] font-sans text-slate-900 overflow-hidden">
       
       {/* --- Left Sidebar (Navigation) --- */}
-      <aside className="w-[100px] bg-white border-r border-slate-200 flex flex-col items-center py-6 flex-shrink-0">
+      <aside className="hidden lg:flex w-[100px] bg-white border-r border-slate-200 flex-col items-center py-6 flex-shrink-0">
         {/* Profile Circle */}
         <div className="w-12 h-12 bg-slate-900 rounded-full flex items-center justify-center text-white font-bold text-lg mb-8 shadow-sm">
           JS
@@ -390,8 +399,30 @@ export default function POSScreen() {
           </div>
         </header>
 
+        <nav
+          aria-label="Mobile product categories"
+          className="flex lg:hidden overflow-x-auto whitespace-nowrap gap-3 py-3 px-4 border-b border-slate-100 bg-white/80 backdrop-blur-sm [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+        >
+          {CATEGORIES.map((category) => {
+            const isActive = activeCategory === category.id;
+            return (
+              <button
+                key={category.id}
+                onClick={() => setActiveCategory(category.id)}
+                className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'bg-slate-900 text-white shadow-sm'
+                    : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200 hover:text-gray-800'
+                }`}
+              >
+                {category.name}
+              </button>
+            );
+          })}
+        </nav>
+
         {/* Product Grid */}
-        <div className="flex-1 w-full overflow-y-auto p-8">
+        <div className="flex-1 w-full overflow-y-auto p-8 pb-32 lg:pb-8">
           <div className="w-full flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 auto-rows-fr">
             {filteredProducts.map((product) => (
               <div 
@@ -411,8 +442,8 @@ export default function POSScreen() {
                     className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                   {/* Price Badge */}
-                  <div className="absolute bottom-3 right-3 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-xl shadow-sm text-slate-900 font-bold text-sm tracking-tight border border-slate-100">
-                    <span className="font-sans mr-[2px]">₱</span>{product.price}
+                  <div className="absolute bottom-3 right-3 bg-slate-900 px-3 py-1.5 rounded-full shadow-xl text-white font-bold text-base tracking-tight">
+                    <span className="font-sans text-sm align-text-top mr-[2px]">₱</span>{product.price}
                   </div>
                   
                   {/* Sold Out Overlay */}
@@ -427,7 +458,7 @@ export default function POSScreen() {
 
                 {/* Info Container */}
                 <div className="p-4 flex flex-col justify-between flex-1">
-                  <h3 className="font-semibold text-slate-800 leading-snug">
+                  <h3 className="text-xl font-bold text-slate-900 leading-snug">
                     {product.name}
                   </h3>
                   {product.description ? (
@@ -449,8 +480,21 @@ export default function POSScreen() {
         </div>
       </main>
 
+      <div className="fixed inset-x-0 bottom-0 z-30 flex items-center justify-between gap-4 bg-white/95 border-t border-slate-200 px-5 py-4 shadow-[0_-8px_30px_rgba(15,23,42,0.08)] lg:hidden">
+        <div>
+          <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Total</p>
+          <p className="text-2xl font-bold text-slate-900">₱{total.toFixed(2)}</p>
+        </div>
+        <button
+          onClick={() => setIsMobileCartOpen(true)}
+          className="rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/10"
+        >
+          View Current Order
+        </button>
+      </div>
+
       {/* --- Right Order Panel (Cart) --- */}
-      <aside className="w-[400px] bg-white border-l border-slate-200 flex flex-col h-full shadow-[-4px_0_24px_rgba(0,0,0,0.02)] z-20 flex-shrink-0">
+      <aside className="hidden lg:flex w-[400px] bg-white border-l border-slate-200 flex flex-col h-full shadow-[-4px_0_24px_rgba(0,0,0,0.02)] z-20 flex-shrink-0">
         
         {/* Cart Header */}
         <header className="flex items-center justify-between px-6 py-6 border-b border-slate-100">
@@ -459,7 +503,7 @@ export default function POSScreen() {
             <p className="text-sm text-slate-500 font-medium">{orderNumber} · {orderType ?? 'Select Type'}</p>
           </div>
           <button 
-            onClick={handleClearCart}
+            onClick={() => setIsClearCartModalOpen(true)}
             className="w-10 h-10 rounded-full bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 transition-colors focus:outline-none"
             aria-label="Clear cart"
             title="Clear Cart"
@@ -537,10 +581,6 @@ export default function POSScreen() {
               <span>Subtotal</span>
               <span className="text-slate-900">₱{subtotal.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between text-slate-600 font-medium">
-              <span>VAT (12%)</span>
-              <span className="text-slate-900">₱{vat.toFixed(2)}</span>
-            </div>
             <div className="flex justify-between items-end pt-3 border-t border-slate-200/60">
               <span className="text-lg font-bold text-slate-900">Total</span>
               <span className="text-[32px] font-black text-emerald-500 leading-none tracking-tight">
@@ -561,7 +601,103 @@ export default function POSScreen() {
 
       </aside>
     </div>
-    
+
+    <div className={`fixed inset-0 z-40 lg:hidden ${isMobileCartOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}>
+      <div
+        onClick={() => setIsMobileCartOpen(false)}
+        className={`absolute inset-0 bg-black/50 transition-opacity duration-300 ${isMobileCartOpen ? 'opacity-100' : 'opacity-0'}`}
+      />
+      <div
+        className={`absolute inset-x-0 bottom-0 z-50 w-full max-h-[85vh] overflow-hidden bg-white rounded-t-[32px] shadow-2xl transition-transform duration-300 ease-in-out ${isMobileCartOpen ? 'translate-y-0' : 'translate-y-full'}`}
+      >
+        <div className="mx-auto flex max-w-3xl h-full flex-col">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Current Order</h2>
+              <p className="text-sm text-slate-500">{orderNumber} · {orderType ?? 'Select Type'}</p>
+            </div>
+            <button
+              onClick={() => setIsMobileCartOpen(false)}
+              className="text-slate-500 hover:text-slate-900 font-semibold"
+            >
+              Close
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            {cart.length === 0 ? (
+              <div className="flex h-64 flex-col items-center justify-center text-slate-400">
+                <p className="font-medium">Order is empty.</p>
+              </div>
+            ) : (
+              cart.map((item) => (
+                <div key={item.id} className="flex flex-col gap-3 pb-6 border-b border-slate-100 last:border-0 last:pb-0">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1 pr-4">
+                      <h4 className="font-semibold text-slate-900">{item.name}</h4>
+                      {item.modifiers.length > 0 && (
+                        <div className="mt-1 flex flex-col gap-0.5">
+                          {item.modifiers.map((mod, idx) => (
+                            <span key={idx} className="text-xs text-slate-500 font-medium whitespace-nowrap">- {mod}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="font-bold text-slate-900 text-lg whitespace-nowrap">
+                      <span className="font-sans mr-[2px]">₱</span>{item.price * item.quantity}
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <div className="flex items-center bg-slate-50 rounded-full p-1 border border-slate-200">
+                      <button
+                        onClick={() => handleUpdateQuantity(item.id, -1)}
+                        className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-slate-600 shadow-sm hover:text-slate-900 transition-colors"
+                      >
+                        <Minus className="w-4 h-4" />
+                      </button>
+                      <span className="w-10 text-center font-bold text-slate-900 tabular-nums">{item.quantity}</span>
+                      <button
+                        onClick={() => handleUpdateQuantity(item.id, 1)}
+                        className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-slate-600 shadow-sm hover:text-slate-900 transition-colors"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="p-6 bg-slate-50 border-t border-slate-200">
+            <div className="space-y-3 mb-6">
+              <div className="flex justify-between text-slate-600 font-medium">
+                <span>Subtotal</span>
+                <span className="text-slate-900">₱{subtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-end pt-3 border-t border-slate-200/60">
+                <span className="text-lg font-bold text-slate-900">Total</span>
+                <span className="text-[32px] font-black text-emerald-500 leading-none tracking-tight">
+                  <span className="font-sans mr-1">₱</span>{total.toFixed(2)}
+                </span>
+              </div>
+            </div>
+            <button
+              disabled={cart.length === 0}
+              onClick={() => {
+                setIsPaymentModalOpen(true);
+                setIsMobileCartOpen(false);
+              }}
+              className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-lg font-bold py-4 rounded-full transition-colors focus:outline-none focus:ring-4 focus:ring-emerald-500/20 shadow-lg shadow-emerald-500/20"
+            >
+              CHARGE
+              <ArrowRight className="w-6 h-6 stroke-[2.5px]" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     {customizingProduct && (
       <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 px-4 py-6">
         <div className="w-full max-w-lg rounded-[28px] border border-slate-200 bg-white p-6 shadow-2xl">
@@ -745,7 +881,7 @@ export default function POSScreen() {
           <div className="mt-8 rounded-2xl bg-slate-50 p-4">
             <div className="flex items-center justify-between text-sm text-slate-600">
               <span>Selected total</span>
-              <span className="text-xl font-bold text-slate-900">₱{getItemPrice(customizingProduct, { sizeLabel: selectedSize, addOns: selectedAddOns }).toFixed(2)}</span>
+              <span className="text-xl font-bold text-slate-900">₱{selectedTotal.toFixed(2)}</span>
             </div>
           </div>
 
@@ -765,6 +901,46 @@ export default function POSScreen() {
               className="rounded-full bg-emerald-500 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-600"
             >
               Add to Order
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {errorMessage && (
+      <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 px-4">
+        <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+          <h3 className="text-lg font-semibold text-slate-900">Required selection missing</h3>
+          <p className="mt-3 text-sm text-slate-600">{errorMessage}</p>
+          <div className="mt-6 flex justify-end">
+            <button
+              onClick={() => setErrorMessage('')}
+              className="rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {isClearCartModalOpen && (
+      <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 px-4">
+        <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+          <h3 className="text-lg font-semibold text-slate-900">Clear current order?</h3>
+          <p className="mt-3 text-sm text-slate-600">Are you sure you want to clear the current order?</p>
+          <div className="mt-6 flex justify-end gap-3">
+            <button
+              onClick={() => setIsClearCartModalOpen(false)}
+              className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleClearCart}
+              className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700"
+            >
+              Clear Order
             </button>
           </div>
         </div>
