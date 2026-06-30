@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { 
   Utensils, 
   CupSoda, 
@@ -15,7 +15,7 @@ import {
   Check
 } from 'lucide-react';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { PaymentModal } from '@/components/payment-modal';
 import { menuItems } from '@/lib/menuData';
 
@@ -104,30 +104,19 @@ const PRODUCTS: Product[] = menuItems.map((item) => ({
   description: item.description,
 }));
 
-const INITIAL_CART: CartItem[] = [
-  {
-    id: 'c1',
-    productId: 'p1',
-    name: 'Classic Cheeseburger',
-    price: 150,
-    quantity: 2,
-    modifiers: ['No Onions', 'Extra Mayo']
-  },
-  {
-    id: 'c2',
-    productId: 'sides1', // pretend product
-    name: 'Large Fries',
-    price: 85,
-    quantity: 1,
-    modifiers: []
-  }
-];
+const generateOrderNumber = () => {
+  const seed = Math.floor(1000 + Math.random() * 9000);
+  return `#${seed}`;
+};
 
 export default function POSScreen() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [activeCategory, setActiveCategory] = useState('combos');
   const [searchQuery, setSearchQuery] = useState('');
-  const [cart, setCart] = useState<CartItem[]>(INITIAL_CART);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [orderNumber, setOrderNumber] = useState(() => generateOrderNumber());
+  const [orderType, setOrderType] = useState<'Dine In' | 'Take Out' | null>(null);
   const [customizingProduct, setCustomizingProduct] = useState<Product | null>(null);
   const [selectedSize, setSelectedSize] = useState('');
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
@@ -135,6 +124,18 @@ export default function POSScreen() {
   const [selectedBurgerAddon, setSelectedBurgerAddon] = useState('');
   const [selectedSiomaiChoice, setSelectedSiomaiChoice] = useState('');
   const [selectedMilkteaFlavor, setSelectedMilkteaFlavor] = useState('');
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+
+  useEffect(() => {
+    const param = searchParams?.get('orderType');
+    if (!param) return;
+
+    if (param === 'dine-in') {
+      setOrderType('Dine In');
+    } else if (param === 'take-out') {
+      setOrderType('Take Out');
+    }
+  }, [searchParams]);
 
   // --- Derived State ---
   const filteredProducts = useMemo(() => {
@@ -310,7 +311,12 @@ export default function POSScreen() {
     }
   };
 
-  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(true);
+  const handleOrderComplete = () => {
+    setCart([]);
+    setOrderType(null);
+    setOrderNumber(generateOrderNumber());
+    router.push('/start-order');
+  };
 
   return (
     <>
@@ -450,7 +456,7 @@ export default function POSScreen() {
         <header className="flex items-center justify-between px-6 py-6 border-b border-slate-100">
           <div>
             <h2 className="text-xl font-bold text-slate-900 tracking-tight">Current Order</h2>
-            <p className="text-sm text-slate-500 font-medium">Order #042 · Dine In</p>
+            <p className="text-sm text-slate-500 font-medium">{orderNumber} · {orderType ?? 'Select Type'}</p>
           </div>
           <button 
             onClick={handleClearCart}
@@ -768,8 +774,9 @@ export default function POSScreen() {
     <PaymentModal
       isOpen={isPaymentModalOpen}
       onClose={() => setIsPaymentModalOpen(false)}
+      onComplete={handleOrderComplete}
       totalDue={Number(total.toFixed(2))}
-      orderNumber="042"
+      orderNumber={orderNumber}
       orderType="Dine In"
       items={cart}
     />

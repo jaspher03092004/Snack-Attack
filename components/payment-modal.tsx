@@ -14,6 +14,7 @@ export type PaymentCartItem = {
 export interface PaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onComplete?: () => void;
   totalDue?: number;
   orderNumber?: string;
   orderType?: string;
@@ -23,6 +24,7 @@ export interface PaymentModalProps {
 export function PaymentModal({
   isOpen,
   onClose,
+  onComplete,
   totalDue = 431.20,
   orderNumber = '042',
   orderType = 'Dine In',
@@ -259,6 +261,7 @@ export function PaymentModal({
                 onClick={() => {
                   alert('Printing Receipt...');
                   onClose();
+                  onComplete?.();
                 }}
               >
                 <Printer className="w-5 h-5 stroke-[2.5px]" /> PRINT RECEIPT
