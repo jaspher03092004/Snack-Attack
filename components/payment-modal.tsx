@@ -69,7 +69,7 @@ export function PaymentModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 print:hidden">
       <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-[1000px] h-[720px] flex overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         
         {/* Left Column - Summary */}
@@ -211,7 +211,7 @@ export function PaymentModal({
               <button 
                 className="mt-2 w-full py-[22px] rounded-[18px] bg-[#10B981] hover:bg-[#059669] text-white font-bold text-[17px] flex items-center justify-center gap-2.5 transition-all shadow-lg shadow-emerald-500/25 focus:outline-none focus:ring-4 focus:ring-emerald-500/20 active:scale-[0.98]"
                 onClick={() => {
-                  alert('Printing Receipt...');
+                  window.print();
                   onClose();
                   onComplete?.();
                 }}

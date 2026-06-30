@@ -17,6 +17,7 @@ import {
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { PaymentModal } from '@/components/payment-modal';
+import { ReceiptTemplate } from '@/components/receipt-template';
 import { menuItems } from '@/lib/menuData';
 
 // --- Types ---
@@ -329,7 +330,7 @@ export default function POSScreen() {
 
   return (
     <>
-    <div className="flex h-screen w-full bg-[#FAFAFA] font-sans text-slate-900 overflow-hidden">
+    <div className="flex h-screen w-full bg-[#FAFAFA] font-sans text-slate-900 overflow-hidden print:hidden">
       
       {/* --- Left Sidebar (Navigation) --- */}
       <aside className="hidden lg:flex w-[100px] bg-white border-r border-slate-200 flex-col items-center py-6 flex-shrink-0">
@@ -946,6 +947,8 @@ export default function POSScreen() {
         </div>
       </div>
     )}
+
+    <ReceiptTemplate cart={cart} orderNumber={orderNumber} orderType={orderType ?? 'Dine In'} />
 
     <PaymentModal
       isOpen={isPaymentModalOpen}
