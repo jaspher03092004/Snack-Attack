@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { ArrowRight, ShoppingBag, Utensils } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowRight, Clock3, History, LogOut, ReceiptText, ShoppingBag, Utensils } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 const formatTime = (date: Date) => date.toLocaleTimeString([], {
@@ -13,6 +14,10 @@ export default function StartOrderPage() {
   const router = useRouter();
   const [time, setTime] = useState(formatTime(new Date()));
   const [showOrderTypeSelection, setShowOrderTypeSelection] = useState(false);
+  const [isExpensesModalOpen, setIsExpensesModalOpen] = useState(false);
+  const [expenseAmount, setExpenseAmount] = useState('');
+  const [expenseNote, setExpenseNote] = useState('');
+  const [expensedBy, setExpensedBy] = useState('Employee 1');
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -22,24 +27,79 @@ export default function StartOrderPage() {
     return () => window.clearInterval(timer);
   }, []);
 
+  const resetExpenseForm = () => {
+    setExpenseAmount('');
+    setExpenseNote('');
+    setExpensedBy('Employee 1');
+  };
+
+  const closeExpensesModal = () => {
+    resetExpenseForm();
+    setIsExpensesModalOpen(false);
+  };
+
+  const handleExpenseSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    closeExpensesModal();
+  };
+
   return (
     <div className="relative h-screen w-full overflow-hidden bg-slate-50 text-slate-900 font-sans">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(14,165,233,0.12),_transparent_35%)] pointer-events-none" />
       <div className="absolute right-0 top-1/4 h-[420px] w-[420px] translate-x-1/4 rounded-full bg-slate-200/70 blur-3xl opacity-80 pointer-events-none" />
 
       <div className="relative z-10 flex h-full flex-col">
-        <header className="flex items-center justify-between px-6 py-6">
-          <div className="inline-flex items-center gap-3 rounded-3xl bg-white/90 px-4 py-3 shadow-sm border border-slate-200">
-            <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_0_8px_rgba(16,185,129,0.12)]" />
-            <span className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-600">TERMINAL 01 • ONLINE</span>
+        <header className="flex flex-wrap items-start justify-between gap-4 px-6 py-6">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="inline-flex items-center gap-3 rounded-3xl bg-white/90 px-4 py-3 shadow-sm border border-slate-200">
+              <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_0_8px_rgba(16,185,129,0.12)]" />
+              <span className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-600">TERMINAL 01 • ONLINE</span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsExpensesModalOpen(true)}
+                className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-200 bg-white/90 text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-100"
+                aria-label="Open employee expenses"
+              >
+                <ReceiptText className="h-5 w-5" />
+              </button>
+              <Link
+                href="/time-in"
+                className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-200 bg-white/90 text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-100"
+                aria-label="Clock in"
+              >
+                <Clock3 className="h-5 w-5" />
+              </Link>
+            </div>
           </div>
 
-          <div className="inline-flex items-center gap-4 rounded-3xl bg-white/90 px-4 py-3 shadow-sm border border-slate-200">
-            <div className="text-right">
-              <p className="text-sm font-semibold text-slate-900">{time}</p>
-              <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Jaspher L.</p>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 rounded-3xl border border-slate-200 bg-white/90 p-2 shadow-sm">
+              <Link
+                href="/history"
+                className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-700 transition hover:bg-slate-100"
+                aria-label="Go to order history"
+              >
+                <History className="h-5 w-5" />
+              </Link>
+              <button
+                type="button"
+                onClick={() => router.push('/')}
+                className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-700 transition hover:bg-slate-100"
+                aria-label="Exit to home"
+              >
+                <LogOut className="h-5 w-5" />
+              </button>
             </div>
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">JL</div>
+            <div className="inline-flex items-center gap-4 rounded-3xl bg-white/90 px-4 py-3 shadow-sm border border-slate-200">
+              <div className="text-right">
+                <p className="text-sm font-semibold text-slate-900">{time}</p>
+                <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Jaspher L.</p>
+              </div>
+              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">JL</div>
+            </div>
           </div>
         </header>
 
@@ -76,6 +136,83 @@ export default function StartOrderPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-500">✓ DATABASE SYNCED • LOCAL HUB ACTIVE</p>
         </footer>
       </div>
+
+      {isExpensesModalOpen && (
+        <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/50 px-6 py-10">
+          <div className="w-full max-w-md rounded-[32px] border border-slate-200 bg-white p-8 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900">Employee Expenses</h2>
+                <p className="mt-1 text-sm text-slate-500">Log a quick expense for the active shift.</p>
+              </div>
+              <button
+                type="button"
+                onClick={closeExpensesModal}
+                className="rounded-full p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+                aria-label="Close employee expenses"
+              >
+                ×
+              </button>
+            </div>
+
+            <form onSubmit={handleExpenseSubmit} className="mt-6 space-y-4">
+              <label className="block text-sm font-medium text-slate-700">
+                <span className="mb-2 block">Amount</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={expenseAmount}
+                  onChange={(event) => setExpenseAmount(event.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white"
+                  placeholder="0.00"
+                  required
+                />
+              </label>
+
+              <label className="block text-sm font-medium text-slate-700">
+                <span className="mb-2 block">Note/Description</span>
+                <textarea
+                  value={expenseNote}
+                  onChange={(event) => setExpenseNote(event.target.value)}
+                  className="min-h-28 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white"
+                  placeholder="Describe the expense"
+                  required
+                />
+              </label>
+
+              <label className="block text-sm font-medium text-slate-700">
+                <span className="mb-2 block">Expensed By</span>
+                <select
+                  value={expensedBy}
+                  onChange={(event) => setExpensedBy(event.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white"
+                >
+                  <option>Employee 1</option>
+                  <option>Employee 2</option>
+                  <option>Employee 3</option>
+                </select>
+              </label>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={closeExpensesModal}
+                  className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                >
+                  Submit
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {showOrderTypeSelection && (
         <div className="fixed inset-0 z-20 flex items-center justify-center bg-slate-950/70 px-6 py-10">

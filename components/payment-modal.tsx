@@ -69,63 +69,58 @@ export function PaymentModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 print:hidden">
-      <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-[1000px] h-[720px] flex overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        
-        {/* Left Column - Summary */}
-        <div className="w-[340px] bg-white border-r border-slate-100 p-8 flex flex-col shrink-0">
-          <button 
-            onClick={onClose}
-            className="flex items-center text-slate-500 hover:text-slate-900 transition-colors mb-8 font-semibold w-fit focus:outline-none"
-          >
-            <ArrowLeft className="w-5 h-5 mr-2 stroke-[2.5px]" />
-            Back to Register
-          </button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-3 sm:p-4 print:hidden">
+      <div className="w-[95%] max-w-4xl max-h-[90vh] overflow-y-auto rounded-[32px] bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+        <div className="flex flex-col gap-6 lg:flex-row lg:gap-8 p-4 sm:p-6 lg:p-8">
+          {/* Order Summary */}
+          <section className="w-full lg:w-1/3 border-b border-slate-200 pb-6 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-6">
+            <button 
+              onClick={onClose}
+              className="flex items-center text-slate-500 hover:text-slate-900 transition-colors mb-8 font-semibold w-fit focus:outline-none"
+            >
+              <ArrowLeft className="w-5 h-5 mr-2 stroke-[2.5px]" />
+              Back to Register
+            </button>
 
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
-            Total Due
-          </div>
-          <div className="text-[44px] leading-none font-black text-slate-900 mb-3 flex items-start tracking-tight">
-            <span className="text-3xl mt-1.5 mr-1 font-sans">₱</span>
-            {totalDue.toFixed(2)}
-          </div>
-          <div className="text-[15px] font-medium text-slate-500 mb-8">
-            Order #{orderNumber} · {orderType}
-          </div>
+            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
+              Total Due
+            </div>
+            <div className="text-[44px] leading-none font-black text-slate-900 mb-3 flex items-start tracking-tight">
+              <span className="text-3xl mt-1.5 mr-1 font-sans">₱</span>
+              {totalDue.toFixed(2)}
+            </div>
+            <div className="text-[15px] font-medium text-slate-500 mb-8">
+              Order #{orderNumber} · {orderType}
+            </div>
 
-          <div className="border-t-2 border-dashed border-slate-100 mb-6"></div>
+            <div className="border-t-2 border-dashed border-slate-100 mb-6"></div>
 
-          <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
-            {items.map((item) => (
-              <div key={item.id} className="mb-5 last:mb-0">
-                <div className="flex justify-between items-start mb-1">
-                  <div className="font-bold text-slate-900 text-[15px] leading-tight flex-1 pr-2">
-                    {item.quantity}x {item.name}
+            <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+              {items.map((item) => (
+                <div key={item.id} className="mb-5 last:mb-0">
+                  <div className="flex justify-between items-start mb-1">
+                    <div className="font-bold text-slate-900 text-[15px] leading-tight flex-1 pr-2">
+                      {item.quantity}x {item.name}
+                    </div>
+                    <div className="font-bold text-slate-900 text-[15px] tracking-tight">
+                      ₱{(item.price * item.quantity).toFixed(2)}
+                    </div>
                   </div>
-                  <div className="font-bold text-slate-900 text-[15px] tracking-tight">
-                    ₱{(item.price * item.quantity).toFixed(2)}
-                  </div>
+                  {item.modifiers && item.modifiers.length > 0 && (
+                    <div className="text-[13px] text-slate-500 font-medium">
+                      {item.modifiers.join(', ')}
+                    </div>
+                  )}
                 </div>
-                {item.modifiers && item.modifiers.length > 0 && (
-                  <div className="text-[13px] text-slate-500 font-medium">
-                    {item.modifiers.join(', ')}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-          
-          <div className="border-t-2 border-dashed border-slate-100 mt-6"></div>
-        </div>
+              ))}
+            </div>
 
-        {/* Right Column - Payment */}
-        <div className="flex-1 bg-white p-8 flex flex-col">
-          {/* Interactive Area */}
-          <div className="flex gap-8 flex-1">
-            
-            {/* Left Sub-column */}
-            <div className="flex-1 flex flex-col gap-5">
-              {/* Amount Tendered */}
+            <div className="border-t-2 border-dashed border-slate-100 mt-6"></div>
+          </section>
+
+          {/* Amounts */}
+          <section className="w-full lg:w-1/3 border-b border-slate-200 pb-6 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-6">
+            <div className="flex flex-col gap-5">
               <div className="bg-slate-50/80 rounded-[20px] p-6 border border-slate-100/80">
                 <div className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Amount Tendered</div>
                 <div className="text-[38px] leading-none font-black text-slate-900 flex items-start tracking-tight">
@@ -134,7 +129,6 @@ export function PaymentModal({
                 </div>
               </div>
 
-              {/* Change Due */}
               <div className={`rounded-[20px] p-6 border-2 transition-colors duration-300 ${
                 changeDue > 0 ? 'bg-emerald-50/50 border-emerald-200' : 'bg-slate-50/80 border-slate-100/80'
               }`}>
@@ -151,7 +145,6 @@ export function PaymentModal({
                 </div>
               </div>
 
-              {/* Cancel Button */}
               <button 
                 onClick={onClose}
                 className="mt-auto w-full py-[22px] rounded-[18px] bg-slate-100 text-slate-600 font-bold text-[16px] hover:bg-slate-200 transition-all active:scale-[0.98] border border-slate-200/60 focus:outline-none"
@@ -159,21 +152,21 @@ export function PaymentModal({
                 Cancel
               </button>
             </div>
+          </section>
 
-            {/* Right Sub-column (Keypad) */}
-            <div className="w-[320px] flex flex-col gap-5">
-              
-              {/* Quick Cash */}
+          {/* Numpad */}
+          <section className="w-full lg:w-1/3">
+            <div className="flex flex-col gap-5">
               <div className="grid grid-cols-2 gap-3">
-                {[50, 100, 500, 1000].map(amt => {
+                {[50, 100, 500, 1000].map((amt) => {
                   const isActive = amountTendered === amt;
                   return (
                     <button
                       key={amt}
                       onClick={() => handleQuickCash(amt)}
                       className={`py-4 rounded-[16px] font-bold text-[16px] border-2 transition-all active:scale-95 focus:outline-none ${
-                        isActive 
-                          ? 'bg-white border-slate-900 text-slate-900 shadow-sm' 
+                        isActive
+                          ? 'bg-white border-slate-900 text-slate-900 shadow-sm'
                           : 'bg-white border-slate-100 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
                       }`}
                     >
@@ -182,7 +175,7 @@ export function PaymentModal({
                   );
                 })}
               </div>
-              
+
               <button 
                 onClick={handleExactAmount}
                 className="w-full py-4 rounded-[16px] bg-slate-100 text-slate-700 font-bold text-[16px] border-2 border-transparent hover:bg-slate-200 transition-all active:scale-[0.98] focus:outline-none"
@@ -190,15 +183,14 @@ export function PaymentModal({
                 Exact Amount (₱{totalDue.toFixed(2)})
               </button>
 
-              {/* Keypad Grid */}
-              <div className="grid grid-cols-3 gap-3 mt-1 flex-1">
-                {['1','2','3','4','5','6','7','8','9','C','0','00'].map(val => (
+              <div className="grid grid-cols-3 gap-3 mt-1">
+                {['1','2','3','4','5','6','7','8','9','C','0','00'].map((val) => (
                   <button
                     key={val}
                     onClick={() => handleKeypadPress(val)}
                     className={`rounded-[18px] py-3 text-[28px] font-semibold transition-all active:scale-95 flex items-center justify-center select-none shadow-[0_2px_8px_rgba(0,0,0,0.04)] border focus:outline-none ${
-                      val === 'C' 
-                        ? 'bg-[#F8FAFC] text-slate-400 border-transparent hover:bg-slate-100 hover:text-slate-600' 
+                      val === 'C'
+                        ? 'bg-[#F8FAFC] text-slate-400 border-transparent hover:bg-slate-100 hover:text-slate-600'
                         : 'bg-white border-slate-100/80 text-slate-800 hover:bg-slate-50 hover:border-slate-200'
                     }`}
                   >
@@ -207,7 +199,6 @@ export function PaymentModal({
                 ))}
               </div>
 
-              {/* Print Receipt Button */}
               <button 
                 className="mt-2 w-full py-[22px] rounded-[18px] bg-[#10B981] hover:bg-[#059669] text-white font-bold text-[17px] flex items-center justify-center gap-2.5 transition-all shadow-lg shadow-emerald-500/25 focus:outline-none focus:ring-4 focus:ring-emerald-500/20 active:scale-[0.98]"
                 onClick={() => {
@@ -219,8 +210,7 @@ export function PaymentModal({
                 <Printer className="w-5 h-5 stroke-[2.5px]" /> PRINT RECEIPT
               </button>
             </div>
-
-          </div>
+          </section>
         </div>
       </div>
     </div>
