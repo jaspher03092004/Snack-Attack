@@ -19,7 +19,7 @@ export default function EntrancePage() {
       if (newPin.length === 4) {
         if (newPin === '0000') {
           setTimeout(() => {
-            router.push('/pos');
+            router.push('/start-order');
           }, 300);
         } else {
           setTimeout(() => {
