@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Clock3, History, LogOut, ReceiptText, ShoppingBag, Utensils } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase/client';
 
 const formatTime = (date: Date) => date.toLocaleTimeString([], {
   hour: 'numeric',
@@ -17,7 +18,9 @@ export default function StartOrderPage() {
   const [isExpensesModalOpen, setIsExpensesModalOpen] = useState(false);
   const [expenseAmount, setExpenseAmount] = useState('');
   const [expenseNote, setExpenseNote] = useState('');
-  const [expensedBy, setExpensedBy] = useState('Employee 1');
+  const [expensedBy, setExpensedBy] = useState('Store Expense');
+  const [expenseError, setExpenseError] = useState('');
+  const [expenseSuccess, setExpenseSuccess] = useState('');
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -38,8 +41,37 @@ export default function StartOrderPage() {
     setIsExpensesModalOpen(false);
   };
 
-  const handleExpenseSubmit = (event: React.FormEvent) => {
+  const handleExpenseSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    setExpenseError('');
+    setExpenseSuccess('');
+
+    if (!supabase) {
+      setExpenseError('Supabase client is not configured.');
+      return;
+    }
+
+    const amount = parseFloat(expenseAmount);
+    if (Number.isNaN(amount) || amount <= 0) {
+      setExpenseError('Please enter a valid expense amount.');
+      return;
+    }
+
+    const payload = {
+      item_name: expenseNote,
+      amount: Number(amount),
+      expensed_by: expensedBy === 'Store Expense' ? null : expensedBy,
+    };
+
+    const { error } = await supabase.from('expenses').insert([payload]);
+    if (error) {
+      console.error('Expense insert error:', error);
+      setExpenseError(error.message);
+      return;
+    }
+
+    setExpenseSuccess('Expense logged successfully.');
+    resetExpenseForm();
     closeExpensesModal();
   };
 
@@ -194,6 +226,12 @@ export default function StartOrderPage() {
                 </select>
               </label>
 
+              {expenseError && (
+                <p className="text-sm text-rose-600">{expenseError}</p>
+              )}
+              {expenseSuccess && (
+                <p className="text-sm text-emerald-600">{expenseSuccess}</p>
+              )}
               <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"

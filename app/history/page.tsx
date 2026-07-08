@@ -23,6 +23,40 @@ type OrderRecord = {
   created_at: string;
   order_items: OrderItem[];
 };
+ 
+type OrderSummary = {
+  id: string;
+  total_amount: number;
+  created_at: string;
+};
+ 
+type ExpenseRecord = {
+  id: string;
+  expense_date: string;
+  item_name: string;
+  amount: number;
+  expensed_by: string | null;
+};
+ 
+type PayrollRecord = {
+  id: string;
+  shift_date: string;
+  employee_name: string;
+  base_salary: number;
+  incentives: number;
+  snack_allowance: number;
+  final_total: number;
+};
+ 
+type EmployeePayrollSummary = {
+  name: string;
+  baseSalary: number;
+  incentive: number;
+  snackAllowance: number;
+  employeeExpenses: ExpenseRecord[];
+  totalEmployeeExpenses: number;
+  finalTotal: number;
+};
 
 const filterOptions = ['Today', 'Yesterday', 'This Week'] as const;
 type FilterOption = (typeof filterOptions)[number];
@@ -30,25 +64,12 @@ type FilterOption = (typeof filterOptions)[number];
 const formatCurrency = (value: number) =>
   `₱${value.toFixed(2)}`;
 
-const getIncentive = (totalSales: number) => {
-  if (totalSales > 18000) return 300;
-  if (totalSales > 15000) return 200;
-  if (totalSales > 11000) return 100;
-  return 0;
+const getPayrollTiers = (totalSales: number) => {
+  if (totalSales >= 18000) return { incentive: 300, snackAllowance: 150 };
+  if (totalSales >= 15000) return { incentive: 200, snackAllowance: 100 };
+  if (totalSales >= 11000) return { incentive: 100, snackAllowance: 100 };
+  return { incentive: 0, snackAllowance: 50 };
 };
-
-const expenseBreakdown = [
-  { label: 'Ice', amount: 150 },
-  { label: 'Syrup', amount: 500 },
-  { label: 'Employee 1 Expense', amount: 100 },
-  { label: 'Cleaning Supplies', amount: 80 },
-];
-
-const employeeBreakdown = [
-  { name: 'Employee 1', baseSalary: 400 },
-  { name: 'Employee 2', baseSalary: 380 },
-  { name: 'Employee 3', baseSalary: 450 },
-];
 
 const formatDate = (value: string) =>
   new Date(value).toLocaleString([], {
@@ -66,6 +87,10 @@ export default function HistoryPage() {
   const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [fetchError, setFetchError] = useState('');
+  const [todaySales, setTodaySales] = useState(0);
+  const [storeExpenses, setStoreExpenses] = useState<ExpenseRecord[]>([]);
+  const [employeeExpenses, setEmployeeExpenses] = useState<ExpenseRecord[]>([]);
+  const [payrollPeople, setPayrollPeople] = useState<PayrollRecord[]>([]);
   const [isSalesReportOpen, setIsSalesReportOpen] = useState(false);
 
   useEffect(() => {
@@ -104,7 +129,75 @@ export default function HistoryPage() {
       setOrders(parsedOrders);
     };
 
+    const loadDashboard = async () => {
+      if (!supabase) {
+        setFetchError('Supabase client is not configured.');
+        return;
+      }
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayDate = today.toISOString().slice(0, 10);
+
+      const [salesResult, expenseResult, payrollResult] = await Promise.all([
+        supabase
+          .from('orders')
+          .select('id, total_amount, created_at')
+          .gte('created_at', todayDate),
+        supabase
+          .from('expenses')
+          .select('*')
+          .eq('expense_date', todayDate),
+        supabase
+          .from('daily_payroll')
+          .select('*')
+          .eq('shift_date', todayDate),
+      ]);
+
+      if (salesResult.error || expenseResult.error || payrollResult.error) {
+        console.error('Dashboard fetch error:', {
+          salesError: salesResult.error,
+          expenseError: expenseResult.error,
+          payrollError: payrollResult.error,
+        });
+        setFetchError(
+          salesResult.error?.message || expenseResult.error?.message || payrollResult.error?.message ||
+            'Unable to load dashboard data.',
+        );
+        return;
+      }
+
+      const ordersToday = (salesResult.data ?? []).map((order: any) => ({
+        id: order.id,
+        total_amount: Number(order.total_amount),
+        created_at: order.created_at,
+      })) as OrderSummary[];
+      setTodaySales(ordersToday.reduce((sum, order) => sum + order.total_amount, 0));
+
+      const expensesToday = (expenseResult.data ?? []).map((expense: any) => ({
+        id: expense.id,
+        expense_date: expense.expense_date,
+        item_name: expense.item_name,
+        amount: Number(expense.amount),
+        expensed_by: expense.expensed_by,
+      })) as ExpenseRecord[];
+      setStoreExpenses(expensesToday.filter((expense) => expense.expensed_by === null));
+      setEmployeeExpenses(expensesToday.filter((expense) => expense.expensed_by !== null));
+
+      const payrollToday = (payrollResult.data ?? []).map((row: any) => ({
+        id: row.id,
+        shift_date: row.shift_date,
+        employee_name: row.employee_name,
+        base_salary: Number(row.base_salary),
+        incentives: Number(row.incentives),
+        snack_allowance: Number(row.snack_allowance),
+        final_total: Number(row.final_total),
+      })) as PayrollRecord[];
+      setPayrollPeople(payrollToday);
+    };
+
     loadOrders();
+    loadDashboard();
   }, []);
 
   const filteredOrders = useMemo(() => {
@@ -133,18 +226,26 @@ export default function HistoryPage() {
     });
   }, [activeFilter, searchQuery]);
 
-  const todayTotalSales = 15430;
-  const totalExpenses = 1200;
-  const snackAllowance = 50;
-  const incentive = getIncentive(todayTotalSales);
-  const employeeTotals = employeeBreakdown.map((employee) => ({
-    ...employee,
-    incentive,
-    snackAllowance,
-    finalTotal: employee.baseSalary + snackAllowance + incentive,
-  }));
+  const todayTotalSales = todaySales;
+  const storeExpenseTotal = storeExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const payrollTiers = getPayrollTiers(todayTotalSales);
+  const employeeTotals = payrollPeople.map((employee) => {
+    const employeeExpenseList = employeeExpenses.filter(
+      (expense) => expense.expensed_by === employee.employee_name,
+    );
+    const totalEmployeeExpenses = employeeExpenseList.reduce((sum, expense) => sum + expense.amount, 0);
+    return {
+      name: employee.employee_name,
+      baseSalary: employee.base_salary,
+      incentive: payrollTiers.incentive,
+      snackAllowance: payrollTiers.snackAllowance,
+      employeeExpenses: employeeExpenseList,
+      totalEmployeeExpenses,
+      finalTotal: employee.base_salary + payrollTiers.incentive + payrollTiers.snackAllowance - totalEmployeeExpenses,
+    } as EmployeePayrollSummary;
+  });
   const totalEmployeePayroll = employeeTotals.reduce((sum, employee) => sum + employee.finalTotal, 0);
-  const netCash = todayTotalSales - totalExpenses - totalEmployeePayroll;
+  const netCash = todayTotalSales - storeExpenseTotal - totalEmployeePayroll;
   const todayLabel = new Date().toLocaleDateString([], {
     month: 'short',
     day: 'numeric',
@@ -284,7 +385,7 @@ export default function HistoryPage() {
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4">
                         <p className="text-sm font-semibold uppercase tracking-[0.24em] text-rose-500">Total Expenses</p>
-                        <p className="mt-2 text-2xl font-bold text-rose-600">{formatCurrency(totalExpenses)}</p>
+                        <p className="mt-2 text-2xl font-bold text-rose-600">{formatCurrency(storeExpenseTotal)}</p>
                       </div>
                       <div className="rounded-2xl border border-slate-200 bg-white p-4">
                         <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Employee Salaries (Shift)</p>
@@ -304,12 +405,18 @@ export default function HistoryPage() {
                 <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-5">
                   <h3 className="text-lg font-bold text-slate-900">Expenses Breakdown</h3>
                   <div className="mt-4 space-y-2">
-                    {expenseBreakdown.map((expense) => (
-                      <div key={expense.label} className="flex items-center justify-between rounded-2xl bg-white px-3 py-2 text-sm text-slate-600">
-                        <span>{expense.label}</span>
-                        <span className="font-semibold text-slate-900">{formatCurrency(expense.amount)}</span>
+                    {storeExpenses.length > 0 ? (
+                      storeExpenses.map((expense) => (
+                        <div key={expense.id} className="flex items-center justify-between rounded-2xl bg-white px-3 py-2 text-sm text-slate-600">
+                          <span>{expense.item_name}</span>
+                          <span className="font-semibold text-slate-900">{formatCurrency(expense.amount)}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="rounded-2xl bg-white px-3 py-2 text-sm text-slate-500">
+                        No store expenses recorded today.
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
 
@@ -326,6 +433,20 @@ export default function HistoryPage() {
                           <p>Base Salary: {formatCurrency(employee.baseSalary)}</p>
                           <p>Incentive: {formatCurrency(employee.incentive)}</p>
                           <p>Snack Allowance: {formatCurrency(employee.snackAllowance)}</p>
+                          <div className="mt-2 rounded-2xl bg-slate-50 p-3 text-sm text-slate-600">
+                            <p className="font-semibold text-slate-900">Expenses</p>
+                            {employee.employeeExpenses.length > 0 ? (
+                              <ul className="mt-2 list-disc space-y-1 pl-5">
+                                {employee.employeeExpenses.map((expense) => (
+                                  <li key={expense.id} className="text-slate-600">
+                                    {expense.item_name}: -{formatCurrency(expense.amount)}
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="mt-1 text-slate-500">No employee expenses</p>
+                            )}
+                          </div>
                           <p className="font-semibold text-slate-800">Final Total: {formatCurrency(employee.finalTotal)}</p>
                         </div>
                       </div>
@@ -366,15 +487,22 @@ export default function HistoryPage() {
                 <div className="border-t border-dashed border-black pt-2" />
                 <div className="space-y-1">
                   <p className="font-bold">EXPENSES</p>
-                  {expenseBreakdown.map((expense) => (
-                    <div key={expense.label} className="flex items-center justify-between">
-                      <span>{expense.label}</span>
-                      <span>{formatCurrency(expense.amount)}</span>
+                  {storeExpenses.length > 0 ? (
+                    storeExpenses.map((expense) => (
+                      <div key={expense.id} className="flex items-center justify-between">
+                        <span>{expense.item_name}</span>
+                        <span>{formatCurrency(expense.amount)}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="flex items-center justify-between text-slate-500">
+                      <span>No store expenses</span>
+                      <span>{formatCurrency(0)}</span>
                     </div>
-                  ))}
+                  )}
                   <div className="flex items-center justify-between font-semibold">
                     <span>TOTAL EXPENSES</span>
-                    <span>{formatCurrency(totalExpenses)}</span>
+                    <span>{formatCurrency(storeExpenseTotal)}</span>
                   </div>
                 </div>
                 <div className="border-t border-dashed border-black pt-2" />

@@ -2,10 +2,47 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { supabase } from '@/lib/supabase/client';
 
 export default function TimeInPage() {
   const [selectedEmployee, setSelectedEmployee] = useState('Jaspher');
   const [pin, setPin] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+
+  const handleClockIn = async () => {
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    if (!supabase) {
+      setErrorMessage('Supabase client is not configured.');
+      return;
+    }
+
+    if (pin !== '0000') {
+      setErrorMessage('Invalid PIN. Please enter 0000.');
+      return;
+    }
+
+    const { error } = await supabase.from('daily_payroll').insert([
+      {
+        employee_name: selectedEmployee,
+        base_salary: 500,
+        incentives: 0,
+        snack_allowance: 50,
+        final_total: 550,
+      },
+    ]);
+
+    if (error) {
+      console.error('Clock-in insert error:', error);
+      setErrorMessage(error.message);
+      return;
+    }
+
+    setSuccessMessage('Clock in recorded successfully.');
+    setPin('');
+  };
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(14,165,233,0.12),_transparent_35%)] px-4 py-10 text-slate-900 sm:px-6 lg:px-8">
@@ -45,10 +82,13 @@ export default function TimeInPage() {
 
           <button
             type="button"
+            onClick={handleClockIn}
             className="w-full rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
           >
             Clock In
           </button>
+          {errorMessage && <p className="mt-3 text-sm text-rose-600">{errorMessage}</p>}
+          {successMessage && <p className="mt-3 text-sm text-emerald-600">{successMessage}</p>}
         </div>
 
         <Link
