@@ -1,95 +1,28 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, FileText, Search, X } from 'lucide-react';
+import { supabase } from '@/lib/supabase/client';
 
 type OrderItem = {
-  name: string;
+  id: string;
+  order_id: string;
+  item_name: string;
   quantity: number;
-  price: number;
+  total_price: number;
   modifiers?: string[];
 };
 
 type OrderRecord = {
-  id: number;
-  orderNumber: string;
-  totalAmount: number;
-  amountTendered: number;
-  change: number;
-  createdAt: string;
-  items: OrderItem[];
+  id: string;
+  order_number: string;
+  total_amount: number;
+  amount_tendered: number;
+  change_due: number;
+  created_at: string;
+  order_items: OrderItem[];
 };
-
-const createDate = (daysAgo: number, hour: number, minute: number) => {
-  const date = new Date();
-  date.setDate(date.getDate() - daysAgo);
-  date.setHours(hour, minute, 0, 0);
-  return date.toISOString();
-};
-
-const mockOrders: OrderRecord[] = [
-  {
-    id: 1,
-    orderNumber: 'ORD-1042',
-    totalAmount: 431.2,
-    amountTendered: 500,
-    change: 68.8,
-    createdAt: createDate(0, 14, 25),
-    items: [
-      { name: 'Classic Cheeseburger', quantity: 2, price: 150, modifiers: ['No Onions', 'Extra Mayo'] },
-      { name: 'Large Fries', quantity: 1, price: 85, modifiers: [] },
-    ],
-  },
-  {
-    id: 2,
-    orderNumber: 'ORD-1041',
-    totalAmount: 275.5,
-    amountTendered: 300,
-    change: 24.5,
-    createdAt: createDate(1, 19, 40),
-    items: [
-      { name: 'Chicken Rice Bowl', quantity: 1, price: 185, modifiers: ['Spicy'] },
-      { name: 'Iced Tea', quantity: 2, price: 45.25, modifiers: [] },
-    ],
-  },
-  {
-    id: 3,
-    orderNumber: 'ORD-1040',
-    totalAmount: 612.75,
-    amountTendered: 700,
-    change: 87.25,
-    createdAt: createDate(2, 11, 5),
-    items: [
-      { name: 'Pizza Slice Combo', quantity: 3, price: 180, modifiers: ['Extra Cheese'] },
-      { name: 'Milk Tea', quantity: 2, price: 36.25, modifiers: ['Less Sugar'] },
-    ],
-  },
-  {
-    id: 4,
-    orderNumber: 'ORD-1039',
-    totalAmount: 158.0,
-    amountTendered: 200,
-    change: 42.0,
-    createdAt: createDate(3, 16, 50),
-    items: [
-      { name: 'Siomai Box', quantity: 1, price: 120, modifiers: ['Hot Sauce'] },
-      { name: 'Softdrinks', quantity: 2, price: 19, modifiers: [] },
-    ],
-  },
-  {
-    id: 5,
-    orderNumber: 'ORD-1038',
-    totalAmount: 840.0,
-    amountTendered: 1000,
-    change: 160.0,
-    createdAt: createDate(6, 21, 15),
-    items: [
-      { name: 'Family Pizza', quantity: 2, price: 350, modifiers: ['Thin Crust'] },
-      { name: 'Garlic Bread', quantity: 2, price: 70, modifiers: [] },
-    ],
-  },
-];
 
 const filterOptions = ['Today', 'Yesterday', 'This Week'] as const;
 type FilterOption = (typeof filterOptions)[number];
@@ -130,7 +63,49 @@ export default function HistoryPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterOption>('Today');
   const [selectedOrder, setSelectedOrder] = useState<OrderRecord | null>(null);
+  const [orders, setOrders] = useState<OrderRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [fetchError, setFetchError] = useState('');
   const [isSalesReportOpen, setIsSalesReportOpen] = useState(false);
+
+  useEffect(() => {
+    const loadOrders = async () => {
+      if (!supabase) {
+        setFetchError('Supabase client is not configured.');
+        return;
+      }
+
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*, order_items(*)')
+        .order('created_at', { ascending: false });
+      setIsLoading(false);
+
+      if (error) {
+        console.error(error);
+        setFetchError(error.message);
+        return;
+      }
+
+      const parsedOrders = (data ?? []).map((order) => ({
+        ...order,
+        total_amount: Number((order as any).total_amount),
+        amount_tendered: Number((order as any).amount_tendered),
+        change_due: Number((order as any).change_due),
+        order_items: ((order as any).order_items ?? []).map((item: any) => ({
+          ...item,
+          quantity: Number(item.quantity),
+          total_price: Number(item.total_price),
+          modifiers: item.modifiers ?? [],
+        })),
+      })) as OrderRecord[];
+
+      setOrders(parsedOrders);
+    };
+
+    loadOrders();
+  }, []);
 
   const filteredOrders = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -144,9 +119,9 @@ export default function HistoryPage() {
     const weekStart = new Date(todayStart);
     weekStart.setDate(weekStart.getDate() - 6);
 
-    return mockOrders.filter((order) => {
-      const orderDate = new Date(order.createdAt);
-      const matchesSearch = !query || order.orderNumber.toLowerCase().includes(query);
+    return orders.filter((order) => {
+      const orderDate = new Date(order.created_at);
+      const matchesSearch = !query || order.order_number.toLowerCase().includes(query);
       const matchesFilter =
         activeFilter === 'Today'
           ? orderDate >= todayStart
@@ -196,7 +171,7 @@ export default function HistoryPage() {
             </div>
             <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-600">
               <FileText className="h-5 w-5" />
-              <span>{mockOrders.length} completed orders</span>
+              <span>{orders.length} completed orders</span>
             </div>
           </div>
         </header>
@@ -259,9 +234,9 @@ export default function HistoryPage() {
                 {filteredOrders.map((order) => (
                   <tr key={order.id} className="border-b border-slate-100 last:border-b-0">
                     <td className="px-3 py-4 font-semibold text-slate-700">{order.id}</td>
-                    <td className="px-3 py-4 font-semibold text-slate-900">{order.orderNumber}</td>
-                    <td className="px-3 py-4 text-slate-700">{formatCurrency(order.totalAmount)}</td>
-                    <td className="px-3 py-4 text-slate-700">{formatDate(order.createdAt)}</td>
+                    <td className="px-3 py-4 font-semibold text-slate-900">{order.order_number}</td>
+                    <td className="px-3 py-4 text-slate-700">{formatCurrency(order.total_amount)}</td>
+                    <td className="px-3 py-4 text-slate-700">{formatDate(order.created_at)}</td>
                     <td className="px-3 py-4">
                       <button
                         type="button"
@@ -433,8 +408,8 @@ export default function HistoryPage() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Receipt Summary</p>
-                <h2 className="mt-2 text-2xl font-black text-slate-900">{selectedOrder.orderNumber}</h2>
-                <p className="mt-1 text-sm text-slate-500">{formatDate(selectedOrder.createdAt)}</p>
+                <h2 className="mt-2 text-2xl font-black text-slate-900">{selectedOrder.order_number}</h2>
+                <p className="mt-1 text-sm text-slate-500">{formatDate(selectedOrder.created_at)}</p>
               </div>
               <button
                 type="button"
@@ -448,16 +423,16 @@ export default function HistoryPage() {
 
             <div className="mt-6 border-t border-slate-200 pt-6">
               <div className="space-y-4">
-                {selectedOrder.items.map((item, index) => (
+                {selectedOrder.order_items.map((item, index) => (
                   <div key={`${selectedOrder.id}-${index}`} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="font-semibold text-slate-900">{item.quantity}x {item.name}</p>
+                        <p className="font-semibold text-slate-900">{item.quantity}x {item.item_name}</p>
                         {item.modifiers && item.modifiers.length > 0 && (
                           <p className="mt-1 text-sm text-slate-500">{item.modifiers.join(', ')}</p>
                         )}
                       </div>
-                      <p className="font-semibold text-slate-900">{formatCurrency(item.price * item.quantity)}</p>
+                      <p className="font-semibold text-slate-900">{formatCurrency(item.total_price)}</p>
                     </div>
                   </div>
                 ))}
@@ -468,15 +443,15 @@ export default function HistoryPage() {
               <div className="flex flex-col gap-2 text-sm text-slate-600 sm:items-end">
                 <div className="flex w-full max-w-xs items-center justify-between gap-4">
                   <span>Total Amount</span>
-                  <span className="text-lg font-black text-slate-900">{formatCurrency(selectedOrder.totalAmount)}</span>
+                  <span className="text-lg font-black text-slate-900">{formatCurrency(selectedOrder.total_amount)}</span>
                 </div>
                 <div className="flex w-full max-w-xs items-center justify-between gap-4">
                   <span>Amount Tendered</span>
-                  <span className="text-lg font-black text-slate-900">{formatCurrency(selectedOrder.amountTendered)}</span>
+                  <span className="text-lg font-black text-slate-900">{formatCurrency(selectedOrder.amount_tendered)}</span>
                 </div>
                 <div className="flex w-full max-w-xs items-center justify-between gap-4">
                   <span>Change</span>
-                  <span className="text-lg font-black text-emerald-600">{formatCurrency(selectedOrder.change)}</span>
+                  <span className="text-lg font-black text-emerald-600">{formatCurrency(selectedOrder.change_due)}</span>
                 </div>
               </div>
             </div>

@@ -1,23 +1,47 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase/client';
 
 export default function AdminLogin() {
   const router = useRouter();
-  const [email, setEmail] = useState('maryann@gmail.com');
-  const [password, setPassword] = useState('0000');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [keepSignedIn, setKeepSignedIn] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSignIn = (e: React.FormEvent) => {
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, authenticate here based on inputs
-    if (email === 'maryann@gmail.com' && password === '0000') {
+    setErrorMessage('');
+
+    if (!supabase) {
+      setErrorMessage('Supabase is not configured yet.');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error || !data.session) {
+        setErrorMessage(error?.message ?? 'Invalid login credentials.');
+        return;
+      }
+
       router.push('/manager/dashboard');
-    } else {
-      router.push('/pos');
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'Unable to sign in right now.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -114,21 +138,31 @@ export default function AdminLogin() {
             </span>
           </div>
 
+          {errorMessage ? (
+            <div className="rounded-[14px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-600">
+              {errorMessage}
+            </div>
+          ) : null}
+
           {/* Sign In Button */}
           <button
             type="submit"
-            className="w-full bg-[#0F172A] hover:bg-black text-white font-bold text-[16px] py-[18px] rounded-[16px] mt-2 transition-all active:scale-[0.98] shadow-md focus:outline-none focus:ring-4 focus:ring-slate-900/20"
+            disabled={isSubmitting}
+            className="w-full bg-[#0F172A] hover:bg-black disabled:cursor-not-allowed disabled:bg-slate-400 text-white font-bold text-[16px] py-[18px] rounded-[16px] mt-2 transition-all active:scale-[0.98] shadow-md focus:outline-none focus:ring-4 focus:ring-slate-900/20"
           >
-            Sign In
+            {isSubmitting ? 'Signing In...' : 'Sign In'}
           </button>
         </form>
       </div>
 
       {/* Footer Links */}
       <div className="mt-8 flex flex-col items-center gap-8">
-        <button className="text-[#10B981] hover:text-[#059669] font-bold text-[15px] transition-colors focus:outline-none">
+        <Link
+          href="/admin/create-account"
+          className="text-[#10B981] hover:text-[#059669] font-bold text-[15px] transition-colors focus:outline-none"
+        >
           Create Account
-        </button>
+        </Link>
 
         <button 
           onClick={() => router.push('/')}

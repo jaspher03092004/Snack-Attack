@@ -450,4 +450,4 @@ const RAW_MENU_ITEMS = [
 export const menuItems: (MenuItem | ComboMenuItem)[] = RAW_MENU_ITEMS.map((item) => ({
   ...item,
   image: `/images/menu/${item.id}.webp`,
-}));
+})) as (MenuItem | ComboMenuItem)[];

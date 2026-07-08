@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { Suspense, useState, useMemo } from 'react';
 import { 
   Utensils, 
   CupSoda, 
@@ -110,7 +110,7 @@ const generateOrderNumber = () => {
   return `#${seed}`;
 };
 
-export default function POSScreen() {
+function POSScreenContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [activeCategory, setActiveCategory] = useState('combos');
@@ -150,7 +150,7 @@ export default function POSScreen() {
 
   const total = subtotal;
 
-  const getItemPrice = (product: Product, customization?: { sizeLabel?: string; addOns?: string[] }) => {
+  const getItemPrice = (product: Product, customization?: { sizeLabel?: string; addOns?: string[]; burgerAddon?: string }) => {
     const selectedSizePrice = product.sizes?.find((size) => size.label === customization?.sizeLabel)?.price ?? product.price;
     const addOnTotal = (customization?.addOns ?? []).reduce((sum, addOnName) => {
       const matchingAddOn = product.addOns?.find((addOn) => addOn.name === addOnName);
@@ -159,7 +159,7 @@ export default function POSScreen() {
 
     // burger addon prices (optional combo extras)
     let burgerAddonTotal = 0;
-    const burgerAddonKey = (customization as any)?.burgerAddon as string | undefined;
+    const burgerAddonKey = customization?.burgerAddon;
     if (burgerAddonKey) {
       if (burgerAddonKey === 'add-cheese') burgerAddonTotal += 5;
       if (burgerAddonKey === 'add-egg') burgerAddonTotal += 15;
@@ -960,5 +960,13 @@ export default function POSScreen() {
       items={cart}
     />
     </>
+  );
+}
+
+export default function POSScreen() {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center">Loading POS...</div>}>
+      <POSScreenContent />
+    </Suspense>
   );
 }

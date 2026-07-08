@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Printer } from 'lucide-react';
+import { supabase } from '@/lib/supabase/client';
 
 export type PaymentCartItem = {
   id: string;
@@ -34,13 +35,78 @@ export function PaymentModal({
   ]
 }: PaymentModalProps) {
   const [tenderedStr, setTenderedStr] = useState<string>('500');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string>('');
 
   useEffect(() => {
     if (isOpen) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setTenderedStr('500');
+      setCheckoutError('');
     }
   }, [isOpen]);
+
+  const handleCharge = async () => {
+    setCheckoutError('');
+    if (!supabase) {
+      setCheckoutError('Supabase client is not configured.');
+      return;
+    }
+
+    const tendered = parseFloat(tenderedStr || '0');
+    if (tendered < totalDue) {
+      setCheckoutError('Amount tendered must cover the total due.');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .insert([
+          {
+            order_number: orderNumber,
+            total_amount: Number(totalDue),
+            amount_tendered: Number(tendered),
+            change_due: Number(Math.max(0, tendered - totalDue)),
+            created_at: new Date().toISOString(),
+          },
+        ])
+        .select('id')
+        .single();
+
+      if (orderError) {
+        throw orderError;
+      }
+      if (!order?.id) {
+        throw new Error('Unable to create order record');
+      }
+
+      const orderItems = items.map((item) => ({
+        order_id: order.id,
+        item_name: item.name,
+        quantity: Number(item.quantity),
+        total_price: Number(item.price * item.quantity),
+        modifiers: item.modifiers ?? [],
+      }));
+
+      const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
+      if (itemsError) {
+        throw itemsError;
+      }
+
+      onComplete?.();
+      window.print();
+      onClose();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : JSON.stringify(error);
+      console.error('Supabase Insert Error:', error);
+      setCheckoutError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -199,15 +265,18 @@ export function PaymentModal({
                 ))}
               </div>
 
+              {checkoutError && (
+                <div className="rounded-2xl bg-rose-50 border border-rose-100 text-rose-700 px-4 py-3 mb-3 text-sm">
+                  {checkoutError}
+                </div>
+              )}
+
               <button 
-                className="mt-2 w-full py-[22px] rounded-[18px] bg-[#10B981] hover:bg-[#059669] text-white font-bold text-[17px] flex items-center justify-center gap-2.5 transition-all shadow-lg shadow-emerald-500/25 focus:outline-none focus:ring-4 focus:ring-emerald-500/20 active:scale-[0.98]"
-                onClick={() => {
-                  window.print();
-                  onClose();
-                  onComplete?.();
-                }}
+                className="mt-2 w-full py-[22px] rounded-[18px] bg-[#10B981] hover:bg-[#059669] disabled:bg-slate-300 disabled:text-slate-500 text-white font-bold text-[17px] flex items-center justify-center gap-2.5 transition-all shadow-lg shadow-emerald-500/25 focus:outline-none focus:ring-4 focus:ring-emerald-500/20 active:scale-[0.98]"
+                onClick={handleCharge}
+                disabled={isSubmitting}
               >
-                <Printer className="w-5 h-5 stroke-[2.5px]" /> PRINT RECEIPT
+                <Printer className="w-5 h-5 stroke-[2.5px]" /> {isSubmitting ? 'PROCESSING...' : 'PRINT RECEIPT'}
               </button>
             </div>
           </section>
