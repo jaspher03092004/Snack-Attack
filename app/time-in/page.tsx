@@ -24,9 +24,32 @@ export default function TimeInPage() {
       return;
     }
 
-    const { error } = await supabase.from('daily_payroll').insert([
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+    const { data: existingRecords, error: existingError } = await supabase
+      .from('payroll')
+      .select('id')
+      .eq('employee_name', selectedEmployee)
+      .eq('shift_date', todayDate)
+      .limit(1);
+
+    if (existingError) {
+      console.error('Payroll lookup error:', existingError);
+      setErrorMessage(existingError.message);
+      return;
+    }
+
+    if (existingRecords && existingRecords.length > 0) {
+      setErrorMessage('You have already timed in today.');
+      return;
+    }
+
+    const { error } = await supabase.from('payroll').insert([
       {
         employee_name: selectedEmployee,
+        shift_date: todayDate,
         base_salary: 500,
         incentives: 0,
         snack_allowance: 50,

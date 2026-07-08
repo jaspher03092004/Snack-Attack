@@ -16,9 +16,10 @@ export default function StartOrderPage() {
   const [time, setTime] = useState(formatTime(new Date()));
   const [showOrderTypeSelection, setShowOrderTypeSelection] = useState(false);
   const [isExpensesModalOpen, setIsExpensesModalOpen] = useState(false);
+  const [expenseMode, setExpenseMode] = useState<'employee' | 'shop'>('employee');
   const [expenseAmount, setExpenseAmount] = useState('');
   const [expenseNote, setExpenseNote] = useState('');
-  const [expensedBy, setExpensedBy] = useState('Store Expense');
+  const [expensedBy, setExpensedBy] = useState('Employee 1');
   const [expenseError, setExpenseError] = useState('');
   const [expenseSuccess, setExpenseSuccess] = useState('');
 
@@ -60,7 +61,7 @@ export default function StartOrderPage() {
     const payload = {
       item_name: expenseNote,
       amount: Number(amount),
-      expensed_by: expensedBy === 'Store Expense' ? null : expensedBy,
+      expensed_by: expenseMode === 'shop' ? 'shop' : expensedBy,
     };
 
     const { error } = await supabase.from('expenses').insert([payload]);
@@ -91,11 +92,23 @@ export default function StartOrderPage() {
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => setIsExpensesModalOpen(true)}
-                className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-200 bg-white/90 text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-100"
-                aria-label="Open employee expenses"
+                onClick={() => {
+                  setExpenseMode('employee');
+                  setIsExpensesModalOpen(true);
+                }}
+                className="flex h-12 w-32 items-center justify-center rounded-2xl border border-slate-200 bg-white/90 text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-100"
               >
-                <ReceiptText className="h-5 w-5" />
+                Employee Expenses
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setExpenseMode('shop');
+                  setIsExpensesModalOpen(true);
+                }}
+                className="flex h-12 w-32 items-center justify-center rounded-2xl border border-slate-200 bg-white/90 text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-100"
+              >
+                Shop Expenses
               </button>
               <Link
                 href="/time-in"
@@ -174,7 +187,9 @@ export default function StartOrderPage() {
           <div className="w-full max-w-md rounded-[32px] border border-slate-200 bg-white p-8 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-2xl font-bold text-slate-900">Employee Expenses</h2>
+                <h2 className="text-2xl font-bold text-slate-900">
+                  {expenseMode === 'shop' ? 'Shop Expense' : 'Employee Expenses'}
+                </h2>
                 <p className="mt-1 text-sm text-slate-500">Log a quick expense for the active shift.</p>
               </div>
               <button
@@ -213,18 +228,20 @@ export default function StartOrderPage() {
                 />
               </label>
 
-              <label className="block text-sm font-medium text-slate-700">
-                <span className="mb-2 block">Expensed By</span>
-                <select
-                  value={expensedBy}
-                  onChange={(event) => setExpensedBy(event.target.value)}
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white"
-                >
-                  <option>Employee 1</option>
-                  <option>Employee 2</option>
-                  <option>Employee 3</option>
-                </select>
-              </label>
+              {expenseMode === 'employee' ? (
+                <label className="block text-sm font-medium text-slate-700">
+                  <span className="mb-2 block">Expensed By</span>
+                  <select
+                    value={expensedBy}
+                    onChange={(event) => setExpensedBy(event.target.value)}
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white"
+                  >
+                    <option>Employee 1</option>
+                    <option>Employee 2</option>
+                    <option>Employee 3</option>
+                  </select>
+                </label>
+              ) : null}
 
               {expenseError && (
                 <p className="text-sm text-rose-600">{expenseError}</p>

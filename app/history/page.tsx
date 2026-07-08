@@ -136,20 +136,23 @@ export default function HistoryPage() {
       }
 
       const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayDate = today.toISOString().slice(0, 10);
+      const todayDate = today.toLocaleDateString('en-CA');
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowDate = tomorrow.toLocaleDateString('en-CA');
 
       const [salesResult, expenseResult, payrollResult] = await Promise.all([
         supabase
           .from('orders')
           .select('id, total_amount, created_at')
-          .gte('created_at', todayDate),
+          .gte('created_at', todayDate)
+          .lt('created_at', tomorrowDate),
         supabase
           .from('expenses')
           .select('*')
           .eq('expense_date', todayDate),
         supabase
-          .from('daily_payroll')
+          .from('payroll')
           .select('*')
           .eq('shift_date', todayDate),
       ]);
@@ -172,7 +175,8 @@ export default function HistoryPage() {
         total_amount: Number(order.total_amount),
         created_at: order.created_at,
       })) as OrderSummary[];
-      setTodaySales(ordersToday.reduce((sum, order) => sum + order.total_amount, 0));
+      const todaySalesTotal = ordersToday.reduce((sum, order) => sum + order.total_amount, 0);
+      setTodaySales(todaySalesTotal);
 
       const expensesToday = (expenseResult.data ?? []).map((expense: any) => ({
         id: expense.id,
@@ -181,8 +185,10 @@ export default function HistoryPage() {
         amount: Number(expense.amount),
         expensed_by: expense.expensed_by,
       })) as ExpenseRecord[];
-      setStoreExpenses(expensesToday.filter((expense) => expense.expensed_by === null));
-      setEmployeeExpenses(expensesToday.filter((expense) => expense.expensed_by !== null));
+      setStoreExpenses(expensesToday.filter((expense) => expense.expensed_by === 'shop'));
+      setEmployeeExpenses(expensesToday.filter(
+        (expense) => expense.expensed_by !== null && expense.expensed_by !== 'shop',
+      ));
 
       const payrollToday = (payrollResult.data ?? []).map((row: any) => ({
         id: row.id,
@@ -193,7 +199,49 @@ export default function HistoryPage() {
         snack_allowance: Number(row.snack_allowance),
         final_total: Number(row.final_total),
       })) as PayrollRecord[];
-      setPayrollPeople(payrollToday);
+
+      const payrollTiers = getPayrollTiers(todaySalesTotal);
+      try {
+        const updatedPayrollRows = await Promise.all(
+          payrollToday.map(async (employee) => {
+            const employeeExpenseList = expensesToday.filter(
+              (expense) => expense.expensed_by === employee.employee_name,
+            );
+            const totalEmployeeExpenses = employeeExpenseList.reduce(
+              (sum, expense) => sum + expense.amount,
+              0,
+            );
+            const finalTotal =
+              employee.base_salary + payrollTiers.incentive + payrollTiers.snackAllowance - totalEmployeeExpenses;
+
+            const { error: payrollUpdateError } = await supabase
+              .from('payroll')
+              .update({
+                incentives: payrollTiers.incentive,
+                snack_allowance: payrollTiers.snackAllowance,
+                final_total: finalTotal,
+              })
+              .eq('id', employee.id);
+
+            if (payrollUpdateError) {
+              throw payrollUpdateError;
+            }
+
+            return {
+              ...employee,
+              incentives: payrollTiers.incentive,
+              snack_allowance: payrollTiers.snackAllowance,
+              final_total: finalTotal,
+            };
+          }),
+        );
+
+        setPayrollPeople(updatedPayrollRows);
+      } catch (updateError: any) {
+        console.error('Payroll update error:', updateError);
+        setFetchError(updateError?.message || 'Unable to update payroll incentives.');
+        return;
+      }
     };
 
     loadOrders();
@@ -224,7 +272,7 @@ export default function HistoryPage() {
 
       return matchesSearch && matchesFilter;
     });
-  }, [activeFilter, searchQuery]);
+  }, [activeFilter, searchQuery, orders]);
 
   const todayTotalSales = todaySales;
   const storeExpenseTotal = storeExpenses.reduce((sum, expense) => sum + expense.amount, 0);
