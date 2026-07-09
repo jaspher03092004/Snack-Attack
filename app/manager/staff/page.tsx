@@ -1,30 +1,163 @@
 'use client';
 
-import React, { useState } from 'react';
-import { 
-  LayoutGrid, 
-  ReceiptText, 
-  Box, 
-  Users, 
+import React, { useEffect, useState } from 'react';
+import {
+  LayoutGrid,
+  ReceiptText,
+  Box,
+  Users,
   Star,
-  LogOut
+  LogOut,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase/client';
+
+type PayrollLog = {
+  id: string;
+  employee_name: string;
+  shift_date: string;
+  base_salary: number;
+  incentives: number;
+  snack_allowance: number;
+  final_total: number;
+};
 
 export default function StaffScreen() {
   const router = useRouter();
   const [activeNav, setActiveNav] = useState('staff');
-  const [activeRole, setActiveRole] = useState('CASHIER');
+  const [staffMembers, setStaffMembers] = useState<Array<{ id: string; name: string; pin_code: string }>>([]);
+  const [payrollLogs, setPayrollLogs] = useState<PayrollLog[]>([]);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [formName, setFormName] = useState('');
+  const [formPin, setFormPin] = useState('');
+  const [editingStaffId, setEditingStaffId] = useState<string | null>(null);
+  const [staffError, setStaffError] = useState('');
+  const [staffSuccess, setStaffSuccess] = useState('');
 
-  // Toggle states based on the image
-  const [permissions, setPermissions] = useState({
-    takeOrders: true,
-    smallRefunds: false,
-    voidOrders: false,
-  });
+  const formatCurrency = (value: number) => `₱${value.toFixed(2)}`;
 
-  const handleToggle = (key: keyof typeof permissions) => {
-    setPermissions(prev => ({ ...prev, [key]: !prev[key] }));
+  const getStaffDirectory = async () => {
+    if (!supabase) return;
+    const { data, error } = await supabase.from('staff').select('id, name, pin_code').order('name');
+    if (error) {
+      console.error('Staff fetch error:', error);
+      return;
+    }
+    setStaffMembers((data ?? []) as Array<{ id: string; name: string; pin_code: string }>);
+  };
+
+  const getPayrollLogs = async () => {
+    if (!supabase) return;
+    const { data, error } = await supabase
+      .from('payroll')
+      .select('id, employee_name, shift_date, base_salary, incentives, snack_allowance, final_total')
+      .order('shift_date', { ascending: false });
+
+    if (error) {
+      console.error('Payroll fetch error:', error);
+      return;
+    }
+
+    const parsedPayroll = (data ?? []).map((row: any) => ({
+      id: row.id,
+      employee_name: row.employee_name,
+      shift_date: row.shift_date,
+      base_salary: Number(row.base_salary),
+      incentives: Number(row.incentives),
+      snack_allowance: Number(row.snack_allowance),
+      final_total: Number(row.final_total),
+    })) as PayrollLog[];
+
+    setPayrollLogs(parsedPayroll);
+  };
+
+  useEffect(() => {
+    const loadData = async () => {
+      await Promise.all([getStaffDirectory(), getPayrollLogs()]);
+    };
+
+    loadData();
+  }, []);
+
+  const openAddModal = () => {
+    setStaffError('');
+    setStaffSuccess('');
+    setFormName('');
+    setFormPin('');
+    setEditingStaffId(null);
+    setIsAddModalOpen(true);
+  };
+
+  const openEditModal = (staff: { id: string; name: string; pin_code: string }) => {
+    setStaffError('');
+    setStaffSuccess('');
+    setFormName(staff.name);
+    setFormPin(staff.pin_code);
+    setEditingStaffId(staff.id);
+    setIsEditModalOpen(true);
+  };
+
+  const closeStaffModal = () => {
+    setIsAddModalOpen(false);
+    setIsEditModalOpen(false);
+    setFormName('');
+    setFormPin('');
+    setEditingStaffId(null);
+    setStaffError('');
+    setStaffSuccess('');
+  };
+
+  const handleAddStaff = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setStaffError('');
+    setStaffSuccess('');
+
+    if (!formName.trim() || formPin.trim().length !== 4) {
+      setStaffError('Please enter a valid name and 4-digit PIN code.');
+      return;
+    }
+
+    const { error } = await supabase.from('staff').insert([
+      { name: formName.trim(), pin_code: formPin.trim() },
+    ]);
+
+    if (error) {
+      console.error('Add staff error:', error);
+      setStaffError(error.message);
+      return;
+    }
+
+    setStaffSuccess('Staff member added.');
+    closeStaffModal();
+    getStaffDirectory();
+  };
+
+  const handleEditStaff = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setStaffError('');
+    setStaffSuccess('');
+    if (!editingStaffId) return;
+
+    if (!formName.trim() || formPin.trim().length !== 4) {
+      setStaffError('Please enter a valid name and 4-digit PIN code.');
+      return;
+    }
+
+    const { error } = await supabase
+      .from('staff')
+      .update({ name: formName.trim(), pin_code: formPin.trim() })
+      .eq('id', editingStaffId);
+
+    if (error) {
+      console.error('Edit staff error:', error);
+      setStaffError(error.message);
+      return;
+    }
+
+    setStaffSuccess('Staff member updated.');
+    closeStaffModal();
+    getStaffDirectory();
   };
 
   const navItems = [
@@ -115,11 +248,149 @@ export default function StaffScreen() {
               <button className="px-5 py-3 rounded-[14px] bg-white border border-slate-200 hover:bg-slate-50 text-slate-900 font-bold text-[14px] transition-colors focus:outline-none focus:ring-4 focus:ring-slate-100 active:scale-[0.98]">
                 Weekly Schedule
               </button>
-              <button className="px-6 py-3 rounded-[14px] bg-slate-900 hover:bg-black text-white font-bold text-[14px] transition-colors shadow-md focus:outline-none focus:ring-4 focus:ring-slate-900/20 active:scale-[0.98]">
+              <button
+                type="button"
+                onClick={openAddModal}
+                className="px-6 py-3 rounded-[14px] bg-slate-900 hover:bg-black text-white font-bold text-[14px] transition-colors shadow-md focus:outline-none focus:ring-4 focus:ring-slate-900/20 active:scale-[0.98]"
+              >
                 Add New Staff
               </button>
             </div>
           </div>
+
+          {/* Staff Directory */}
+          <div className="bg-white rounded-[24px] p-7 shadow-sm border border-slate-100 mb-8">
+            <div className="flex items-center justify-between mb-5 gap-4">
+              <div>
+                <h2 className="text-[19px] font-bold text-slate-900 tracking-tight leading-tight">
+                  Staff Directory
+                </h2>
+                <p className="text-sm text-slate-500 mt-1">
+                  Manage staff names and clock-in PIN codes for employee time tracking.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={openAddModal}
+                className="px-5 py-3 rounded-[14px] bg-slate-900 hover:bg-black text-white font-bold text-[14px] transition-colors shadow-md focus:outline-none focus:ring-4 focus:ring-slate-900/20 active:scale-[0.98]"
+              >
+                Add New Staff
+              </button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 text-slate-500 uppercase tracking-[0.24em] text-[11px]">
+                    <th className="px-4 py-3">Name</th>
+                    <th className="px-4 py-3">PIN Code</th>
+                    <th className="px-4 py-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {staffMembers.map((staff) => (
+                    <tr key={staff.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-4 text-slate-900 font-semibold">{staff.name}</td>
+                      <td className="px-4 py-4 text-slate-700">{staff.pin_code}</td>
+                      <td className="px-4 py-4 text-right">
+                        <button
+                          type="button"
+                          onClick={() => openEditModal(staff)}
+                          className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-50"
+                        >
+                          Edit
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {staffMembers.length === 0 && (
+                    <tr>
+                      <td colSpan={3} className="px-4 py-6 text-center text-slate-500">
+                        No staff members found.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {(isAddModalOpen || isEditModalOpen) && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-6">
+              <div className="w-full max-w-lg rounded-[28px] bg-white p-8 shadow-2xl ring-1 ring-slate-200">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h2 className="text-2xl font-bold text-slate-900">
+                      {isEditModalOpen ? 'Edit Staff Member' : 'Add New Staff'}
+                    </h2>
+                    <p className="mt-2 text-sm text-slate-500">
+                      {isEditModalOpen
+                        ? 'Update the name or PIN code for this employee.'
+                        : 'Create a new staff record for clock-in access.'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={closeStaffModal}
+                    className="rounded-full p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                    aria-label="Close staff modal"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <form
+                  onSubmit={isEditModalOpen ? handleEditStaff : handleAddStaff}
+                  className="mt-6 space-y-5"
+                >
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Name
+                      <input
+                        value={formName}
+                        onChange={(event) => setFormName(event.target.value)}
+                        className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white"
+                        placeholder="Employee name"
+                        required
+                      />
+                    </label>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700">
+                      PIN Code
+                      <input
+                        value={formPin}
+                        onChange={(event) => setFormPin(event.target.value.replace(/\D/g, '').slice(0, 4))}
+                        className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white"
+                        placeholder="0000"
+                        maxLength={4}
+                        required
+                      />
+                    </label>
+                  </div>
+
+                  {staffError && <p className="text-sm text-rose-600">{staffError}</p>}
+                  {staffSuccess && <p className="text-sm text-emerald-600">{staffSuccess}</p>}
+
+                  <div className="flex flex-wrap justify-end gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={closeStaffModal}
+                      className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                    >
+                      {isEditModalOpen ? 'Save Changes' : 'Create Staff'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
 
           {/* Upsell Leaderboard */}
           <div className="bg-white rounded-[24px] p-7 shadow-sm border border-slate-100 mb-8">
@@ -180,191 +451,56 @@ export default function StaffScreen() {
             </div>
           </div>
 
-          {/* Attendance Logs */}
+          {/* Daily Payroll Logs */}
           <div className="bg-white rounded-[24px] shadow-sm border border-slate-100 overflow-hidden">
             <div className="flex items-center justify-between p-6 pb-2">
               <h2 className="text-[19px] font-bold text-slate-900 tracking-tight leading-tight">
-                Attendance Logs
+                Daily Payroll Logs
               </h2>
               <div className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                APRIL 8, 2026
+                RECENT SHIFTS
               </div>
             </div>
 
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                  <th className="py-4 px-6 font-bold w-[280px]">STAFF MEMBER</th>
-                  <th className="py-4 px-6 font-bold w-[160px]">CLOCK IN</th>
-                  <th className="py-4 px-6 font-bold w-[160px]">CLOCK OUT</th>
-                  <th className="py-4 px-6 font-bold w-[140px]">TOTAL HOURS</th>
-                  <th className="py-4 px-6 font-bold text-right">ACTION</th>
-                </tr>
-              </thead>
-              <tbody>
-                {/* Row 1 - Complete */}
-                <tr className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                  <td className="py-5 px-6">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-slate-200"></div>
-                      <span className="font-bold text-[14px] text-slate-900">Jasper (1234)</span>
-                    </div>
-                  </td>
-                  <td className="py-5 px-6 text-[14px] font-medium text-slate-800">
-                    08:00 AM
-                  </td>
-                  <td className="py-5 px-6 text-[14px] font-medium text-slate-800">
-                    04:00 PM
-                  </td>
-                  <td className="py-5 px-6 text-[14px] font-bold text-slate-900">
-                    8.0 hrs
-                  </td>
-                  <td className="py-5 px-6 text-right">
-                    <a href="#" className="text-[12px] font-bold text-blue-600 hover:text-blue-800 underline underline-offset-4">
-                      EDIT
-                    </a>
-                  </td>
-                </tr>
-
-                {/* Row 2 - Incomplete/Alert */}
-                <tr className="bg-[#FFFDF5] hover:bg-[#FFF9EA] transition-colors">
-                  <td className="py-5 px-6">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-slate-200"></div>
-                      <span className="font-bold text-[14px] text-slate-900">Maria (5678)</span>
-                    </div>
-                  </td>
-                  <td className="py-5 px-6 text-[14px] font-medium text-slate-800">
-                    09:15 AM
-                  </td>
-                  <td className="py-5 px-6 text-[14px] font-bold text-[#EA580C]">
-                    MISSING
-                  </td>
-                  <td className="py-5 px-6 text-[14px] font-medium text-slate-500">
-                    --
-                  </td>
-                  <td className="py-5 px-6 text-right">
-                    <button className="px-4 py-1.5 bg-[#18181B] text-white rounded-full text-[11px] font-bold tracking-widest shadow-sm hover:bg-black transition-colors focus:outline-none">
-                      MANUAL OUT
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    <th className="py-4 px-6 font-bold">STAFF MEMBER</th>
+                    <th className="py-4 px-6 font-bold">DATE</th>
+                    <th className="py-4 px-6 font-bold">BASE SALARY</th>
+                    <th className="py-4 px-6 font-bold">INCENTIVES</th>
+                    <th className="py-4 px-6 font-bold">SNACK ALLOWANCE</th>
+                    <th className="py-4 px-6 font-bold text-right">FINAL TOTAL</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payrollLogs.map((log) => (
+                    <tr key={log.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                      <td className="py-5 px-6 text-slate-900 font-semibold">{log.employee_name}</td>
+                      <td className="py-5 px-6 text-slate-700">{new Date(log.shift_date).toLocaleDateString('en-US')}</td>
+                      <td className="py-5 px-6 text-slate-700">{formatCurrency(log.base_salary)}</td>
+                      <td className="py-5 px-6 text-slate-700">{formatCurrency(log.incentives)}</td>
+                      <td className="py-5 px-6 text-slate-700">{formatCurrency(log.snack_allowance)}</td>
+                      <td className="py-5 px-6 text-right text-slate-900 font-semibold">{formatCurrency(log.final_total)}</td>
+                    </tr>
+                  ))}
+                  {payrollLogs.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
+                        No payroll records found.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
 
         </div>
       </main>
 
-      {/* 3. Right Sidebar (Role Permissions) */}
-      <aside className="w-[360px] bg-white border-l border-slate-200 flex flex-col flex-shrink-0 h-full shadow-[-4px_0_24px_rgba(0,0,0,0.02)] z-10 relative">
-        <div className="p-8 pb-6">
-          <h2 className="text-[20px] font-bold text-slate-900 tracking-tight leading-tight">Role Permissions</h2>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-            EDIT ACCESS LEVELS
-          </p>
-        </div>
-
-        <div className="p-8 pt-0 flex flex-col gap-8 flex-1 overflow-y-auto custom-scrollbar">
-          
-          {/* Segmented Control */}
-          <div className="bg-slate-100 p-1 rounded-[16px] flex items-center">
-            {['CASHIER', 'SENIOR', 'MANAGER'].map(role => (
-              <button
-                key={role}
-                onClick={() => setActiveRole(role)}
-                className={`flex-1 py-2.5 text-[11px] font-bold uppercase tracking-wider transition-all rounded-[12px] focus:outline-none ${
-                  activeRole === role 
-                    ? 'bg-white text-slate-900 shadow-sm' 
-                    : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                {role}
-              </button>
-            ))}
-          </div>
-
-          {/* Permisison Toggles */}
-          <div className="flex flex-col gap-6">
-            
-            {/* Toggle 1: Take Orders */}
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-bold text-[14px] text-slate-900 mb-0.5">Take Orders</div>
-                <div className="font-medium text-[12px] text-slate-400">Access register terminal</div>
-              </div>
-              <button 
-                onClick={() => handleToggle('takeOrders')}
-                className="relative w-12 h-6 rounded-full transition-colors duration-200 ease-in-out focus:outline-none"
-                style={{ backgroundColor: permissions.takeOrders ? '#10B981' : '#E2E8F0' }}
-              >
-                <div 
-                  className={`absolute top-[2px] w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ease-in-out ${
-                    permissions.takeOrders ? 'translate-x-[26px]' : 'translate-x-[2px]'
-                  }`} 
-                />
-              </button>
-            </div>
-
-            {/* Toggle 2: Small Refunds */}
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-bold text-[14px] text-slate-900 mb-0.5">Small Refunds</div>
-                <div className="font-medium text-[12px] text-slate-400">Up to ₱500 per shift</div>
-              </div>
-              <button 
-                onClick={() => handleToggle('smallRefunds')}
-                className="relative w-12 h-6 rounded-full transition-colors duration-200 ease-in-out focus:outline-none"
-                style={{ backgroundColor: permissions.smallRefunds ? '#10B981' : '#E2E8F0' }}
-              >
-                <div 
-                  className={`absolute top-[2px] w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ease-in-out ${
-                    permissions.smallRefunds ? 'translate-x-[26px]' : 'translate-x-[2px]'
-                  }`} 
-                />
-              </button>
-            </div>
-
-            {/* Toggle 3: Void Orders */}
-            <div className="flex items-center justify-between opacity-60">
-              <div>
-                <div className="font-bold text-[14px] text-slate-900 mb-0.5">Void Orders</div>
-                <div className="font-medium text-[12px] text-slate-400">Remove paid items</div>
-              </div>
-              <button 
-                onClick={() => handleToggle('voidOrders')}
-                className="relative w-12 h-6 rounded-full transition-colors duration-200 ease-in-out focus:outline-none"
-                style={{ backgroundColor: permissions.voidOrders ? '#10B981' : '#E2E8F0' }}
-              >
-                <div 
-                  className={`absolute top-[2px] w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ease-in-out ${
-                    permissions.voidOrders ? 'translate-x-[26px]' : 'translate-x-[2px]'
-                  }`} 
-                />
-              </button>
-            </div>
-
-          </div>
-
-          {/* Shift Schedule Card */}
-          <div className="mt-auto bg-[#18181B] rounded-[24px] p-6 text-white shadow-md">
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">
-              SHIFT SCHEDULE
-            </div>
-            <div className="flex flex-col gap-4">
-              <div className="flex justify-between items-center border-b border-slate-700/50 pb-4">
-                <span className="font-bold text-[13px]">MON - FRI</span>
-                <span className="font-bold text-[13px] text-emerald-400">8AM - 4PM</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="font-bold text-[13px]">SAT - SUN</span>
-                <span className="font-bold text-[13px] text-slate-500">OFF</span>
-              </div>
-            </div>
-          </div>
-          
-        </div>
-      </aside>
+      {/* 3. Right sidebar removed; main content now uses full width */}
 
     </div>
   );

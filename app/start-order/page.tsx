@@ -19,7 +19,8 @@ export default function StartOrderPage() {
   const [expenseMode, setExpenseMode] = useState<'employee' | 'shop'>('employee');
   const [expenseAmount, setExpenseAmount] = useState('');
   const [expenseNote, setExpenseNote] = useState('');
-  const [expensedBy, setExpensedBy] = useState('Employee 1');
+  const [staffList, setStaffList] = useState<string[]>([]);
+  const [expensedBy, setExpensedBy] = useState('');
   const [expenseError, setExpenseError] = useState('');
   const [expenseSuccess, setExpenseSuccess] = useState('');
 
@@ -31,10 +32,30 @@ export default function StartOrderPage() {
     return () => window.clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    const loadStaff = async () => {
+      if (!supabase) return;
+
+      const { data, error } = await supabase.from('staff').select('name').order('name');
+      if (error) {
+        console.error('Staff list fetch error:', error);
+        return;
+      }
+
+      const names = (data ?? []).map((row: any) => row.name as string);
+      setStaffList(names);
+      setExpensedBy((currentValue) =>
+        currentValue && names.includes(currentValue) ? currentValue : names[0] ?? ''
+      );
+    };
+
+    loadStaff();
+  }, []);
+
   const resetExpenseForm = () => {
     setExpenseAmount('');
     setExpenseNote('');
-    setExpensedBy('Employee 1');
+    setExpensedBy(staffList[0] ?? '');
   };
 
   const closeExpensesModal = () => {
@@ -55,6 +76,11 @@ export default function StartOrderPage() {
     const amount = parseFloat(expenseAmount);
     if (Number.isNaN(amount) || amount <= 0) {
       setExpenseError('Please enter a valid expense amount.');
+      return;
+    }
+
+    if (expenseMode === 'employee' && !expensedBy) {
+      setExpenseError('Please select a staff member.');
       return;
     }
 
@@ -236,9 +262,17 @@ export default function StartOrderPage() {
                     onChange={(event) => setExpensedBy(event.target.value)}
                     className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white"
                   >
-                    <option>Employee 1</option>
-                    <option>Employee 2</option>
-                    <option>Employee 3</option>
+                    {staffList.length === 0 ? (
+                      <option value="" disabled>
+                        No staff available
+                      </option>
+                    ) : (
+                      staffList.map((name) => (
+                        <option key={name} value={name}>
+                          {name}
+                        </option>
+                      ))
+                    )}
                   </select>
                 </label>
               ) : null}

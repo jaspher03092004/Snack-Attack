@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase/client';
 
 export default function TimeInPage() {
-  const [selectedEmployee, setSelectedEmployee] = useState('Jaspher');
+  const [staffList, setStaffList] = useState<Array<{ name: string; pin_code: string }>>([]);
+  const [selectedEmployee, setSelectedEmployee] = useState('');
   const [pin, setPin] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -19,8 +20,14 @@ export default function TimeInPage() {
       return;
     }
 
-    if (pin !== '0000') {
-      setErrorMessage('Invalid PIN. Please enter 0000.');
+    const selectedStaff = staffList.find((staff) => staff.name === selectedEmployee);
+    if (!selectedStaff) {
+      setErrorMessage('Please select a registered employee.');
+      return;
+    }
+
+    if (pin !== selectedStaff.pin_code) {
+      setErrorMessage('Invalid PIN code.');
       return;
     }
 
@@ -67,6 +74,34 @@ export default function TimeInPage() {
     setPin('');
   };
 
+  useEffect(() => {
+    const loadStaffList = async () => {
+      if (!supabase) return;
+
+      const { data, error } = await supabase
+        .from('staff')
+        .select('name, pin_code')
+        .order('name');
+
+      if (error) {
+        console.error('Staff list fetch error:', error);
+        return;
+      }
+
+      const staff = (data ?? []).map((row: any) => ({
+        name: row.name as string,
+        pin_code: row.pin_code as string,
+      }));
+
+      setStaffList(staff);
+      if (staff.length > 0) {
+        setSelectedEmployee(staff[0].name);
+      }
+    };
+
+    loadStaffList();
+  }, []);
+
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(14,165,233,0.12),_transparent_35%)] px-4 py-10 text-slate-900 sm:px-6 lg:px-8">
       <div className="mx-auto flex min-h-[80vh] max-w-2xl flex-col justify-center rounded-[36px] border border-slate-200 bg-white/90 p-8 shadow-2xl backdrop-blur-xl sm:p-10">
@@ -84,9 +119,11 @@ export default function TimeInPage() {
               onChange={(event) => setSelectedEmployee(event.target.value)}
               className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-slate-400"
             >
-              <option>Jaspher</option>
-              <option>John</option>
-              <option>Sarah</option>
+              {staffList.map((staff) => (
+                <option key={staff.name} value={staff.name}>
+                  {staff.name}
+                </option>
+              ))}
             </select>
           </label>
 
