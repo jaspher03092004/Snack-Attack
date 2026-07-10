@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { 
   LayoutGrid, 
   ReceiptText, 
@@ -10,11 +10,159 @@ import {
   ArrowLeft,
   LogOut
 } from 'lucide-react';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase/client';
+
+type OrderRecord = {
+  id: string;
+  order_number: string;
+  total_amount: number;
+  created_at: string;
+};
+
+type ExpenseRecord = {
+  id: string;
+  item_name: string;
+  amount: number;
+  expense_date: string;
+  expensed_by: string;
+};
 
 export default function ManagerDashboard() {
   const router = useRouter();
   const [activeNav, setActiveNav] = useState('dashboard');
+  const [orders, setOrders] = useState<OrderRecord[]>([]);
+  const [expensesToday, setExpensesToday] = useState<ExpenseRecord[]>([]);
+
+  const getTodayDateString = () => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  };
+
+  useEffect(() => {
+    const fetchOrdersAndExpenses = async () => {
+      const todayDate = getTodayDateString();
+      const [ordersResult, expensesResult] = await Promise.all([
+        supabase
+          .from('orders')
+          .select('id, order_number, total_amount, created_at')
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('expenses')
+          .select('id, item_name, amount, expense_date, expensed_by')
+          .eq('expense_date', todayDate)
+          .order('id', { ascending: false }),
+      ]);
+
+      if (ordersResult.error) {
+        console.error('Orders fetch error:', ordersResult.error);
+      } else {
+        const parsedOrders = (ordersResult.data ?? []).map((order: any) => ({
+          id: order.id,
+          order_number: order.order_number,
+          total_amount: Number(order.total_amount) || 0,
+          created_at: order.created_at,
+        })) as OrderRecord[];
+        setOrders(parsedOrders);
+      }
+
+      if (expensesResult.error) {
+        console.error('Expenses fetch error:', expensesResult.error);
+      } else {
+        const parsedExpenses = (expensesResult.data ?? []).map((expense: any) => ({
+          id: expense.id,
+          item_name: expense.item_name,
+          amount: Number(expense.amount) || 0,
+          expense_date: expense.expense_date,
+          expensed_by: expense.expensed_by,
+        })) as ExpenseRecord[];
+        setExpensesToday(parsedExpenses);
+      }
+    };
+
+    void fetchOrdersAndExpenses();
+  }, []);
+
+  const orderMetrics = useMemo(() => {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfTomorrow = new Date(startOfToday);
+    startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
+
+    const startOfYesterday = new Date(startOfToday);
+    startOfYesterday.setDate(startOfYesterday.getDate() - 1);
+
+    const startOfWeek = new Date(startOfToday);
+    const dayOfWeek = startOfWeek.getDay();
+    const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    startOfWeek.setDate(startOfWeek.getDate() - daysSinceMonday);
+
+    const ordersWithDate = orders.map((order) => ({
+      ...order,
+      localDate: new Date(order.created_at),
+    }));
+
+    const allOrders = ordersWithDate;
+    const ordersToday = allOrders.filter(
+      (order) => order.localDate >= startOfToday && order.localDate < startOfTomorrow,
+    );
+    const ordersYesterday = allOrders.filter(
+      (order) => order.localDate >= startOfYesterday && order.localDate < startOfToday,
+    );
+    const ordersThisWeek = allOrders.filter(
+      (order) => order.localDate >= startOfWeek && order.localDate < startOfTomorrow,
+    );
+
+    const ordersTodaySorted = [...ordersToday].sort(
+      (a, b) => b.localDate.getTime() - a.localDate.getTime(),
+    );
+
+    const sumTotal = (items: Array<OrderRecord & { localDate: Date }>) =>
+      items.reduce((total, item) => total + (Number(item.total_amount) || 0), 0);
+
+    return {
+      ordersToday: ordersTodaySorted,
+      ordersYesterday,
+      ordersThisWeek,
+      allOrders,
+      salesToday: sumTotal(ordersToday),
+      salesYesterday: sumTotal(ordersYesterday),
+      salesThisWeek: sumTotal(ordersThisWeek),
+      salesOverall: sumTotal(allOrders),
+      totalOrdersToday: ordersTodaySorted.length,
+    };
+  }, [orders]);
+
+  const expensesTotal = useMemo(
+    () => expensesToday.reduce((sum, expense) => sum + expense.amount, 0),
+    [expensesToday],
+  );
+
+  const salesTrendData = useMemo(() => {
+      const today = new Date();
+      const dateLabels = Array.from({ length: 7 }, (_, index) => {
+        const date = new Date(today);
+        date.setDate(today.getDate() - (6 - index));
+        return {
+          day: date.toLocaleDateString('en-US', { weekday: 'short' }),
+          dateKey: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`,
+        };
+      });
+
+      return dateLabels.map((day) => ({
+        ...day,
+        sales: orderMetrics.allOrders
+          .filter((order) => {
+            const localDate = order.localDate;
+            const key = `${localDate.getFullYear()}-${String(localDate.getMonth() + 1).padStart(2, '0')}-${String(localDate.getDate()).padStart(2, '0')}`;
+            return key === day.dateKey;
+          })
+          .reduce((sum, order) => sum + order.total_amount, 0),
+      }));
+    }, [orderMetrics.allOrders]);
+  const formatCurrency = (value: number) =>
+    `₱${value.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutGrid, path: '/manager/dashboard' },
@@ -111,117 +259,156 @@ export default function ManagerDashboard() {
         </div>
 
         {/* KPI Card Row */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          
-          {/* Card 1: Revenue */}
+        <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 mb-6">
           <div className="bg-white rounded-[24px] p-7 shadow-sm border border-slate-100/50">
             <div className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-3">
-              TOTAL REVENUE TODAY
+              Total Revenue Today
             </div>
-            <div className="text-[40px] font-black text-slate-900 leading-none mb-3 flex items-start tracking-tight">
-              <span className="text-2xl mt-1.5 mr-1 font-sans">₱</span>24,850.00
+            <div className="text-[32px] font-black text-slate-900 leading-none mb-2">
+              {formatCurrency(orderMetrics.salesToday)}
             </div>
-            <div className="flex items-center text-emerald-600 font-bold text-[13px]">
-              <ArrowUp className="w-4 h-4 mr-1 stroke-[2.5px]" />
-              12% vs yesterday
+            <div className="text-slate-500 text-[13px]">Orders: {orderMetrics.ordersToday.length}</div>
+          </div>
+
+          <div className="bg-white rounded-[24px] p-7 shadow-sm border border-slate-100/50">
+            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-3">
+              Total Revenue Yesterday
+            </div>
+            <div className="text-[32px] font-black text-slate-900 leading-none">
+              {formatCurrency(orderMetrics.salesYesterday)}
             </div>
           </div>
 
-          {/* Card 2: Orders */}
-          <div className="bg-white rounded-[24px] p-7 shadow-sm border border-slate-100/50 flex flex-col justify-between">
+          <div className="bg-white rounded-[24px] p-7 shadow-sm border border-slate-100/50">
+            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-3">
+              Total Revenue This Week
+            </div>
+            <div className="text-[32px] font-black text-slate-900 leading-none">
+              {formatCurrency(orderMetrics.salesThisWeek)}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-[24px] p-7 shadow-sm border border-slate-100/50">
+            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-3">
+              Total Revenue Overall
+            </div>
+            <div className="text-[32px] font-black text-slate-900 leading-none">
+              {formatCurrency(orderMetrics.salesOverall)}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-[24px] p-7 shadow-sm border border-slate-100/50">
+            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-3">
+              Total Orders Today
+            </div>
+            <div className="text-[32px] font-black text-slate-900 leading-none">
+              {orderMetrics.totalOrdersToday}
+            </div>
+          </div>
+        </div>
+
+        {/* Today&apos;s Sales Target */}
+        <div className="bg-white rounded-[24px] p-7 shadow-sm border border-slate-100/50 mb-6">
+          <div className="flex items-center justify-between mb-5 gap-4">
             <div>
-              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-3">
-                TOTAL ORDERS
-              </div>
-              <div className="text-[40px] font-black text-slate-900 leading-none tracking-tight">
-                142
-              </div>
+              <h2 className="text-[18px] font-bold text-slate-900">Today&apos;s Sales Target</h2>
+              <p className="text-sm text-slate-500 mt-1">Watch progress toward Gold Rush.</p>
             </div>
-            <div className="text-slate-500 font-medium text-[13px] mt-3">
-              Average bill: <span className="font-sans">₱</span>175.00
+            <div className="text-sm font-semibold text-slate-700">
+              {formatCurrency(orderMetrics.salesToday)} / ₱15,000
             </div>
           </div>
 
-          {/* Card 3: Alerts */}
-          <div className="bg-white rounded-[24px] p-7 shadow-sm border border-slate-100/50 flex flex-col justify-between">
-            <div>
-              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-3">
-                INVENTORY ALERTS
-              </div>
-              <div className="text-[40px] font-black text-red-500 leading-none tracking-tight">
-                3
-              </div>
-            </div>
-            <div className="text-red-500 font-bold text-[13px] mt-3">
-              Buns, Patties, Mayo
-            </div>
+          <div className="rounded-full bg-slate-200 h-4 overflow-hidden relative">
+            <div
+              className="h-full rounded-full bg-emerald-500 transition-all duration-300"
+              style={{ width: `${Math.min((orderMetrics.salesToday / 15000) * 100, 100)}%` }}
+            />
           </div>
 
+          <div className="mt-4 grid grid-cols-4 text-[11px] font-semibold text-slate-500 uppercase tracking-widest gap-2">
+            <div className="text-left">₱5,000</div>
+            <div className="text-center">₱10,000</div>
+            <div className="text-center">₱12,000</div>
+            <div className="text-right">₱15,000</div>
+          </div>
+          <div className="mt-2 flex justify-between text-[13px] text-slate-500">
+            <span>Break Even</span>
+            <span>Goal</span>
+            <span>Happy Sales</span>
+            <span>Gold Rush</span>
+          </div>
         </div>
 
         {/* Main Visuals Row */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
-          {/* Chart Placeholder (Takes up 2 cols) */}
+          {/* Daily Sales Chart (Takes up 2 cols) */}
           <div className="lg:col-span-2 bg-white rounded-[24px] p-8 shadow-sm border border-slate-100/50 h-[380px] flex flex-col">
             <div className="flex items-center justify-between mb-8">
-              <h2 className="text-[18px] font-bold text-slate-900">Hourly Sales</h2>
+              <h2 className="text-[18px] font-bold text-slate-900">Daily Sales</h2>
               <div className="bg-slate-100 rounded-full px-4 py-1.5 flex items-center select-none cursor-pointer">
-                <span className="text-[13px] font-bold text-slate-800">Today</span>
+                <span className="text-[13px] font-bold text-slate-800">Last 7 days</span>
               </div>
             </div>
-            
-            {/* Mock Chart Area */}
-            <div className="flex-1 bg-[#F8FAFC] rounded-[16px] flex items-end justify-center p-6 gap-2">
-              <div className="w-[12%] bg-[#E2E8F0] rounded-t-[8px] h-[15%]" />
-              <div className="w-[12%] bg-[#E2E8F0] rounded-t-[8px] h-[30%]" />
-              <div className="w-[12%] bg-[#E2E8F0] rounded-t-[8px] h-[45%]" />
-              <div className="w-[16%] bg-slate-900 rounded-t-[8px] h-[85%]" />
-              <div className="w-[12%] bg-[#E2E8F0] rounded-t-[8px] h-[60%]" />
-              <div className="w-[12%] bg-[#E2E8F0] rounded-t-[8px] h-[30%]" />
-              <div className="w-[12%] bg-[#E2E8F0] rounded-t-[8px] h-[40%]" />
+
+            <div className="flex-1">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={salesTrendData} margin={{ top: 8, right: 16, left: -12, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+                  <XAxis dataKey="day" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
+                  <YAxis tickFormatter={(value) => `₱${value >= 1000 ? `${value / 1000}k` : value}`} tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
+                  <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                  <Bar dataKey="sales" fill="#0f766e" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           </div>
 
           {/* Live Feed (Takes up 1 col) */}
-          <div className="bg-white rounded-[24px] p-8 shadow-sm border border-slate-100/50 h-[380px] flex flex-col">
+          <div className="bg-white rounded-[24px] p-8 shadow-sm border border-slate-100/50 flex flex-col">
             <h2 className="text-[18px] font-bold text-slate-900 mb-6">Live Feed</h2>
-            
-            <div className="flex flex-col gap-6 flex-1 overflow-y-auto pr-2 custom-scrollbar">
-              
-              {/* Entry 1 */}
-              <div className="flex justify-between items-start">
+
+            <div className="flex flex-col gap-4 flex-1 overflow-y-auto pr-2 custom-scrollbar mb-6 h-[220px]">
+              {orderMetrics.ordersToday.length === 0 ? (
+                <div className="text-slate-500 text-sm">No orders yet today.</div>
+              ) : (
+                orderMetrics.ordersToday.map((order) => (
+                  <div key={order.id} className="flex justify-between items-center rounded-[18px] bg-slate-50 p-4">
+                    <div>
+                      <div className="font-bold text-[15px] text-slate-900">{order.order_number}</div>
+                    </div>
+                    <div className="font-bold text-[15px] text-slate-900">
+                      {formatCurrency(order.total_amount)}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="bg-slate-50 rounded-[24px] p-5 border border-slate-100/50">
+              <div className="flex items-center justify-between mb-4">
                 <div>
-                  <div className="font-bold text-[15px] text-slate-900 mb-0.5">Order #142</div>
-                  <div className="font-medium text-[12px] text-slate-400">2m ago • Cash</div>
-                </div>
-                <div className="font-bold text-[15px] text-slate-900">
-                  <span className="font-sans mr-[1px]">₱</span>431.20
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Expenses Today</p>
+                  <h3 className="text-[20px] font-bold text-slate-900">{formatCurrency(expensesTotal)}</h3>
                 </div>
               </div>
 
-              {/* Entry 2 */}
-              <div className="flex justify-between items-start">
-                <div>
-                  <div className="font-bold text-[15px] text-slate-900 mb-0.5">Order #141</div>
-                  <div className="font-medium text-[12px] text-slate-400">8m ago • GCash</div>
-                </div>
-                <div className="font-bold text-[15px] text-slate-900">
-                  <span className="font-sans mr-[1px]">₱</span>150.00
-                </div>
+              <div className="space-y-3 max-h-44 overflow-y-auto pr-2 custom-scrollbar">
+                {expensesToday.length === 0 ? (
+                  <p className="text-sm text-slate-500">No expenses logged for today.</p>
+                ) : (
+                  expensesToday.map((expense) => (
+                    <div key={expense.id} className="flex items-center justify-between rounded-[18px] bg-white px-4 py-3 shadow-sm">
+                      <div>
+                        <div className="font-semibold text-slate-900">{expense.item_name || expense.expensed_by}</div>
+                        <div className="text-[12px] text-slate-500">{expense.expensed_by}</div>
+                      </div>
+                      <div className="text-sm font-bold text-slate-900">{formatCurrency(expense.amount)}</div>
+                    </div>
+                  ))
+                )}
               </div>
-
-              {/* Entry 3 (Void) */}
-              <div className="flex justify-between items-start">
-                <div>
-                  <div className="font-bold text-[15px] text-red-500 mb-0.5">VOID: Order #138</div>
-                  <div className="font-medium text-[12px] text-red-400">15m ago • Manager Required</div>
-                </div>
-                <div className="font-bold text-[15px] text-red-500">
-                  -<span className="font-sans mr-[1px]">₱</span>220.00
-                </div>
-              </div>
-
             </div>
           </div>
 
