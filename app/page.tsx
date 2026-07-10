@@ -1,32 +1,51 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Store, Delete } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase/client';
 
 export default function EntrancePage() {
   const [pin, setPin] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   const [isClockingIn, setIsClockingIn] = useState(false);
   const router = useRouter();
 
-  // Handle number pad inputs
+  const handlePinSubmit = async (enteredPin: string) => {
+    setErrorMessage('');
+
+    if (!supabase) {
+      setErrorMessage('Authentication service is unavailable.');
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('staff')
+      .select('id, name')
+      .eq('pin_code', enteredPin)
+      .limit(1)
+      .single();
+
+    if (error || !data) {
+      setErrorMessage('Invalid PIN');
+      setPin('');
+      return;
+    }
+
+    localStorage.setItem('activeCashier', data.name);
+    localStorage.setItem('activeCashierId', data.id);
+    router.push('/start-order');
+  };
+
   const handleKeyPress = (digit: string) => {
+    setErrorMessage('');
+
     if (pin.length < 4) {
       const newPin = pin + digit;
       setPin(newPin);
-      
-      // Simulate success and reset after a brief delay when 4 digits are entered
+
       if (newPin.length === 4) {
-        if (newPin === '0000') {
-          setTimeout(() => {
-            router.push('/start-order');
-          }, 300);
-        } else {
-          setTimeout(() => {
-            setPin('');
-            // Here you would typically handle the auth submission logic
-          }, 300);
-        }
+        void handlePinSubmit(newPin);
       }
     }
   };
@@ -67,17 +86,20 @@ export default function EntrancePage() {
         </div>
 
         {/* PIN Entry Display (4 circles) */}
-        <div className="flex items-center gap-5 mb-12" aria-live="polite">
-          {[...Array(4)].map((_, i) => (
-            <div 
-              key={i} 
-              className={`w-5 h-5 rounded-full transition-all duration-100 border-2 ${
-                i < pin.length 
-                  ? 'bg-slate-400 border-slate-400' 
-                  : 'bg-transparent border-slate-200'
-              }`} 
-            />
-          ))}
+        <div className="flex flex-col items-center gap-4 mb-6">
+          <div className="flex items-center gap-5" aria-live="polite">
+            {[...Array(4)].map((_, i) => (
+              <div 
+                key={i} 
+                className={`w-5 h-5 rounded-full transition-all duration-100 border-2 ${
+                  i < pin.length 
+                    ? 'bg-slate-400 border-slate-400' 
+                    : 'bg-transparent border-slate-200'
+                }`} 
+              />
+            ))}
+          </div>
+          {errorMessage && <p className="text-sm text-rose-600">{errorMessage}</p>}
         </div>
 
         {/* Numeric Keypad Grid */}
