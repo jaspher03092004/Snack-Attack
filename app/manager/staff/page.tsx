@@ -1,12 +1,11 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   LayoutGrid,
   ReceiptText,
   Box,
   Users,
-  Star,
   LogOut,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -27,6 +26,10 @@ export default function StaffScreen() {
   const [activeNav, setActiveNav] = useState('staff');
   const [staffMembers, setStaffMembers] = useState<Array<{ id: string; name: string; pin_code: string; base_salary: number; snack_allowance: number }>>([]);
   const [payrollLogs, setPayrollLogs] = useState<PayrollLog[]>([]);
+  const [weeklySchedule, setWeeklySchedule] = useState<Array<{ id: string; day_of_week: string; assigned_staff: string[] }>>([]);
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [editingDay, setEditingDay] = useState<string | null>(null);
+  const [editingAssigned, setEditingAssigned] = useState<string[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [formName, setFormName] = useState('');
@@ -38,6 +41,20 @@ export default function StaffScreen() {
   const [staffSuccess, setStaffSuccess] = useState('');
 
   const formatCurrency = (value: number) => `₱${value.toFixed(2)}`;
+
+  const teamEarnings = useMemo(() => {
+    return staffMembers.map((s) => {
+      const total = payrollLogs
+        .filter((p) => p.employee_name === s.name)
+        .reduce((sum, p) => sum + (Number(p.final_total) || 0), 0);
+
+      return {
+        id: s.id,
+        name: s.name,
+        overall_salary: total,
+      };
+    });
+  }, [staffMembers, payrollLogs]);
 
   const getStaffDirectory = async () => {
     if (!supabase) return;
@@ -84,34 +101,99 @@ export default function StaffScreen() {
     setPayrollLogs(parsedPayroll);
   };
 
-  useEffect(() => {
-    const loadData = async () => {
-      await Promise.all([getStaffDirectory(), getPayrollLogs()]);
-    };
+  const getWeeklySchedule = async () => {
+    if (!supabase) return;
 
-    loadData();
-  }, []);
+    const { data, error } = await supabase
+      .from('weekly_schedule')
+      .select('id, day_of_week, assigned_staff');
 
-  const openAddModal = () => {
-    setStaffError('');
-    setStaffSuccess('');
-    setFormName('');
-    setFormPin('');
-    setFormBaseSalary('500');
-    setFormSnackAllowance('50');
-    setEditingStaffId(null);
-    setIsAddModalOpen(true);
+    if (error) {
+      console.error('Weekly schedule fetch error:', error);
+      return;
+    }
+
+    const daysOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+    const parsed = (data ?? []).map((row: any) => ({
+      id: row.id,
+      day_of_week: row.day_of_week,
+      assigned_staff: (row.assigned_staff ?? []) as string[],
+    }));
+
+    parsed.sort((a, b) => daysOrder.indexOf(a.day_of_week) - daysOrder.indexOf(b.day_of_week));
+
+    setWeeklySchedule(parsed as Array<{ id: string; day_of_week: string; assigned_staff: string[] }>);
   };
 
-  const openEditModal = (staff: { id: string; name: string; pin_code: string; base_salary: number; snack_allowance: number }) => {
-    setStaffError('');
-    setStaffSuccess('');
-    setFormName(staff.name);
-    setFormPin(staff.pin_code);
-    setFormBaseSalary(String(staff.base_salary ?? 500));
-    setFormSnackAllowance(String(staff.snack_allowance ?? 50));
-    setEditingStaffId(staff.id);
-    setIsEditModalOpen(true);
+  useEffect(() => {
+    let subscription: any = null;
+
+    const loadData = async () => {
+      await Promise.all([getStaffDirectory(), getPayrollLogs(), getWeeklySchedule()]);
+    };
+
+    // run initial load, then create a uniquely named channel to avoid duplicate .on() bindings
+    loadData()
+      .then(() => {
+        try {
+          if (!supabase) return;
+          const subName = `payroll_changes_${Date.now()}`;
+          const sub = supabase
+            .channel(subName)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'payroll' }, () => {
+              void getPayrollLogs();
+            })
+            .subscribe();
+
+          subscription = sub;
+        } catch (err) {
+          console.error('Realtime subscription error:', err);
+        }
+      })
+      .catch((err) => console.error('Initial load error:', err));
+
+    return () => {
+      if (subscription) {
+        // @ts-ignore
+        supabase?.removeChannel(subscription);
+      }
+    };
+  }, []);
+
+  const openScheduleEditModal = (day: { id: string; day_of_week: string; assigned_staff: string[] }) => {
+    setEditingDay(day.day_of_week);
+    setEditingAssigned(day.assigned_staff ?? []);
+    setIsScheduleModalOpen(true);
+  };
+
+  const closeScheduleModal = () => {
+    setIsScheduleModalOpen(false);
+    setEditingDay(null);
+    setEditingAssigned([]);
+  };
+
+  const toggleAssigned = (name: string) => {
+    setEditingAssigned((current) => {
+      if (current.includes(name)) return current.filter((n) => n !== name);
+      return [...current, name];
+    });
+  };
+
+  const saveSchedule = async () => {
+    if (!editingDay) return;
+    const { error } = await supabase
+      .from('weekly_schedule')
+      .update({ assigned_staff: editingAssigned })
+      .eq('day_of_week', editingDay);
+
+    if (error) {
+      console.error('Weekly schedule update error:', error);
+      return;
+    }
+
+    await getWeeklySchedule();
+    closeScheduleModal();
   };
 
   const closeStaffModal = () => {
@@ -200,6 +282,28 @@ export default function StaffScreen() {
     setStaffSuccess('Staff member updated.');
     closeStaffModal();
     getStaffDirectory();
+  };
+
+    const openAddModal = () => {
+      setStaffError('');
+      setStaffSuccess('');
+      setFormName('');
+      setFormPin('');
+      setFormBaseSalary('500');
+      setFormSnackAllowance('50');
+      setEditingStaffId(null);
+      setIsAddModalOpen(true);
+    };
+
+  const openEditModal = (staff: { id: string; name: string; pin_code: string; base_salary: number; snack_allowance: number }) => {
+    setStaffError('');
+    setStaffSuccess('');
+    setFormName(staff.name);
+    setFormPin(staff.pin_code);
+    setFormBaseSalary(String(staff.base_salary ?? 500));
+    setFormSnackAllowance(String(staff.snack_allowance ?? 50));
+    setEditingStaffId(staff.id);
+    setIsEditModalOpen(true);
   };
 
   const navItems = [
@@ -472,62 +576,22 @@ export default function StaffScreen() {
             </div>
           )}
 
-          {/* Upsell Leaderboard */}
+          {/* Team Earnings Overview */}
           <div className="bg-white rounded-[24px] p-7 shadow-sm border border-slate-100 mb-8">
             <h2 className="text-[19px] font-bold text-slate-900 tracking-tight leading-tight mb-5">
-              Upsell Leaderboard (AOV)
+              Team Earnings Overview
             </h2>
-            <div className="flex gap-4">
-              {/* Rank 1 */}
-              <div className="flex-1 bg-[#18181B] rounded-[20px] p-6 relative overflow-hidden shadow-md">
-                <Star className="absolute -right-4 -top-2 w-32 h-32 text-white/5 fill-current" />
-                <div className="relative z-10">
-                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
-                    RANK #1
-                  </div>
-                  <div className="text-[20px] font-bold text-white mb-4">
-                    Jasper
-                  </div>
-                  <div className="text-[32px] font-black text-emerald-400 leading-none tracking-tight mb-1">
-                    <span className="font-sans mr-1">₱</span>242.50
-                  </div>
-                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                    AVG. BILL VALUE
-                  </div>
-                </div>
-              </div>
 
-              {/* Rank 2 */}
-              <div className="flex-1 bg-slate-50 border border-slate-100 rounded-[20px] p-6">
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
-                  RANK #2
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              {teamEarnings.map((t) => (
+                <div key={t.id} className="bg-slate-50 border border-slate-100 rounded-[20px] p-5">
+                  <div className="text-[12px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Team Member</div>
+                  <div className="text-[18px] font-bold text-slate-900 mb-2">{t.name}</div>
+                  <div className="text-[24px] font-black text-slate-900 leading-none tracking-tight">
+                    {formatCurrency(t.overall_salary)}
+                  </div>
                 </div>
-                <div className="text-[20px] font-bold text-slate-900 mb-4">
-                  Maria
-                </div>
-                <div className="text-[32px] font-black text-slate-900 leading-none tracking-tight mb-1">
-                  <span className="font-sans mr-1">₱</span>198.20
-                </div>
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                  AVG. BILL VALUE
-                </div>
-              </div>
-
-              {/* Rank 3 */}
-              <div className="flex-1 bg-slate-50 border border-slate-100 rounded-[20px] p-6">
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
-                  RANK #3
-                </div>
-                <div className="text-[20px] font-bold text-slate-900 mb-4">
-                  Kevin
-                </div>
-                <div className="text-[32px] font-black text-slate-900 leading-none tracking-tight mb-1">
-                  <span className="font-sans mr-1">₱</span>165.00
-                </div>
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                  AVG. BILL VALUE
-                </div>
-              </div>
+              ))}
             </div>
           </div>
 
@@ -576,6 +640,78 @@ export default function StaffScreen() {
               </table>
             </div>
           </div>
+
+          {/* Weekly Schedule Card */}
+          <div className="bg-white rounded-[24px] p-6 shadow-sm border border-slate-100 mt-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-[18px] font-bold text-slate-900">Weekly Schedule</h2>
+              <span className="text-sm text-slate-500">Manage staff assignments</span>
+            </div>
+
+            <div className="space-y-3">
+              {weeklySchedule.map((day) => (
+                <div key={day.id} className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-slate-800">{day.day_of_week}</div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {day.assigned_staff && day.assigned_staff.length > 0 ? (
+                        day.assigned_staff.map((name) => (
+                          <span key={name} className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-700">
+                            {name}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-sm text-slate-400">No one assigned</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center">
+                    <button
+                      type="button"
+                      onClick={() => openScheduleEditModal(day)}
+                      className="rounded-2xl border border-slate-200 bg-white px-3 py-1 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                    >
+                      Edit
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {isScheduleModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-6">
+              <div className="w-full max-w-lg rounded-[28px] bg-white p-6 shadow-2xl ring-1 ring-slate-200">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-900">Edit Schedule — {editingDay}</h3>
+                    <p className="mt-1 text-sm text-slate-500">Select staff to assign for this day.</p>
+                  </div>
+                  <button onClick={closeScheduleModal} className="rounded-full p-2 text-slate-500">×</button>
+                </div>
+
+                <div className="mt-4 space-y-2 max-h-64 overflow-auto">
+                  {staffMembers.map((s) => (
+                    <label key={s.id} className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={editingAssigned.includes(s.name)}
+                        onChange={() => toggleAssigned(s.name)}
+                        className="h-4 w-4"
+                      />
+                      <span className="text-sm text-slate-700">{s.name}</span>
+                    </label>
+                  ))}
+                </div>
+
+                <div className="mt-6 flex justify-end gap-3">
+                  <button onClick={closeScheduleModal} className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">Cancel</button>
+                  <button onClick={saveSchedule} className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Save</button>
+                </div>
+              </div>
+            </div>
+          )}
 
         </div>
       </main>

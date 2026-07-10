@@ -135,11 +135,14 @@ export default function HistoryPage() {
         return;
       }
 
+      // Use Asia/Manila local date strings to avoid UTC mismatches
       const today = new Date();
-      const todayDate = today.toLocaleDateString('en-CA');
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const tomorrowDate = tomorrow.toLocaleDateString('en-CA');
+      const todayDate = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+      const tomorrow = new Date();
+      // compute tomorrow in Asia/Manila by parsing the todayDate and adding one day
+      const tomorrowDateObj = new Date(todayDate);
+      tomorrowDateObj.setDate(tomorrowDateObj.getDate() + 1);
+      const tomorrowDate = tomorrowDateObj.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
 
       const [salesResult, expenseResult, payrollResult] = await Promise.all([
         supabase
@@ -202,7 +205,7 @@ export default function HistoryPage() {
 
       const payrollTiers = getPayrollTiers(todaySalesTotal);
       try {
-        const updatedPayrollRows = await Promise.all(
+          const updatedPayrollRows = await Promise.all(
           payrollToday.map(async (employee) => {
             const employeeExpenseList = expensesToday.filter(
               (expense) => expense.expensed_by === employee.employee_name,
@@ -221,7 +224,8 @@ export default function HistoryPage() {
                 snack_allowance: payrollTiers.snackAllowance,
                 final_total: finalTotal,
               })
-              .eq('id', employee.id);
+              .eq('id', employee.id)
+              .eq('shift_date', todayDate);
 
             if (payrollUpdateError) {
               throw payrollUpdateError;
