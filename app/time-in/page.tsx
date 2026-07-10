@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase/client';
 
 export default function TimeInPage() {
-  const [staffList, setStaffList] = useState<Array<{ name: string; pin_code: string }>>([]);
+  const [staffList, setStaffList] = useState<Array<{ name: string; pin_code: string; base_salary: number; snack_allowance: number }>>([]);
   const [selectedEmployee, setSelectedEmployee] = useState('');
   const [pin, setPin] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -57,10 +57,10 @@ export default function TimeInPage() {
       {
         employee_name: selectedEmployee,
         shift_date: todayDate,
-        base_salary: 500,
+        base_salary: selectedStaff.base_salary,
         incentives: 0,
-        snack_allowance: 50,
-        final_total: 550,
+        snack_allowance: selectedStaff.snack_allowance,
+        final_total: selectedStaff.base_salary + selectedStaff.snack_allowance,
       },
     ]);
 
@@ -80,7 +80,7 @@ export default function TimeInPage() {
 
       const { data, error } = await supabase
         .from('staff')
-        .select('name, pin_code')
+        .select('name, pin_code, base_salary, snack_allowance')
         .order('name');
 
       if (error) {
@@ -91,6 +91,8 @@ export default function TimeInPage() {
       const staff = (data ?? []).map((row: any) => ({
         name: row.name as string,
         pin_code: row.pin_code as string,
+        base_salary: Number(row.base_salary ?? 500),
+        snack_allowance: Number(row.snack_allowance ?? 50),
       }));
 
       setStaffList(staff);

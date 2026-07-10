@@ -25,12 +25,14 @@ type PayrollLog = {
 export default function StaffScreen() {
   const router = useRouter();
   const [activeNav, setActiveNav] = useState('staff');
-  const [staffMembers, setStaffMembers] = useState<Array<{ id: string; name: string; pin_code: string }>>([]);
+  const [staffMembers, setStaffMembers] = useState<Array<{ id: string; name: string; pin_code: string; base_salary: number; snack_allowance: number }>>([]);
   const [payrollLogs, setPayrollLogs] = useState<PayrollLog[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [formName, setFormName] = useState('');
   const [formPin, setFormPin] = useState('');
+  const [formBaseSalary, setFormBaseSalary] = useState('500');
+  const [formSnackAllowance, setFormSnackAllowance] = useState('50');
   const [editingStaffId, setEditingStaffId] = useState<string | null>(null);
   const [staffError, setStaffError] = useState('');
   const [staffSuccess, setStaffSuccess] = useState('');
@@ -39,12 +41,22 @@ export default function StaffScreen() {
 
   const getStaffDirectory = async () => {
     if (!supabase) return;
-    const { data, error } = await supabase.from('staff').select('id, name, pin_code').order('name');
+    const { data, error } = await supabase
+      .from('staff')
+      .select('id, name, pin_code, base_salary, snack_allowance')
+      .order('name');
     if (error) {
       console.error('Staff fetch error:', error);
       return;
     }
-    setStaffMembers((data ?? []) as Array<{ id: string; name: string; pin_code: string }>);
+    const staff = (data ?? []).map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      pin_code: row.pin_code,
+      base_salary: Number(row.base_salary ?? 500),
+      snack_allowance: Number(row.snack_allowance ?? 50),
+    }));
+    setStaffMembers(staff);
   };
 
   const getPayrollLogs = async () => {
@@ -85,15 +97,19 @@ export default function StaffScreen() {
     setStaffSuccess('');
     setFormName('');
     setFormPin('');
+    setFormBaseSalary('500');
+    setFormSnackAllowance('50');
     setEditingStaffId(null);
     setIsAddModalOpen(true);
   };
 
-  const openEditModal = (staff: { id: string; name: string; pin_code: string }) => {
+  const openEditModal = (staff: { id: string; name: string; pin_code: string; base_salary: number; snack_allowance: number }) => {
     setStaffError('');
     setStaffSuccess('');
     setFormName(staff.name);
     setFormPin(staff.pin_code);
+    setFormBaseSalary(String(staff.base_salary ?? 500));
+    setFormSnackAllowance(String(staff.snack_allowance ?? 50));
     setEditingStaffId(staff.id);
     setIsEditModalOpen(true);
   };
@@ -103,6 +119,8 @@ export default function StaffScreen() {
     setIsEditModalOpen(false);
     setFormName('');
     setFormPin('');
+    setFormBaseSalary('500');
+    setFormSnackAllowance('50');
     setEditingStaffId(null);
     setStaffError('');
     setStaffSuccess('');
@@ -118,8 +136,20 @@ export default function StaffScreen() {
       return;
     }
 
+    const baseSalary = parseFloat(formBaseSalary);
+    const snackAllowance = parseFloat(formSnackAllowance);
+    if (Number.isNaN(baseSalary) || baseSalary < 0 || Number.isNaN(snackAllowance) || snackAllowance < 0) {
+      setStaffError('Please enter valid salary and allowance values.');
+      return;
+    }
+
     const { error } = await supabase.from('staff').insert([
-      { name: formName.trim(), pin_code: formPin.trim() },
+      {
+        name: formName.trim(),
+        pin_code: formPin.trim(),
+        base_salary: baseSalary,
+        snack_allowance: snackAllowance,
+      },
     ]);
 
     if (error) {
@@ -144,9 +174,21 @@ export default function StaffScreen() {
       return;
     }
 
+    const baseSalary = parseFloat(formBaseSalary);
+    const snackAllowance = parseFloat(formSnackAllowance);
+    if (Number.isNaN(baseSalary) || baseSalary < 0 || Number.isNaN(snackAllowance) || snackAllowance < 0) {
+      setStaffError('Please enter valid salary and allowance values.');
+      return;
+    }
+
     const { error } = await supabase
       .from('staff')
-      .update({ name: formName.trim(), pin_code: formPin.trim() })
+      .update({
+        name: formName.trim(),
+        pin_code: formPin.trim(),
+        base_salary: baseSalary,
+        snack_allowance: snackAllowance,
+      })
       .eq('id', editingStaffId);
 
     if (error) {
@@ -283,6 +325,8 @@ export default function StaffScreen() {
                   <tr className="border-b border-slate-200 text-slate-500 uppercase tracking-[0.24em] text-[11px]">
                     <th className="px-4 py-3">Name</th>
                     <th className="px-4 py-3">PIN Code</th>
+                    <th className="px-4 py-3">Base Salary</th>
+                    <th className="px-4 py-3">Snack Allowance</th>
                     <th className="px-4 py-3 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -291,6 +335,8 @@ export default function StaffScreen() {
                     <tr key={staff.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                       <td className="px-4 py-4 text-slate-900 font-semibold">{staff.name}</td>
                       <td className="px-4 py-4 text-slate-700">{staff.pin_code}</td>
+                      <td className="px-4 py-4 text-slate-700">{formatCurrency(staff.base_salary)}</td>
+                      <td className="px-4 py-4 text-slate-700">{formatCurrency(staff.snack_allowance)}</td>
                       <td className="px-4 py-4 text-right">
                         <button
                           type="button"
@@ -355,18 +401,52 @@ export default function StaffScreen() {
                     </label>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700">
-                      PIN Code
-                      <input
-                        value={formPin}
-                        onChange={(event) => setFormPin(event.target.value.replace(/\D/g, '').slice(0, 4))}
-                        className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white"
-                        placeholder="0000"
-                        maxLength={4}
-                        required
-                      />
-                    </label>
+                  <div className="grid gap-5 sm:grid-cols-2">
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700">
+                        PIN Code
+                        <input
+                          value={formPin}
+                          onChange={(event) => setFormPin(event.target.value.replace(/\D/g, '').slice(0, 4))}
+                          className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white"
+                          placeholder="0000"
+                          maxLength={4}
+                          required
+                        />
+                      </label>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700">
+                        Base Salary
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={formBaseSalary}
+                          onChange={(event) => setFormBaseSalary(event.target.value)}
+                          className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white"
+                          placeholder="500"
+                          required
+                        />
+                      </label>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700">
+                        Snack Allowance
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={formSnackAllowance}
+                          onChange={(event) => setFormSnackAllowance(event.target.value)}
+                          className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white"
+                          placeholder="50"
+                          required
+                        />
+                      </label>
+                    </div>
                   </div>
 
                   {staffError && <p className="text-sm text-rose-600">{staffError}</p>}

@@ -36,13 +36,25 @@ export default function StartOrderPage() {
     const loadStaff = async () => {
       if (!supabase) return;
 
-      const { data, error } = await supabase.from('staff').select('name').order('name');
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+      const { data, error } = await supabase
+        .from('payroll')
+        .select('employee_name')
+        .eq('shift_date', todayDate)
+        .order('employee_name');
+
       if (error) {
         console.error('Staff list fetch error:', error);
         return;
       }
 
-      const names = (data ?? []).map((row: any) => row.name as string);
+      const names = Array.from(
+        new Set((data ?? []).map((row: any) => row.employee_name as string))
+      ).sort();
+
       setStaffList(names);
       setExpensedBy((currentValue) =>
         currentValue && names.includes(currentValue) ? currentValue : names[0] ?? ''
