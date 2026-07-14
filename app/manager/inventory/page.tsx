@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { 
   LayoutGrid, 
   ReceiptText, 
@@ -9,40 +9,178 @@ import {
   Search,
   ChevronDown,
   Trash2,
-  ArrowLeft,
   LogOut
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase/client';
 
-const INITIAL_INVENTORY = [
-  { 
-    id: 'inv-1', 
-    name: 'Beef Patties (Frozen)', 
-    category: 'MEAT / MAIN', 
-    level: 420, 
-    threshold: 50, 
-    capacity: 500, 
-    mappingCount: 4, 
-    isOnline: true 
-  },
-  { 
-    id: 'inv-2', 
-    name: 'Brioche Buns', 
-    category: 'BAKERY / BREAD', 
-    level: 32, 
-    threshold: 50, 
-    capacity: 100, 
-    mappingCount: 2, 
-    isOnline: false 
+type InventoryItem = {
+  id: string;
+  product_name: string;
+  category: string;
+  current_stock: number;
+  unit: string;
+  minimum_stock: number;
+  price_per_unit: number;
+  status: string;
+  updated_at?: string | null;
+};
+
+type InventoryLog = {
+  id: string;
+  item_id: string;
+  action: string;
+  quantity_changed: number;
+  action_by: string;
+  created_at: string;
+};
+
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat('en-PH', {
+    style: 'currency',
+    currency: 'PHP',
+    maximumFractionDigits: 2,
+  }).format(value);
+
+const formatLastUpdated = (dateValue?: string | null) => {
+  if (!dateValue) return 'N/A';
+  return new Intl.DateTimeFormat('en-PH', {
+    month: 'short',
+    day: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(dateValue));
+};
+
+const getStockStatusBadge = (item: InventoryItem) => {
+  if (item.current_stock === 0) {
+    return {
+      label: '🔴 Out of Stock',
+      className: 'bg-red-50 text-red-700 border border-red-200',
+    };
   }
-];
+
+  if (item.current_stock <= item.minimum_stock && item.current_stock > 0) {
+    return {
+      label: '🟡 Low Stock',
+      className: 'bg-amber-50 text-amber-700 border border-amber-200',
+    };
+  }
+
+  return {
+    label: '🟢 In Stock',
+    className: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+  };
+};
 
 export default function InventoryScreen() {
   const router = useRouter();
   const [activeNav, setActiveNav] = useState('inventory');
-  const [inventory, setInventory] = useState(INITIAL_INVENTORY);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [todayLogs, setTodayLogs] = useState<InventoryLog[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [alertThreshold, setAlertThreshold] = useState('50');
+
+  useEffect(() => {
+    const fetchInventoryData = async () => {
+      if (!supabase) {
+        setInventoryItems([]);
+        setTodayLogs([]);
+        return;
+      }
+
+      const now = new Date();
+      const startOfDay = new Date(now);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(now);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      const [inventoryResponse, logsResponse] = await Promise.all([
+        supabase
+          .from('inventory')
+          .select('*')
+          .order('product_name', { ascending: true }),
+        supabase
+          .from('inventory_logs')
+          .select('*')
+          .gte('created_at', startOfDay.toISOString())
+          .lte('created_at', endOfDay.toISOString())
+          .order('created_at', { ascending: false }),
+      ]);
+
+      if (!inventoryResponse.error) {
+        setInventoryItems((inventoryResponse.data ?? []) as InventoryItem[]);
+      }
+
+      if (!logsResponse.error) {
+        setTodayLogs((logsResponse.data ?? []) as InventoryLog[]);
+      }
+    };
+
+    void fetchInventoryData();
+  }, []);
+
+  const totalProducts = inventoryItems.length;
+
+  const lowStockCount = inventoryItems.filter(
+    (item) => item.current_stock <= item.minimum_stock && item.current_stock > 0
+  ).length;
+
+  const outOfStockCount = inventoryItems.filter(
+    (item) => item.current_stock === 0
+  ).length;
+
+  const totalInventoryValue = inventoryItems.reduce(
+    (sum, item) => sum + item.current_stock * item.price_per_unit,
+    0
+  );
+
+  const itemsAddedToday = todayLogs
+    .filter((log) => log.action === 'Stock In')
+    .reduce((sum, log) => sum + Number(log.quantity_changed), 0);
+
+  const itemsSoldToday = todayLogs
+    .filter((log) => log.action === 'Sold')
+    .reduce((sum, log) => sum + Math.abs(Number(log.quantity_changed)), 0);
+
+  const filteredInventory = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return inventoryItems;
+    return inventoryItems.filter((item) => {
+      return (
+        item.product_name.toLowerCase().includes(query) ||
+        item.category.toLowerCase().includes(query)
+      );
+    });
+  }, [inventoryItems, searchQuery]);
+
+  const itemsNeedingRestock = useMemo(() => {
+    return inventoryItems.filter(
+      (item) => item.current_stock <= item.minimum_stock
+    );
+  }, [inventoryItems]);
+
+  const inventoryNameById = useMemo(() => {
+    return inventoryItems.reduce<Record<string, string>>((acc, item) => {
+      acc[item.id] = item.product_name;
+      return acc;
+    }, {});
+  }, [inventoryItems]);
+
+  const recentActivityLogs = useMemo(() => {
+    return [...todayLogs].sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  }, [todayLogs]);
+
+  const formatActivityTime = (dateValue: string) => {
+    return new Intl.DateTimeFormat('en-PH', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    }).format(new Date(dateValue));
+  };
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutGrid, path: '/manager/dashboard' },
@@ -50,12 +188,6 @@ export default function InventoryScreen() {
     { id: 'inventory', label: 'Inventory', icon: Box, path: '/manager/inventory' },
     { id: 'staff', label: 'Staff', icon: Users, path: '/manager/staff' },
   ];
-
-  const handleToggleSwitch = (id: string) => {
-    setInventory(prev => prev.map(item => 
-      item.id === id ? { ...item, isOnline: !item.isOnline } : item
-    ));
-  };
 
   return (
     <div className="flex h-screen bg-[#F4F4F5] font-sans text-slate-900 overflow-hidden">
@@ -147,30 +279,30 @@ export default function InventoryScreen() {
           </div>
 
           {/* KPI Cards */}
-          <div className="grid grid-cols-4 gap-6 mb-10">
-            <div className="bg-white rounded-[20px] p-6 shadow-sm border border-slate-100">
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">STOCK VALUE</div>
-              <div className="text-[28px] font-black text-slate-900 leading-none">
-                <span className="font-sans mr-1">₱</span>84,200
-              </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-10">
+            <div className="bg-white rounded-[20px] p-5 shadow-sm border border-slate-100">
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Total Products</div>
+              <div className="text-[28px] font-black text-slate-900 leading-none">{totalProducts}</div>
             </div>
-            <div className="bg-[#FFF5F5] rounded-[20px] p-6 shadow-sm border border-[#FEE2E2]">
-              <div className="text-[10px] font-bold text-red-400 uppercase tracking-widest mb-2">CRITICAL ALERTS</div>
-              <div className="text-[28px] font-black text-red-500 leading-none tracking-tight">
-                3 Items
-              </div>
+            <div className="bg-[#FFF7ED] rounded-[20px] p-5 shadow-sm border border-[#FED7AA]">
+              <div className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-2">Low Stock Items</div>
+              <div className="text-[28px] font-black text-orange-600 leading-none">{lowStockCount}</div>
             </div>
-            <div className="bg-white rounded-[20px] p-6 shadow-sm border border-slate-100">
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">WASTE TODAY</div>
-              <div className="text-[28px] font-black text-[#EA580C] leading-none">
-                <span className="font-sans mr-1">₱</span>1,420
-              </div>
+            <div className="bg-[#FFF5F5] rounded-[20px] p-5 shadow-sm border border-[#FECACA]">
+              <div className="text-[10px] font-bold text-red-400 uppercase tracking-widest mb-2">Out of Stock Items</div>
+              <div className="text-[28px] font-black text-red-600 leading-none">{outOfStockCount}</div>
             </div>
-            <div className="bg-white rounded-[20px] p-6 shadow-sm border border-slate-100">
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">SYNC STATUS</div>
-              <div className="text-[28px] font-black text-emerald-500 leading-none tracking-tight">
-                Live
-              </div>
+            <div className="bg-white rounded-[20px] p-5 shadow-sm border border-slate-100">
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Total Inventory Value</div>
+              <div className="text-[26px] font-black text-slate-900 leading-none tracking-tight">{formatCurrency(totalInventoryValue)}</div>
+            </div>
+            <div className="bg-[#ECFDF5] rounded-[20px] p-5 shadow-sm border border-[#A7F3D0]">
+              <div className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-2">Items Added Today</div>
+              <div className="text-[28px] font-black text-emerald-600 leading-none">{itemsAddedToday}</div>
+            </div>
+            <div className="bg-[#FEF2F2] rounded-[20px] p-5 shadow-sm border border-[#FECACA]">
+              <div className="text-[10px] font-bold text-rose-400 uppercase tracking-widest mb-2">Items Used/Sold Today</div>
+              <div className="text-[28px] font-black text-rose-600 leading-none">{itemsSoldToday}</div>
             </div>
           </div>
 
@@ -199,70 +331,42 @@ export default function InventoryScreen() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                  <th className="py-5 px-8">INGREDIENT</th>
-                  <th className="py-5 px-6">CURRENT LEVEL</th>
-                  <th className="py-5 px-6">THRESHOLD</th>
-                  <th className="py-5 px-6">MAPPING</th>
-                  <th className="py-5 px-8">86 MASTER SWITCH</th>
+                  <th className="py-5 px-8">PRODUCT</th>
+                  <th className="py-5 px-6">CATEGORY</th>
+                  <th className="py-5 px-6">CURRENT STOCK</th>
+                  <th className="py-5 px-6">UNIT</th>
+                  <th className="py-5 px-6">MINIMUM STOCK</th>
+                  <th className="py-5 px-6">STATUS</th>
+                  <th className="py-5 px-8">LAST UPDATED</th>
                 </tr>
               </thead>
               <tbody>
-                {inventory.map((item) => {
-                  const isCritical = item.level <= item.threshold;
+                {filteredInventory.map((item) => {
+                  const stockStatus = getStockStatusBadge(item);
                   return (
                     <tr key={item.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors">
                       <td className="py-5 px-8">
-                        <div className={`font-bold text-[15px] mb-0.5 ${isCritical ? 'text-red-500 italic' : 'text-slate-900'}`}>
-                          {item.name}
-                        </div>
-                        <div className={`text-[10px] font-bold uppercase tracking-wider ${isCritical ? 'text-red-300' : 'text-slate-400'}`}>
-                          {item.category}
-                        </div>
+                        <div className="font-bold text-[15px] mb-0.5 text-slate-900">{item.product_name}</div>
                       </td>
                       <td className="py-5 px-6">
-                        <div className="flex items-center gap-3">
-                          <span className={`font-bold text-[18px] w-10 ${isCritical ? 'text-red-500' : 'text-slate-900'}`}>
-                            {item.level}
-                          </span>
-                          <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden flex-shrink-0">
-                            <div 
-                              className={`h-full rounded-full ${isCritical ? 'bg-red-400' : 'bg-emerald-500'}`} 
-                              style={{ width: `${Math.min(100, Math.max(0, (item.level / item.capacity) * 100))}%` }}
-                            />
-                          </div>
-                        </div>
+                        <span className="text-[13px] font-semibold text-slate-700">{item.category}</span>
                       </td>
                       <td className="py-5 px-6">
-                        <span className={`inline-flex px-3 py-1 rounded-[8px] text-[12px] font-bold ${
-                          isCritical ? 'bg-red-50 text-red-500' : 'bg-slate-100 text-slate-600'
-                        }`}>
-                          {item.threshold} units
+                        <span className="text-[13px] font-bold text-slate-900">{item.current_stock} {item.unit}</span>
+                      </td>
+                      <td className="py-5 px-6">
+                        <span className="text-[13px] font-semibold text-slate-700">{item.unit}</span>
+                      </td>
+                      <td className="py-5 px-6">
+                        <span className="text-[13px] font-bold text-slate-900">{item.minimum_stock} {item.unit}</span>
+                      </td>
+                      <td className="py-5 px-6">
+                        <span className={`inline-flex px-3 py-1 rounded-[8px] text-[12px] font-bold ${stockStatus.className}`}>
+                          {stockStatus.label}
                         </span>
                       </td>
-                      <td className="py-5 px-6">
-                        <a href="#" className={`text-[13px] font-semibold underline underline-offset-4 ${isCritical ? 'text-red-400 hover:text-red-500' : 'text-slate-400 hover:text-slate-600'}`}>
-                          {item.mappingCount} Menu Items
-                        </a>
-                      </td>
                       <td className="py-5 px-8">
-                        <div className="flex flex-col items-start justify-center h-full">
-                          <button 
-                            onClick={() => handleToggleSwitch(item.id)}
-                            className="relative w-12 h-6 rounded-full transition-colors duration-200 ease-in-out focus:outline-none"
-                            style={{ backgroundColor: item.isOnline ? '#10B981' : '#E2E8F0' }}
-                          >
-                            <div 
-                              className={`absolute top-[2px] w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ease-in-out ${
-                                item.isOnline ? 'translate-x-[26px]' : 'translate-x-[2px]'
-                              }`} 
-                            />
-                          </button>
-                          {!item.isOnline && (
-                            <span className="text-[9px] font-bold text-red-500 uppercase tracking-wider mt-1.5 absolute translate-y-6">
-                              OFFLINE IN POS
-                            </span>
-                          )}
-                        </div>
+                        <span className="text-[12px] font-medium text-slate-500">{formatLastUpdated(item.updated_at)}</span>
                       </td>
                     </tr>
                   )
@@ -274,64 +378,72 @@ export default function InventoryScreen() {
         </div>
       </main>
 
-      {/* 3. Right Sidebar (Ingredient Mapping) */}
+      {/* 3. Right Sidebar */}
       <aside className="w-[360px] bg-white border-l border-slate-200 flex flex-col flex-shrink-0 h-full shadow-[-4px_0_24px_rgba(0,0,0,0.02)] z-10 relative">
         <header className="p-8 pb-6 border-b border-slate-100">
-          <h2 className="text-[20px] font-bold text-slate-900 tracking-tight leading-tight">Ingredient Mapping</h2>
+          <h2 className="text-[20px] font-bold text-slate-900 tracking-tight leading-tight">Inventory Insights</h2>
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-            RULES FOR &quot;BRIOCHE BUNS&quot;
+            LIVE ALERTS AND TODAY&apos;S MOVEMENTS
           </p>
         </header>
 
         <div className="p-8 flex flex-col gap-8 flex-1 overflow-y-auto custom-scrollbar">
-          
-          {/* Mapping Card */}
-          <div className="bg-[#18181B] rounded-[24px] p-6 shadow-md text-white">
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">
-              AUTO-DEDUCT RULES
+          <section>
+            <h3 className="text-[14px] font-extrabold text-slate-900 tracking-tight mb-4">⚠ Needs Restocking</h3>
+            <div className="bg-[#FFFBEB] rounded-[16px] border border-amber-100 p-4">
+              {itemsNeedingRestock.length === 0 ? (
+                <p className="text-[13px] font-medium text-emerald-700">All items are above minimum stock.</p>
+              ) : (
+                <ul className="flex flex-col gap-2">
+                  {itemsNeedingRestock.map((item) => (
+                    <li key={item.id} className="text-[13px] font-semibold text-slate-800">
+                      • {item.product_name} ({item.current_stock} {item.unit})
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
-            <div className="flex flex-col gap-4">
-              <div className="flex justify-between items-center border-b border-slate-700/50 pb-4">
-                <span className="font-bold text-[14px]">Cheeseburger</span>
-                <span className="font-semibold text-[13px] text-slate-300">1 unit / sale</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="font-bold text-[14px]">Double Patty Burger</span>
-                <span className="font-semibold text-[13px] text-slate-300">1 unit / sale</span>
-              </div>
-            </div>
-          </div>
+          </section>
 
-          {/* Alert Settings */}
-          <div>
-            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-4">
-              ALERT SETTINGS
+          <section>
+            <h3 className="text-[14px] font-extrabold text-slate-900 tracking-tight mb-4">Recent Inventory Activity</h3>
+            <div className="bg-slate-50 rounded-[16px] border border-slate-200 p-4">
+              {recentActivityLogs.length === 0 ? (
+                <p className="text-[13px] font-medium text-slate-500">No inventory activity logged today.</p>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {recentActivityLogs.map((log) => {
+                    const quantity = Number(log.quantity_changed);
+                    const quantityLabel = quantity > 0 ? `+${quantity}` : `${quantity}`;
+                    return (
+                      <div key={log.id} className="bg-white rounded-[12px] border border-slate-200 p-3">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[12px] font-bold text-slate-500">{formatActivityTime(log.created_at)}</span>
+                          <span className={`text-[12px] font-bold ${quantity > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                            {quantityLabel}
+                          </span>
+                        </div>
+                        <div className="text-[13px] font-bold text-slate-900 mb-1">
+                          {inventoryNameById[log.item_id] ?? 'Unknown Product'}
+                        </div>
+                        <div className="text-[12px] font-semibold text-slate-600">
+                          {log.action} by {log.action_by}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-            <div className="bg-slate-50 rounded-[16px] p-5 border border-slate-100">
-              <label className="block text-[13px] font-bold text-slate-900 mb-3">
-                Notification Threshold
-              </label>
-              <div className="flex items-center gap-3">
-                <input 
-                  type="text" 
-                  value={alertThreshold}
-                  onChange={(e) => setAlertThreshold(e.target.value)}
-                  className="w-[80px] px-4 py-3 bg-white border border-slate-200 rounded-[12px] text-[15px] font-bold text-slate-900 text-center focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 transition-all shadow-sm"
-                />
-                <span className="text-[13px] font-medium text-slate-500">
-                  units remaining
-                </span>
-              </div>
-            </div>
-          </div>
+          </section>
           
         </div>
 
-        {/* Footer Button */}
+        {/* Footer */}
         <div className="p-6 bg-white border-t border-slate-100 mt-auto">
-          <button className="w-full py-4 rounded-[16px] bg-[#F4F4F5] hover:bg-slate-200 text-slate-900 font-bold text-[15px] flex items-center justify-center transition-colors focus:outline-none focus:ring-4 focus:ring-slate-100 active:scale-[0.98]">
-            Save Logic Changes
-          </button>
+          <div className="text-[12px] font-semibold text-slate-500">
+            Showing {recentActivityLogs.length} activity log{recentActivityLogs.length === 1 ? '' : 's'} for today.
+          </div>
         </div>
       </aside>
 
