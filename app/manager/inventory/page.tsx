@@ -11,8 +11,7 @@ import {
   Trash2,
   LogOut,
   AlertCircle,
-  Clock,
-  Plus
+  Clock
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
@@ -21,12 +20,19 @@ type InventoryItem = {
   id: string;
   product_name: string;
   category: string;
-  current_stock: number;
-  unit: string;
-  minimum_stock: number;
-  price_per_unit: number;
+  inventory_type: 'main' | 'sub';
+  bulk_stock: number;
+  bulk_unit: string;
+  pieces_stock: number;
+  pieces_unit: string;
+  pieces_per_bulk?: number | null;
   status: string;
   updated_at?: string | null;
+  created_at?: string | null;
+  current_stock?: number;
+  minimum_stock?: number;
+  price_per_unit?: number;
+  unit?: string;
 };
 
 type InventoryLog = {
@@ -45,19 +51,11 @@ const formatCurrency = (value: number) =>
     maximumFractionDigits: 2,
   }).format(value);
 
-const formatLastUpdated = (dateValue?: string | null) => {
-  if (!dateValue) return 'N/A';
-  return new Intl.DateTimeFormat('en-PH', {
-    month: 'short',
-    day: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(dateValue));
-};
-
 const getStockStatusBadge = (item: InventoryItem) => {
-  if (item.current_stock === 0) {
+  const normalizedStatus = item.status.toLowerCase();
+  const piecesStock = Number(item.pieces_stock ?? 0);
+
+  if (normalizedStatus.includes('critical') || normalizedStatus.includes('out') || piecesStock === 0) {
     return {
       label: 'Out of Stock',
       className: 'bg-red-50 text-red-700 border border-red-200',
@@ -65,7 +63,7 @@ const getStockStatusBadge = (item: InventoryItem) => {
     };
   }
 
-  if (item.current_stock <= item.minimum_stock && item.current_stock > 0) {
+  if (normalizedStatus.includes('low')) {
     return {
       label: 'Low Stock',
       className: 'bg-orange-50 text-orange-700 border border-orange-200',
@@ -86,58 +84,113 @@ export default function InventoryScreen() {
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [todayLogs, setTodayLogs] = useState<InventoryLog[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isRefillModalOpen, setIsRefillModalOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [addBulk, setAddBulk] = useState('0');
+  const [addPieces, setAddPieces] = useState('0');
+  const [isSubmittingRefill, setIsSubmittingRefill] = useState(false);
+
+  const fetchInventoryData = async () => {
+    if (!supabase) {
+      setInventoryItems([]);
+      setTodayLogs([]);
+      return;
+    }
+
+    const now = new Date();
+    const startOfDay = new Date(now);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(now);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const [inventoryResponse, logsResponse] = await Promise.all([
+      supabase
+        .from('inventory')
+        .select('*')
+        .order('product_name', { ascending: true }),
+      supabase
+        .from('inventory_logs')
+        .select('*')
+        .gte('created_at', startOfDay.toISOString())
+        .lte('created_at', endOfDay.toISOString())
+        .order('created_at', { ascending: false }),
+    ]);
+
+    if (!inventoryResponse.error) {
+      setInventoryItems((inventoryResponse.data ?? []) as InventoryItem[]);
+    }
+
+    if (!logsResponse.error) {
+      setTodayLogs((logsResponse.data ?? []) as InventoryLog[]);
+    }
+  };
 
   useEffect(() => {
-    const fetchInventoryData = async () => {
-      if (!supabase) {
-        setInventoryItems([]);
-        setTodayLogs([]);
-        return;
-      }
-
-      const now = new Date();
-      const startOfDay = new Date(now);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(now);
-      endOfDay.setHours(23, 59, 59, 999);
-
-      const [inventoryResponse, logsResponse] = await Promise.all([
-        supabase
-          .from('inventory')
-          .select('*')
-          .order('product_name', { ascending: true }),
-        supabase
-          .from('inventory_logs')
-          .select('*')
-          .gte('created_at', startOfDay.toISOString())
-          .lte('created_at', endOfDay.toISOString())
-          .order('created_at', { ascending: false }),
-      ]);
-
-      if (!inventoryResponse.error) {
-        setInventoryItems((inventoryResponse.data ?? []) as InventoryItem[]);
-      }
-
-      if (!logsResponse.error) {
-        setTodayLogs((logsResponse.data ?? []) as InventoryLog[]);
-      }
-    };
-
     void fetchInventoryData();
   }, []);
+
+  const openRefillModal = (item: InventoryItem) => {
+    setSelectedItem(item);
+    setAddBulk('0');
+    setAddPieces('0');
+    setIsRefillModalOpen(true);
+  };
+
+  const closeRefillModal = () => {
+    setIsRefillModalOpen(false);
+    setSelectedItem(null);
+    setAddBulk('0');
+    setAddPieces('0');
+  };
+
+  const handleRefillSubmit = async () => {
+    if (!supabase || !selectedItem || isSubmittingRefill) return;
+
+    const bulkToAdd = Math.max(0, Number(addBulk) || 0);
+    const piecesToAdd = Math.max(0, Number(addPieces) || 0);
+
+    if (bulkToAdd === 0 && piecesToAdd === 0) return;
+
+    setIsSubmittingRefill(true);
+
+    const newBulkStock = Number(selectedItem.bulk_stock ?? 0) + bulkToAdd;
+    const newPiecesStock = Number(selectedItem.pieces_stock ?? 0) + piecesToAdd;
+
+    const { error: updateError } = await supabase
+      .from('inventory')
+      .update({
+        bulk_stock: newBulkStock,
+        pieces_stock: newPiecesStock,
+      })
+      .eq('id', selectedItem.id);
+
+    if (!updateError) {
+      await supabase.from('inventory_logs').insert({
+        item_id: selectedItem.id,
+        action: 'Refill',
+        quantity_changed: bulkToAdd + piecesToAdd,
+        action_by: 'Manager',
+      });
+
+      await fetchInventoryData();
+      closeRefillModal();
+    }
+
+    setIsSubmittingRefill(false);
+  };
 
   const totalProducts = inventoryItems.length;
 
   const lowStockCount = inventoryItems.filter(
-    (item) => item.current_stock <= item.minimum_stock && item.current_stock > 0
+    (item) => item.status.toLowerCase().includes('low')
   ).length;
 
   const outOfStockCount = inventoryItems.filter(
-    (item) => item.current_stock === 0
+    (item) => item.status.toLowerCase().includes('critical') || item.status.toLowerCase().includes('out') || Number(item.pieces_stock ?? 0) === 0
   ).length;
 
   const totalInventoryValue = inventoryItems.reduce(
-    (sum, item) => sum + item.current_stock * item.price_per_unit,
+    (sum, item) => sum + Number(item.current_stock ?? 0) * Number(item.price_per_unit ?? 0),
     0
   );
 
@@ -162,9 +215,20 @@ export default function InventoryScreen() {
 
   const itemsNeedingRestock = useMemo(() => {
     return inventoryItems.filter(
-      (item) => item.current_stock <= item.minimum_stock
+      (item) => {
+        const status = item.status.toLowerCase();
+        return status.includes('low') || status.includes('critical') || status.includes('out');
+      }
     );
   }, [inventoryItems]);
+
+  const mainInventoryItems = useMemo(() => {
+    return filteredInventory.filter((item) => item.inventory_type === 'main');
+  }, [filteredInventory]);
+
+  const subInventoryItems = useMemo(() => {
+    return filteredInventory.filter((item) => item.inventory_type === 'sub');
+  }, [filteredInventory]);
 
   const inventoryNameById = useMemo(() => {
     return inventoryItems.reduce<Record<string, string>>((acc, item) => {
@@ -277,10 +341,6 @@ export default function InventoryScreen() {
                 <Trash2 className="w-4 h-4" />
                 Log Waste
               </button>
-              <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2">
-                <Plus className="w-4 h-4" />
-                Add Ingredient
-              </button>
             </div>
           </div>
 
@@ -332,22 +392,25 @@ export default function InventoryScreen() {
             </button>
           </div>
 
-          {/* Inventory Table */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+          {/* Main Inventory Table */}
+          <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-6">
+            <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/50">
+              <h2 className="text-sm font-semibold text-slate-900">Main Inventory</h2>
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-slate-50/50 border-b border-slate-200">
+                  <tr className="border-b border-slate-200">
                     <th className="py-4 px-6 text-xs font-semibold text-slate-500 uppercase tracking-wider">Product</th>
                     <th className="py-4 px-6 text-xs font-semibold text-slate-500 uppercase tracking-wider">Category</th>
-                    <th className="py-4 px-6 text-xs font-semibold text-slate-500 uppercase tracking-wider">Stock</th>
-                    <th className="py-4 px-6 text-xs font-semibold text-slate-500 uppercase tracking-wider">Min. Stock</th>
+                    <th className="py-4 px-6 text-xs font-semibold text-slate-500 uppercase tracking-wider">Bulk Stock</th>
+                    <th className="py-4 px-6 text-xs font-semibold text-slate-500 uppercase tracking-wider">Pieces Stock</th>
                     <th className="py-4 px-6 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
-                    <th className="py-4 px-6 text-xs font-semibold text-slate-500 uppercase tracking-wider">Last Updated</th>
+                    <th className="py-4 px-6 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredInventory.map((item) => {
+                  {mainInventoryItems.map((item) => {
                     const stockStatus = getStockStatusBadge(item);
                     return (
                       <tr key={item.id} className="hover:bg-slate-50 transition-colors group">
@@ -358,10 +421,10 @@ export default function InventoryScreen() {
                           <span className="text-sm text-slate-600">{item.category}</span>
                         </td>
                         <td className="py-4 px-6">
-                          <span className="text-sm font-medium text-slate-900">{item.current_stock} <span className="text-slate-500 text-xs ml-0.5">{item.unit}</span></span>
+                          <span className="text-sm font-medium text-slate-900">{item.bulk_stock} {item.bulk_unit}</span>
                         </td>
                         <td className="py-4 px-6">
-                          <span className="text-sm text-slate-600">{item.minimum_stock} <span className="text-slate-400 text-xs ml-0.5">{item.unit}</span></span>
+                          <span className="text-sm font-medium text-slate-900">{item.pieces_stock} {item.pieces_unit}</span>
                         </td>
                         <td className="py-4 px-6">
                           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium ${stockStatus.className}`}>
@@ -369,23 +432,91 @@ export default function InventoryScreen() {
                             {stockStatus.label}
                           </span>
                         </td>
-                        <td className="py-4 px-6">
-                          <span className="text-sm text-slate-500">{formatLastUpdated(item.updated_at)}</span>
+                        <td className="py-4 px-6 text-right">
+                          <button
+                            onClick={() => openRefillModal(item)}
+                            className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium transition-colors"
+                          >
+                            Refill
+                          </button>
                         </td>
                       </tr>
                     );
                   })}
-                  {filteredInventory.length === 0 && (
+                  {mainInventoryItems.length === 0 && (
                     <tr>
                       <td colSpan={6} className="py-12 text-center">
-                        <p className="text-sm text-slate-500">No inventory items found matching your criteria.</p>
+                        <p className="text-sm text-slate-500">No main inventory items found matching your criteria.</p>
                       </td>
                     </tr>
                   )}
                 </tbody>
               </table>
             </div>
-          </div>
+          </section>
+
+          {/* Sub-Inventory Table */}
+          <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/50">
+              <h2 className="text-sm font-semibold text-slate-900">Sub-Inventory</h2>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200">
+                    <th className="py-4 px-6 text-xs font-semibold text-slate-500 uppercase tracking-wider">Product</th>
+                    <th className="py-4 px-6 text-xs font-semibold text-slate-500 uppercase tracking-wider">Category</th>
+                    <th className="py-4 px-6 text-xs font-semibold text-slate-500 uppercase tracking-wider">Bulk Stock</th>
+                    <th className="py-4 px-6 text-xs font-semibold text-slate-500 uppercase tracking-wider">Pieces Stock</th>
+                    <th className="py-4 px-6 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                    <th className="py-4 px-6 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {subInventoryItems.map((item) => {
+                    const stockStatus = getStockStatusBadge(item);
+                    return (
+                      <tr key={item.id} className="hover:bg-slate-50 transition-colors group">
+                        <td className="py-4 px-6">
+                          <div className="font-semibold text-sm text-slate-900">{item.product_name}</div>
+                        </td>
+                        <td className="py-4 px-6">
+                          <span className="text-sm text-slate-600">{item.category}</span>
+                        </td>
+                        <td className="py-4 px-6">
+                          <span className="text-sm font-medium text-slate-900">{item.bulk_stock} {item.bulk_unit}</span>
+                        </td>
+                        <td className="py-4 px-6">
+                          <span className="text-sm font-medium text-slate-900">{item.pieces_stock} {item.pieces_unit}</span>
+                        </td>
+                        <td className="py-4 px-6">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium ${stockStatus.className}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${stockStatus.dot}`}></span>
+                            {stockStatus.label}
+                          </span>
+                        </td>
+                        <td className="py-4 px-6 text-right">
+                          <button
+                            onClick={() => openRefillModal(item)}
+                            className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium transition-colors"
+                          >
+                            Refill
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {subInventoryItems.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center">
+                        <p className="text-sm text-slate-500">No sub-inventory items found matching your criteria.</p>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
 
         </div>
       </main>
@@ -417,7 +548,7 @@ export default function InventoryScreen() {
                   <div key={item.id} className="bg-orange-50/50 rounded-xl border border-orange-100 p-3 flex justify-between items-center">
                     <span className="text-sm font-medium text-slate-800">{item.product_name}</span>
                     <span className="text-xs font-bold text-orange-700 bg-orange-100 px-2 py-0.5 rounded-md">
-                      {item.current_stock} {item.unit}
+                      {item.pieces_stock} {item.pieces_unit}
                     </span>
                   </div>
                 ))}
@@ -481,6 +612,58 @@ export default function InventoryScreen() {
           </div>
         </div>
       </aside>
+
+      {isRefillModalOpen && selectedItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4">
+          <div className="w-full max-w-md rounded-2xl bg-white border border-slate-200 shadow-xl p-6">
+            <h3 className="text-lg font-bold text-slate-900 mb-1">Refill Stock</h3>
+            <p className="text-sm text-slate-500 mb-5">{selectedItem.product_name}</p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Add Bulk</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={addBulk}
+                  onChange={(e) => setAddBulk(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Add Pieces</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={addPieces}
+                  onChange={(e) => setAddPieces(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 flex items-center justify-end gap-2">
+              <button
+                onClick={closeRefillModal}
+                className="px-4 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                disabled={isSubmittingRefill}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => void handleRefillSubmit()}
+                className="px-4 py-2 rounded-lg bg-slate-900 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
+                disabled={isSubmittingRefill}
+              >
+                {isSubmittingRefill ? 'Saving...' : 'Save Refill'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
