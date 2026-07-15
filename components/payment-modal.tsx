@@ -53,6 +53,9 @@ export function PaymentModal({
       return;
     }
 
+    const activeCashier =
+      typeof window !== 'undefined' ? localStorage.getItem('activeCashier') || 'Unknown' : 'Unknown';
+
     const tendered = parseFloat(tenderedStr || '0');
     if (tendered < totalDue) {
       setCheckoutError('Amount tendered must cover the total due.');
@@ -70,6 +73,7 @@ export function PaymentModal({
             total_amount: Number(totalDue),
             amount_tendered: Number(tendered),
             change_due: Number(Math.max(0, tendered - totalDue)),
+            cashier_name: activeCashier,
             created_at: new Date().toISOString(),
           },
         ])

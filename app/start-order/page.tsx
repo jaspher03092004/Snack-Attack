@@ -14,6 +14,7 @@ const formatTime = (date: Date) => date.toLocaleTimeString([], {
 export default function StartOrderPage() {
   const router = useRouter();
   const [time, setTime] = useState(formatTime(new Date()));
+  const [cashierName, setCashierName] = useState('Staff');
   const [showOrderTypeSelection, setShowOrderTypeSelection] = useState(false);
   const [isExpensesModalOpen, setIsExpensesModalOpen] = useState(false);
   const [expenseMode, setExpenseMode] = useState<'employee' | 'shop'>('employee');
@@ -30,6 +31,13 @@ export default function StartOrderPage() {
     }, 1000);
 
     return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const active = localStorage.getItem('activeCashier');
+    if (active) {
+      setCashierName(active);
+    }
   }, []);
 
   useEffect(() => {
@@ -179,7 +187,7 @@ export default function StartOrderPage() {
             <div className="inline-flex items-center gap-4 rounded-3xl bg-white/90 px-4 py-3 shadow-sm border border-slate-200">
               <div className="text-right">
                 <p className="text-sm font-semibold text-slate-900">{time}</p>
-                <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Jaspher L.</p>
+                <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{cashierName}</p>
               </div>
               <div className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">JL</div>
             </div>

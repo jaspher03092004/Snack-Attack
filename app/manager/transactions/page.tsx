@@ -1,77 +1,75 @@
 'use client';
 
-import React, { useState } from 'react';
-import { 
-  LayoutGrid, 
-  ReceiptText, 
-  Box, 
-  Users, 
-  ArrowLeft,
-  Calculator,
-  Search,
-  ChevronDown,
-  X,
-  Printer,
-  LogOut
-} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Box, ChevronDown, LayoutGrid, LogOut, ReceiptText, Search, Users, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase/client';
 
-// --- Mock Data ---
-const MOCK_TRANSACTIONS = [
-  {
-    id: '#ORD-142',
-    time: '12:42 PM',
-    cashier: 'Jasper (1234)',
-    method: 'Cash',
-    status: 'Completed',
-    total: 431.20,
-    contents: [
-      { name: '1x Classic Cheeseburger', price: 150.00 },
-      { name: '1x Double Smash Burger', price: 220.00 },
-      { name: '1x Large Fries', price: 61.20 }
-    ],
-    transactionId: 'TX_9823475924',
-    terminal: 'POS-01 (Kitchen Hub)'
-  },
-  {
-    id: '#ORD-138',
-    time: '12:28 PM',
-    cashier: 'Jasper (1234)',
-    method: 'GCash',
-    status: 'VOIDED',
-    total: -220.00,
-    voidReason: '"Customer changed mind after punch-in. Accidentally ordered Double Patty instead of Solo."',
-    authorizedBy: 'Admin (0001)',
-    contents: [
-      { 
-        name: '1x Double Patty Smash', 
-        price: 220.00, 
-        subnote: '- Extra Cheese (₱20 included)' 
-      }
-    ],
-    transactionId: 'TX_9823475923',
-    terminal: 'POS-01 (Kitchen Hub)'
-  },
-  {
-    id: '#ORD-137',
-    time: '12:15 PM',
-    cashier: 'Maria (5678)',
-    method: 'Maya',
-    status: 'Completed',
-    total: 850.00,
-    contents: [
-      { name: '1x Family Pizza Combo', price: 850.00 }
-    ],
-    transactionId: 'TX_9823475920',
-    terminal: 'POS-02 (Front)'
-  }
+type TransactionStatus = 'Completed' | 'Voided' | 'Refunded';
+
+type TransactionRecord = {
+  id: string;
+  createdAt: string | null;
+  time: string;
+  orderId: string;
+  cashier: string;
+  status: TransactionStatus;
+  items: Array<{
+    name: string;
+    quantity: number;
+    price: number;
+  }>;
+  subtotal: number;
+  tax: number;
+  totalAmount: number;
+  transactionId: string;
+  receiptNumber: string;
+  managerApproval?: string;
+  voidOrRefundReason?: string;
+};
+
+const summaryCards = [
+  { label: 'Total Sales Today', value: '₱12,450.00' },
+  { label: 'Completed Transactions', value: '84' },
+  { label: 'Voided Transactions', value: '2' },
+  { label: 'Refunds', value: '0' },
 ];
 
-export default function TransactionsAudit() {
+type OrderRow = {
+  id: string;
+  order_number: string | null;
+  created_at: string | null;
+  cashier_name: string | null;
+  total_amount: number | null;
+  status?: string | null;
+};
+
+const formatCurrency = (amount: number) =>
+  `₱${amount.toLocaleString('en-PH', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+
+const getStatusBadgeClassName = (status: TransactionStatus) => {
+  if (status === 'Completed') {
+    return 'bg-emerald-50 text-emerald-700';
+  }
+
+  if (status === 'Voided') {
+    return 'bg-rose-50 text-rose-700';
+  }
+
+  return 'bg-amber-50 text-amber-700';
+};
+
+export default function TransactionsAuditPage() {
   const router = useRouter();
   const [activeNav, setActiveNav] = useState('transactions');
-  const [selectedOrder, setSelectedOrder] = useState<typeof MOCK_TRANSACTIONS[0] | null>(MOCK_TRANSACTIONS[1]); // Default to the voided one for preview
+  const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [dateFilter, setDateFilter] = useState('all');
+  const [cashierFilter, setCashierFilter] = useState('all');
+  const [selectedTransaction, setSelectedTransaction] = useState<TransactionRecord | null>(null);
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutGrid, path: '/manager/dashboard' },
@@ -80,30 +78,121 @@ export default function TransactionsAudit() {
     { id: 'staff', label: 'Staff', icon: Users, path: '/manager/staff' },
   ];
 
+  useEffect(() => {
+    const fetchOrders = async () => {
+      if (!supabase) {
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Orders fetch error:', error);
+        return;
+      }
+
+      const parsedTransactions = ((data ?? []) as OrderRow[]).map((order) => {
+        const amount = Number(order.total_amount ?? 0);
+        const createdAt = order.created_at ? new Date(order.created_at) : null;
+        const normalizedStatus = String(order.status ?? 'Completed').toLowerCase();
+        const status: TransactionStatus = normalizedStatus === 'voided'
+          ? 'Voided'
+          : normalizedStatus === 'refunded'
+            ? 'Refunded'
+            : 'Completed';
+
+        return {
+          id: order.id,
+          createdAt: order.created_at,
+          time: createdAt
+            ? createdAt.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', hour12: true })
+            : '--:--',
+          orderId: order.order_number || order.id,
+          cashier: order.cashier_name || 'Unknown',
+          status,
+          items: [],
+          subtotal: amount,
+          tax: 0,
+          totalAmount: amount,
+          transactionId: order.id,
+          receiptNumber: order.order_number || order.id,
+        };
+      });
+
+      setTransactions(parsedTransactions);
+    };
+
+    void fetchOrders();
+  }, []);
+
+  const cashierOptions = Array.from(new Set(transactions.map((transaction) => transaction.cashier))).sort(
+    (a, b) => a.localeCompare(b),
+  );
+
+  const filteredTransactions = transactions.filter((transaction) => {
+    const normalizedSearch = searchQuery.trim().toLowerCase();
+    const matchesSearch =
+      normalizedSearch.length === 0 || transaction.orderId.toLowerCase().includes(normalizedSearch);
+
+    const matchesCashier = cashierFilter === 'all' || transaction.cashier === cashierFilter;
+
+    if (dateFilter === 'all') {
+      return matchesSearch && matchesCashier;
+    }
+
+    const transactionDate = transaction.createdAt ? new Date(transaction.createdAt) : null;
+
+    if (!transactionDate || Number.isNaN(transactionDate.getTime())) {
+      return matchesSearch && matchesCashier;
+    }
+
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    if (dateFilter === 'today') {
+      return matchesSearch && matchesCashier && transactionDate >= startOfToday;
+    }
+
+    if (dateFilter === 'week') {
+      const startOfWeek = new Date(startOfToday);
+      const day = startOfWeek.getDay();
+      const shift = day === 0 ? 6 : day - 1;
+      startOfWeek.setDate(startOfWeek.getDate() - shift);
+      return matchesSearch && matchesCashier && transactionDate >= startOfWeek;
+    }
+
+    if (dateFilter === 'month') {
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      return matchesSearch && matchesCashier && transactionDate >= startOfMonth;
+    }
+
+    return matchesSearch && matchesCashier;
+  });
+
   return (
-    <div className="flex min-h-screen bg-[#F4F4F5] font-sans text-slate-900 overflow-hidden">
-      
-      {/* 1. Left Sidebar */}
-      <aside className="w-[240px] bg-white border-r border-slate-200 flex flex-col flex-shrink-0 h-screen sticky top-0 z-20 shadow-sm relative">
+    <div className="flex min-h-screen bg-[#F4F4F5] font-sans text-slate-900">
+      <aside className="w-[240px] min-h-screen bg-white border-r border-slate-200 flex flex-col flex-shrink-0 shadow-sm relative">
         <div className="p-6 flex items-center gap-3 mb-4">
           <div className="w-8 h-8 bg-slate-900 rounded-[8px] flex items-center justify-center flex-shrink-0 shadow-sm">
             <div className="w-3 h-3 border-[2px] border-white rounded-[2px]" />
           </div>
-          <span className="font-extrabold text-[19px] tracking-tight text-slate-900">
-            QuickServe
-          </span>
+          <span className="font-extrabold text-[19px] tracking-tight text-slate-900">QuickServe</span>
         </div>
 
         <nav className="flex flex-col gap-1.5 px-4 flex-1">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeNav === item.id;
+
             return (
               <button
                 key={item.id}
                 onClick={() => {
                   setActiveNav(item.id);
-                  if (item.path) router.push(item.path);
+                  router.push(item.path);
                 }}
                 className={`flex items-center gap-3 px-4 py-3 rounded-[12px] font-semibold text-[15px] transition-all focus:outline-none ${
                   isActive
@@ -118,10 +207,8 @@ export default function TransactionsAudit() {
           })}
         </nav>
 
-        {/* Bottom Status & Actions */}
         <div className="p-4 flex flex-col gap-2">
-          {/* Log Out Button */}
-          <button 
+          <button
             onClick={() => router.push('/')}
             className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-[10px] text-slate-500 hover:text-slate-800 hover:bg-slate-50 font-semibold text-[13px] transition-colors mb-2 focus:outline-none"
           >
@@ -129,252 +216,275 @@ export default function TransactionsAudit() {
             Log Out
           </button>
 
-          {/* Status Box */}
           <div className="bg-[#F0F7FF] border border-[#E0EFFF] rounded-[12px] p-3">
-            <div className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-1">
-              PI 5 STATUS
-            </div>
+            <div className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-1">PI 5 STATUS</div>
             <div className="flex items-center justify-between">
-              <span className="text-[13px] font-bold text-slate-800">
-                Temp: 42°C
-              </span>
+              <span className="text-[13px] font-bold text-slate-800">Temp: 42°C</span>
               <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
             </div>
           </div>
         </div>
       </aside>
 
-      {/* 2. Main Content Area */}
-      <main className="flex-1 overflow-y-auto flex">
-        
-        {/* Table & Filters Section */}
-        <div className="flex-1 p-10 max-w-full">
-          
-          {/* Header */}
-          <div className="flex items-start justify-between mb-8">
+      <main className="flex-1 min-h-screen overflow-y-auto p-6 md:p-10">
+        <div className="mx-auto w-full max-w-7xl space-y-6">
+          <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <h1 className="text-[32px] font-extrabold tracking-tight text-slate-900 mb-1 leading-none">
-                Transactions & Audit
-              </h1>
-              <p className="text-[15px] font-medium text-slate-500">
-                Verify sales integrity and reconcile drawer
-              </p>
+              <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Transactions &amp; Audit</h1>
+              <p className="mt-1 text-sm text-slate-500">Monitor daily performance and review audit-ready transaction records.</p>
             </div>
-            
-            <button className="flex items-center gap-2 px-5 py-3 rounded-full bg-slate-900 hover:bg-black text-white font-bold text-[14px] transition-colors shadow-md focus:outline-none focus:ring-4 focus:ring-slate-900/20 active:scale-[0.98]">
-              <Calculator className="w-4 h-4 stroke-[2.5px]" />
-              EOD Reconciliation
-            </button>
-          </div>
 
-          {/* Filters Bar */}
-          <div className="flex items-center gap-4 mb-6">
-            <div className="relative flex-1 max-w-[360px]">
-              <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-                <Search className="h-4 w-4 text-slate-400" />
-              </div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <button
+                type="button"
+                className="inline-flex items-center justify-center rounded-[12px] border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
+              >
+                Export Report
+              </button>
+              <button
+                type="button"
+                className="inline-flex items-center justify-center rounded-[12px] bg-slate-900 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800"
+              >
+                End-of-Day (EOD) Reconciliation
+              </button>
+            </div>
+          </header>
+
+          <section className="grid grid-cols-1 gap-4 md:grid-cols-4">
+            {summaryCards.map((card) => (
+              <article
+                key={card.label}
+                className="rounded-[12px] border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.06)]"
+              >
+                <p className="text-sm font-medium text-slate-500">{card.label}</p>
+                <p className="mt-3 text-2xl font-semibold tracking-tight text-slate-900">{card.value}</p>
+              </article>
+            ))}
+          </section>
+
+          <section className="flex flex-col gap-3 rounded-[12px] border border-slate-200 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.06)] lg:flex-row lg:items-center">
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search Order ID / Receipt..."
+                placeholder="Search by Order ID or Receipt Number"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-[12px] text-[14px] font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent transition-all shadow-sm"
+                onChange={(event) => setSearchQuery(event.target.value)}
+                className="w-full rounded-[12px] border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
               />
             </div>
 
-            <button className="flex items-center justify-between gap-10 bg-white border border-slate-200 px-4 py-3 rounded-[12px] text-[14px] font-semibold text-slate-800 hover:bg-slate-50 transition-colors shadow-sm focus:outline-none min-w-[150px]">
-              Today: April 8
-              <ChevronDown className="w-4 h-4 text-slate-400" />
-            </button>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:w-auto">
+              <div className="relative">
+                <select
+                  value={dateFilter}
+                  onChange={(event) => setDateFilter(event.target.value)}
+                  className="min-w-[150px] appearance-none rounded-[12px] border border-slate-200 bg-white px-3.5 py-2.5 pr-9 text-sm text-slate-600 shadow-sm outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
+                >
+                  <option value="all">All Dates</option>
+                  <option value="today">Today</option>
+                  <option value="week">This Week</option>
+                  <option value="month">This Month</option>
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              </div>
+              <div className="relative">
+                <select
+                  value={cashierFilter}
+                  onChange={(event) => setCashierFilter(event.target.value)}
+                  className="min-w-[150px] appearance-none rounded-[12px] border border-slate-200 bg-white px-3.5 py-2.5 pr-9 text-sm text-slate-600 shadow-sm outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
+                >
+                  <option value="all">All Cashiers</option>
+                  {cashierOptions.map((cashier) => (
+                    <option key={cashier} value={cashier}>
+                      {cashier}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              </div>
+            </div>
+          </section>
 
-            <button className="flex items-center justify-between gap-10 bg-white border border-slate-200 px-4 py-3 rounded-[12px] text-[14px] font-semibold text-slate-800 hover:bg-slate-50 transition-colors shadow-sm focus:outline-none min-w-[160px]">
-              All Cashiers
-              <ChevronDown className="w-4 h-4 text-slate-400" />
-            </button>
+          <section className="overflow-hidden rounded-[12px] border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.06)]">
+            <div className="overflow-x-auto">
+              <table className="min-w-full border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50/80">
+                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Time</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Order ID</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Cashier</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Status</th>
+                    <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">Total Amount</th>
+                  </tr>
+                </thead>
 
-            <button className="flex items-center justify-between gap-10 bg-white border border-slate-200 px-4 py-3 rounded-[12px] text-[14px] font-semibold text-slate-800 hover:bg-slate-50 transition-colors shadow-sm focus:outline-none min-w-[150px]">
-              All Methods
-              <ChevronDown className="w-4 h-4 text-slate-400" />
-            </button>
-          </div>
-
-          {/* Transactions Table */}
-          <div className="bg-white rounded-[24px] shadow-[0_2px_12px_rgba(0,0,0,0.02)] border border-slate-100 overflow-hidden">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-2">
-                  <th className="py-5 px-6 font-bold w-[120px]">Time</th>
-                  <th className="py-5 px-6 font-bold">Order ID</th>
-                  <th className="py-5 px-6 font-bold">Cashier</th>
-                  <th className="py-5 px-6 font-bold">Method</th>
-                  <th className="py-5 px-6 font-bold">Status</th>
-                  <th className="py-5 px-6 font-bold text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {MOCK_TRANSACTIONS.map((txn, idx) => {
-                  const isVoid = txn.status === 'VOIDED';
-                  const isSelected = selectedOrder?.id === txn.id;
-                  
-                  return (
-                    <tr 
-                      key={txn.id}
-                      onClick={() => setSelectedOrder(txn)}
-                      className={`border-b border-slate-50 last:border-0 cursor-pointer transition-colors ${
-                        isSelected 
-                          ? (isVoid ? 'bg-red-50/40' : 'bg-slate-50') 
-                          : 'hover:bg-slate-50/50'
-                      }`}
-                    >
-                      <td className={`py-5 px-6 text-[14px] font-medium ${isVoid ? 'text-red-400' : 'text-slate-500'}`}>
-                        {txn.time}
-                      </td>
-                      <td className={`py-5 px-6 text-[15px] font-bold ${isVoid ? 'text-red-600' : 'text-slate-900'}`}>
-                        {txn.id}
-                      </td>
-                      <td className={`py-5 px-6 text-[14px] font-medium ${isVoid ? 'text-red-500' : 'text-slate-600'}`}>
-                        {txn.cashier}
-                      </td>
-                      <td className={`py-5 px-6 text-[14px] font-medium ${isVoid ? 'text-red-500' : 'text-slate-600'}`}>
-                        {txn.method}
-                      </td>
-                      <td className="py-5 px-6">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider ${
-                          isVoid 
-                            ? 'bg-red-500 text-white shadow-sm' 
-                            : 'bg-emerald-100/50 text-emerald-600 border border-emerald-200/50'
-                        }`}>
-                          {txn.status}
-                        </span>
-                      </td>
-                      <td className={`py-5 px-6 text-[15px] font-bold text-right ${isVoid ? 'text-red-600' : 'text-slate-900'}`}>
-                        {isVoid && '-'}<span className="font-sans mr-0.5">₱</span>{Math.abs(txn.total).toFixed(2)}
+                <tbody>
+                  {filteredTransactions.length > 0 ? (
+                    filteredTransactions.map((transaction) => (
+                      <tr
+                        key={transaction.id}
+                        onClick={() => setSelectedTransaction(transaction)}
+                        className="cursor-pointer border-b border-slate-100 last:border-0 hover:bg-slate-50"
+                      >
+                        <td className="whitespace-nowrap px-5 py-4 text-sm text-slate-600">{transaction.time}</td>
+                        <td className="whitespace-nowrap px-5 py-4 text-sm font-medium text-slate-900">{transaction.orderId}</td>
+                        <td className="whitespace-nowrap px-5 py-4 text-sm text-slate-700">{transaction.cashier}</td>
+                        <td className="whitespace-nowrap px-5 py-4">
+                          <span
+                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusBadgeClassName(transaction.status)}`}
+                          >
+                            {transaction.status}
+                          </span>
+                        </td>
+                        <td className="whitespace-nowrap px-5 py-4 text-right text-sm font-semibold text-slate-900">
+                          {formatCurrency(transaction.totalAmount)}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className="px-5 py-10 text-center text-sm text-slate-500">
+                        No transactions match your filters.
                       </td>
                     </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </main>
+
+      <div
+        className={`fixed inset-0 z-40 transition ${
+          selectedTransaction ? 'pointer-events-auto' : 'pointer-events-none'
+        }`}
+      >
+        <button
+          type="button"
+          aria-label="Close transaction drawer"
+          onClick={() => setSelectedTransaction(null)}
+          className={`absolute inset-0 bg-slate-900/20 transition-opacity ${
+            selectedTransaction ? 'opacity-100' : 'opacity-0'
+          }`}
+        />
+
+        <aside
+          className={`absolute right-0 top-0 flex h-full w-full max-w-md flex-col border-l border-slate-200 bg-white shadow-[-12px_0_30px_rgba(15,23,42,0.14)] transition-transform duration-300 ${
+            selectedTransaction ? 'translate-x-0' : 'translate-x-full'
+          }`}
+        >
+          <div className="flex items-start justify-between border-b border-slate-200 p-5">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Transaction Details</p>
+              <h2 className="mt-1 text-xl font-semibold text-slate-900">
+                {selectedTransaction?.orderId ?? 'Order'}
+              </h2>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setSelectedTransaction(null)}
+              className="rounded-full border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
 
-        </div>
+          {selectedTransaction && (
+            <div className="flex flex-1 flex-col overflow-y-auto">
+              <div className="space-y-6 p-5">
+                <section className="space-y-3 rounded-[12px] border border-slate-200 bg-slate-50/60 p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-slate-600">Order ID</span>
+                    <span className="text-sm font-semibold text-slate-900">{selectedTransaction.orderId}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-slate-600">Status</span>
+                    <span
+                      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusBadgeClassName(selectedTransaction.status)}`}
+                    >
+                      {selectedTransaction.status}
+                    </span>
+                  </div>
+                </section>
 
-        {/* 3. Order Details Side-Panel (Right) */}
-        {selectedOrder && (
-          <aside className="w-[380px] bg-white border-l border-slate-200 flex flex-col flex-shrink-0 min-h-screen shadow-[-4px_0_24px_rgba(0,0,0,0.02)] z-10 sticky top-0 animate-in slide-in-from-right-8 duration-300">
-            
-            {/* Header */}
-            <header className="flex items-center justify-between px-7 py-8 border-b border-slate-100">
-              <div>
-                <h2 className="text-[20px] font-bold text-slate-900 tracking-tight leading-tight">Order Details</h2>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Digital Audit Trail</p>
-              </div>
-              <button 
-                onClick={() => setSelectedOrder(null)}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors focus:outline-none"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </header>
+                <section>
+                  <h3 className="text-sm font-semibold text-slate-900">Order Items</h3>
+                  <ul className="mt-3 space-y-2 rounded-[12px] border border-slate-200 p-4">
+                    {selectedTransaction.items.length > 0 ? (
+                      selectedTransaction.items.map((item) => (
+                        <li key={`${item.name}-${item.quantity}`} className="flex items-start justify-between gap-3 text-sm">
+                          <span className="text-slate-700">
+                            {item.quantity}x {item.name}
+                          </span>
+                          <span className="font-medium text-slate-900">{formatCurrency(item.price * item.quantity)}</span>
+                        </li>
+                      ))
+                    ) : (
+                      <li className="text-sm text-slate-500">Item-level details are not available in this view.</li>
+                    )}
+                  </ul>
+                </section>
 
-            <div className="flex-1 overflow-y-auto p-7 flex flex-col gap-8 custom-scrollbar">
-              
-              {/* Order ID & Badge Location */}
-              <div className="flex items-center justify-between">
-                <h3 className="text-[28px] font-black tracking-tight text-slate-900 leading-none">
-                  {selectedOrder.id}
-                </h3>
-                {selectedOrder.status === 'VOIDED' && (
-                  <span className="bg-red-50 text-red-600 text-[11px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-md">
-                    VOIDED
-                  </span>
+                <section>
+                  <h3 className="text-sm font-semibold text-slate-900">Payment Summary</h3>
+                  <div className="mt-3 space-y-2 rounded-[12px] border border-slate-200 p-4">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-slate-600">Subtotal</span>
+                      <span className="font-medium text-slate-900">{formatCurrency(selectedTransaction.subtotal)}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-slate-600">Tax</span>
+                      <span className="font-medium text-slate-900">{formatCurrency(selectedTransaction.tax)}</span>
+                    </div>
+                    <div className="flex items-center justify-between border-t border-slate-200 pt-2 text-sm">
+                      <span className="font-semibold text-slate-900">Total</span>
+                      <span className="font-semibold text-slate-900">{formatCurrency(selectedTransaction.totalAmount)}</span>
+                    </div>
+                  </div>
+                </section>
+
+                <section>
+                  <h3 className="text-sm font-semibold text-slate-900">Audit Info</h3>
+                  <div className="mt-3 space-y-2 rounded-[12px] border border-slate-200 p-4">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-slate-600">Transaction ID</span>
+                      <span className="font-medium text-slate-900">{selectedTransaction.transactionId}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-slate-600">Receipt Number</span>
+                      <span className="font-medium text-slate-900">{selectedTransaction.receiptNumber}</span>
+                    </div>
+                  </div>
+                </section>
+
+                {(selectedTransaction.status === 'Voided' || selectedTransaction.status === 'Refunded') && (
+                  <section className="rounded-[12px] border border-rose-200 bg-rose-50 p-4">
+                    <h3 className="text-sm font-semibold text-rose-800">Void/Refund Reason</h3>
+                    <p className="mt-2 text-sm text-rose-700">{selectedTransaction.voidOrRefundReason}</p>
+
+                    <div className="mt-4 border-t border-rose-200 pt-3">
+                      <p className="text-xs font-medium uppercase tracking-wide text-rose-600">Manager Approval</p>
+                      <p className="mt-1 text-sm font-semibold text-rose-800">{selectedTransaction.managerApproval}</p>
+                    </div>
+                  </section>
                 )}
               </div>
 
-              {/* Void Reason Box (Only if voided) */}
-              {selectedOrder.status === 'VOIDED' && selectedOrder.voidReason && (
-                <div className="bg-[#FFF5F5] rounded-[16px] p-5">
-                  <div className="text-[10px] font-bold text-red-400 uppercase tracking-widest mb-2.5">
-                    VOID REASON
-                  </div>
-                  <p className="text-[15px] font-semibold text-[#991B1B] leading-snug">
-                    {selectedOrder.voidReason}
-                  </p>
-                  
-                  {selectedOrder.authorizedBy && (
-                    <div className="mt-5">
-                      <div className="text-[10px] font-bold text-red-400 uppercase tracking-widest mb-2.5">
-                        MANAGER AUTHORIZATION
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 bg-slate-900 rounded-full flex items-center justify-center text-white text-[10px] font-bold">
-                          AM
-                        </div>
-                        <span className="text-[13px] font-bold text-[#991B1B]">
-                          Signed by: {selectedOrder.authorizedBy}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Order Contents */}
-              <div>
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">
-                  ORDER CONTENTS
-                </div>
-                
-                <div className="flex flex-col gap-4">
-                  {selectedOrder.contents.map((item, i) => (
-                    <div key={i} className="flex flex-col gap-1">
-                      <div className="flex justify-between items-start">
-                        <span className="font-bold text-[14px] text-slate-900">
-                          {item.name}
-                        </span>
-                        <span className="font-bold text-[14px] text-slate-900 flex-shrink-0">
-                          <span className="font-sans mr-[1px]">₱</span>{item.price.toFixed(2)}
-                        </span>
-                      </div>
-                      {'subnote' in item && item.subnote && (
-                        <span className="text-[13px] italic text-slate-400 font-medium">
-                          {item.subnote}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
+              <div className="mt-auto border-t border-slate-200 p-5">
+                <button
+                  type="button"
+                  className="w-full rounded-[12px] bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800"
+                >
+                  Reprint Receipt
+                </button>
               </div>
-
-              {/* Divider */}
-              <div className="border-t border-slate-100"></div>
-
-              {/* Technical Details */}
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-[13px] font-semibold text-slate-500">Transaction ID</span>
-                  <span className="text-[13px] font-medium text-slate-400 tabular-nums">{selectedOrder.transactionId}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[13px] font-semibold text-slate-500">Terminal</span>
-                  <span className="text-[13px] font-medium text-slate-400">{selectedOrder.terminal}</span>
-                </div>
-              </div>
-
             </div>
-
-            {/* Footer */}
-            <div className="p-6 bg-white border-t border-slate-100 mt-auto">
-              <button className="w-full py-4 rounded-[14px] bg-[#F8FAFC] hover:bg-slate-100 border border-slate-200 text-slate-900 font-bold text-[15px] flex items-center justify-center gap-2.5 transition-colors focus:outline-none focus:ring-4 focus:ring-slate-100 active:scale-[0.98]">
-                <Printer className="w-4 h-4 stroke-[2.5px]" /> 
-                Re-print Digital Receipt
-              </button>
-            </div>
-
-          </aside>
-        )}
-
-      </main>
+          )}
+        </aside>
+      </div>
     </div>
   );
 }
