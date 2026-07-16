@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Box, ChevronDown, LayoutGrid, LogOut, ReceiptText, Search, Users, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
@@ -27,13 +27,6 @@ type TransactionRecord = {
   managerApproval?: string;
   voidOrRefundReason?: string;
 };
-
-const summaryCards = [
-  { label: 'Total Sales Today', value: '₱12,450.00' },
-  { label: 'Completed Transactions', value: '84' },
-  { label: 'Voided Transactions', value: '2' },
-  { label: 'Refunds', value: '0' },
-];
 
 type OrderRow = {
   id: string;
@@ -62,12 +55,108 @@ const getStatusBadgeClassName = (status: TransactionStatus) => {
   return 'bg-amber-50 text-amber-700';
 };
 
+const getLocalDateBoundaries = () => {
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfTomorrow = new Date(startOfToday);
+  startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
+
+  const startOfYesterday = new Date(startOfToday);
+  startOfYesterday.setDate(startOfYesterday.getDate() - 1);
+
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  return {
+    startOfToday,
+    startOfTomorrow,
+    startOfYesterday,
+    startOfMonth,
+  };
+};
+
+const matchesSearchAndCashier = (
+  transaction: TransactionRecord,
+  searchQuery: string,
+  cashierFilter: string,
+) => {
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const matchesSearch =
+    normalizedSearch.length === 0 ||
+    transaction.orderId.toLowerCase().includes(normalizedSearch) ||
+    transaction.receiptNumber.toLowerCase().includes(normalizedSearch);
+
+  const matchesCashier = cashierFilter === 'all' || transaction.cashier === cashierFilter;
+
+  return matchesSearch && matchesCashier;
+};
+
+type TransactionTableProps = {
+  title: string;
+  subtitle: string;
+  transactions: TransactionRecord[];
+  onSelectTransaction: (transaction: TransactionRecord) => void;
+};
+
+const TransactionTable = ({ title, subtitle, transactions, onSelectTransaction }: TransactionTableProps) => (
+  <section className="overflow-hidden rounded-[12px] border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.06)]">
+    <div className="border-b border-slate-200 bg-slate-50/80 px-4 py-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{title}</p>
+      <p className="mt-1 text-sm text-slate-600">{subtitle}</p>
+    </div>
+
+    <div className="overflow-x-auto">
+      <table className="min-w-full border-collapse">
+        <thead>
+          <tr className="border-b border-slate-200 bg-slate-50/80">
+            <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Time</th>
+            <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Order ID</th>
+            <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Cashier</th>
+            <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Status</th>
+            <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">Total Amount</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {transactions.length > 0 ? (
+            transactions.map((transaction) => (
+              <tr
+                key={transaction.id}
+                onClick={() => onSelectTransaction(transaction)}
+                className="cursor-pointer border-b border-slate-100 last:border-0 hover:bg-slate-50"
+              >
+                <td className="whitespace-nowrap px-5 py-4 text-sm text-slate-600">{transaction.time}</td>
+                <td className="whitespace-nowrap px-5 py-4 text-sm font-medium text-slate-900">{transaction.orderId}</td>
+                <td className="whitespace-nowrap px-5 py-4 text-sm text-slate-700">{transaction.cashier}</td>
+                <td className="whitespace-nowrap px-5 py-4">
+                  <span
+                    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusBadgeClassName(transaction.status)}`}
+                  >
+                    {transaction.status}
+                  </span>
+                </td>
+                <td className="whitespace-nowrap px-5 py-4 text-right text-sm font-semibold text-slate-900">
+                  {formatCurrency(transaction.totalAmount)}
+                </td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan={5} className="px-5 py-10 text-center text-sm text-slate-500">
+                No transactions match your filters.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  </section>
+);
+
 export default function TransactionsAuditPage() {
   const router = useRouter();
   const [activeNav, setActiveNav] = useState('transactions');
   const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [dateFilter, setDateFilter] = useState('all');
   const [cashierFilter, setCashierFilter] = useState('all');
   const [selectedTransaction, setSelectedTransaction] = useState<TransactionRecord | null>(null);
 
@@ -128,53 +217,67 @@ export default function TransactionsAuditPage() {
     void fetchOrders();
   }, []);
 
+  const { todaysOrders, yesterdaysOrders, weeklyMonthlyOrders } = useMemo(() => {
+    const { startOfToday, startOfTomorrow, startOfYesterday, startOfMonth } = getLocalDateBoundaries();
+
+    const transactionsWithDates = transactions
+      .map((transaction) => ({
+        ...transaction,
+        localCreatedAt: transaction.createdAt ? new Date(transaction.createdAt) : null,
+      }))
+      .filter((transaction) => transaction.localCreatedAt && !Number.isNaN(transaction.localCreatedAt.getTime()));
+
+    const todays = transactionsWithDates.filter(
+      (transaction) => transaction.localCreatedAt! >= startOfToday && transaction.localCreatedAt! < startOfTomorrow,
+    );
+    const yesterdays = transactionsWithDates.filter(
+      (transaction) => transaction.localCreatedAt! >= startOfYesterday && transaction.localCreatedAt! < startOfToday,
+    );
+    const weeklyMonthly = transactionsWithDates.filter(
+      (transaction) => transaction.localCreatedAt! >= startOfMonth && transaction.localCreatedAt! < startOfTomorrow,
+    );
+
+    return {
+      todaysOrders: todays,
+      yesterdaysOrders: yesterdays,
+      weeklyMonthlyOrders: weeklyMonthly,
+    };
+  }, [transactions]);
+
+  const filteredTodaysOrders = useMemo(
+    () => todaysOrders.filter((transaction) => matchesSearchAndCashier(transaction, searchQuery, cashierFilter)),
+    [cashierFilter, searchQuery, todaysOrders],
+  );
+
+  const filteredYesterdaysOrders = useMemo(
+    () => yesterdaysOrders.filter((transaction) => matchesSearchAndCashier(transaction, searchQuery, cashierFilter)),
+    [cashierFilter, searchQuery, yesterdaysOrders],
+  );
+
+  const filteredWeeklyMonthlyOrders = useMemo(
+    () => weeklyMonthlyOrders.filter((transaction) => matchesSearchAndCashier(transaction, searchQuery, cashierFilter)),
+    [cashierFilter, searchQuery, weeklyMonthlyOrders],
+  );
+
+  const summaryTiles = useMemo(
+    () => [
+      { label: "Today's Sales", value: formatCurrency(todaysOrders.reduce((sum, order) => sum + order.totalAmount, 0)) },
+      {
+        label: "Yesterday's Sales",
+        value: formatCurrency(yesterdaysOrders.reduce((sum, order) => sum + order.totalAmount, 0)),
+      },
+      { label: 'Period Sales', value: formatCurrency(weeklyMonthlyOrders.reduce((sum, order) => sum + order.totalAmount, 0)) },
+    ],
+    [todaysOrders, weeklyMonthlyOrders, yesterdaysOrders],
+  );
+
   const cashierOptions = Array.from(new Set(transactions.map((transaction) => transaction.cashier))).sort(
     (a, b) => a.localeCompare(b),
   );
 
-  const filteredTransactions = transactions.filter((transaction) => {
-    const normalizedSearch = searchQuery.trim().toLowerCase();
-    const matchesSearch =
-      normalizedSearch.length === 0 || transaction.orderId.toLowerCase().includes(normalizedSearch);
-
-    const matchesCashier = cashierFilter === 'all' || transaction.cashier === cashierFilter;
-
-    if (dateFilter === 'all') {
-      return matchesSearch && matchesCashier;
-    }
-
-    const transactionDate = transaction.createdAt ? new Date(transaction.createdAt) : null;
-
-    if (!transactionDate || Number.isNaN(transactionDate.getTime())) {
-      return matchesSearch && matchesCashier;
-    }
-
-    const now = new Date();
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-    if (dateFilter === 'today') {
-      return matchesSearch && matchesCashier && transactionDate >= startOfToday;
-    }
-
-    if (dateFilter === 'week') {
-      const startOfWeek = new Date(startOfToday);
-      const day = startOfWeek.getDay();
-      const shift = day === 0 ? 6 : day - 1;
-      startOfWeek.setDate(startOfWeek.getDate() - shift);
-      return matchesSearch && matchesCashier && transactionDate >= startOfWeek;
-    }
-
-    if (dateFilter === 'month') {
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      return matchesSearch && matchesCashier && transactionDate >= startOfMonth;
-    }
-
-    return matchesSearch && matchesCashier;
-  });
-
   return (
-    <div className="flex min-h-screen bg-[#F4F4F5] font-sans text-slate-900">
-      <aside className="w-[240px] min-h-screen bg-white border-r border-slate-200 flex flex-col flex-shrink-0 shadow-sm relative">
+    <div className="flex min-h-screen overflow-hidden bg-[#F4F4F5] font-sans text-slate-900">
+      <aside className="fixed left-0 top-0 z-20 flex h-screen w-64 flex-col overflow-y-auto border-r border-slate-200 bg-white shadow-sm">
         <div className="p-6 flex items-center gap-3 mb-4">
           <div className="w-8 h-8 bg-slate-900 rounded-[8px] flex items-center justify-center flex-shrink-0 shadow-sm">
             <div className="w-3 h-3 border-[2px] border-white rounded-[2px]" />
@@ -226,7 +329,7 @@ export default function TransactionsAuditPage() {
         </div>
       </aside>
 
-      <main className="flex-1 min-h-screen overflow-y-auto p-6 md:p-10">
+      <main className="ml-64 min-h-screen flex-1 overflow-y-auto p-6 md:p-10">
         <div className="mx-auto w-full max-w-7xl space-y-6">
           <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
@@ -250,8 +353,8 @@ export default function TransactionsAuditPage() {
             </div>
           </header>
 
-          <section className="grid grid-cols-1 gap-4 md:grid-cols-4">
-            {summaryCards.map((card) => (
+          <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            {summaryTiles.map((card) => (
               <article
                 key={card.label}
                 className="rounded-[12px] border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.06)]"
@@ -277,19 +380,6 @@ export default function TransactionsAuditPage() {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:w-auto">
               <div className="relative">
                 <select
-                  value={dateFilter}
-                  onChange={(event) => setDateFilter(event.target.value)}
-                  className="min-w-[150px] appearance-none rounded-[12px] border border-slate-200 bg-white px-3.5 py-2.5 pr-9 text-sm text-slate-600 shadow-sm outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
-                >
-                  <option value="all">All Dates</option>
-                  <option value="today">Today</option>
-                  <option value="week">This Week</option>
-                  <option value="month">This Month</option>
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              </div>
-              <div className="relative">
-                <select
                   value={cashierFilter}
                   onChange={(event) => setCashierFilter(event.target.value)}
                   className="min-w-[150px] appearance-none rounded-[12px] border border-slate-200 bg-white px-3.5 py-2.5 pr-9 text-sm text-slate-600 shadow-sm outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
@@ -306,52 +396,25 @@ export default function TransactionsAuditPage() {
             </div>
           </section>
 
-          <section className="overflow-hidden rounded-[12px] border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.06)]">
-            <div className="overflow-x-auto">
-              <table className="min-w-full border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50/80">
-                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Time</th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Order ID</th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Cashier</th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Status</th>
-                    <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">Total Amount</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {filteredTransactions.length > 0 ? (
-                    filteredTransactions.map((transaction) => (
-                      <tr
-                        key={transaction.id}
-                        onClick={() => setSelectedTransaction(transaction)}
-                        className="cursor-pointer border-b border-slate-100 last:border-0 hover:bg-slate-50"
-                      >
-                        <td className="whitespace-nowrap px-5 py-4 text-sm text-slate-600">{transaction.time}</td>
-                        <td className="whitespace-nowrap px-5 py-4 text-sm font-medium text-slate-900">{transaction.orderId}</td>
-                        <td className="whitespace-nowrap px-5 py-4 text-sm text-slate-700">{transaction.cashier}</td>
-                        <td className="whitespace-nowrap px-5 py-4">
-                          <span
-                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusBadgeClassName(transaction.status)}`}
-                          >
-                            {transaction.status}
-                          </span>
-                        </td>
-                        <td className="whitespace-nowrap px-5 py-4 text-right text-sm font-semibold text-slate-900">
-                          {formatCurrency(transaction.totalAmount)}
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={5} className="px-5 py-10 text-center text-sm text-slate-500">
-                        No transactions match your filters.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+          <section className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+            <TransactionTable
+              title="Today"
+              subtitle="Local-time orders placed today"
+              transactions={filteredTodaysOrders}
+              onSelectTransaction={setSelectedTransaction}
+            />
+            <TransactionTable
+              title="Yesterday"
+              subtitle="Local-time orders placed yesterday"
+              transactions={filteredYesterdaysOrders}
+              onSelectTransaction={setSelectedTransaction}
+            />
+            <TransactionTable
+              title="This Week / Month"
+              subtitle="Local-time orders for the current period"
+              transactions={filteredWeeklyMonthlyOrders}
+              onSelectTransaction={setSelectedTransaction}
+            />
           </section>
         </div>
       </main>
