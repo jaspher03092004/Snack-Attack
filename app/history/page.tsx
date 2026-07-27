@@ -143,7 +143,7 @@ export default function HistoryPage() {
 
     const { error: updateError } = await supabase
       .from('orders')
-      .update({ status: newStatus })
+      .update({ status: newStatus, total_amount: -Math.abs(order.total_amount) })
       .eq('id', order.id);
 
     if (updateError) {
@@ -155,14 +155,14 @@ export default function HistoryPage() {
       const { error: expenseError } = await supabase
         .from('expenses')
         .insert({
-          expense_date: new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' }),
-          description: `Refunded Order ${order.order_number || order.id}`,
-          amount: order.total_amount,
-          category: 'Refund'
+          expense_date: new Date(order.created_at).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' }),
+          item_name: `Refund for Order ${order.order_number || order.id}`,
+          amount: Math.abs(order.total_amount),
+          expensed_by: 'Refund'
         });
 
       if (expenseError) {
-        alert("SUPABASE EXPENSE ERROR: " + expenseError.message);
+        alert("Order was refunded, but failed to write to expenses table: " + expenseError.message);
         return;
       }
     }
@@ -233,7 +233,7 @@ export default function HistoryPage() {
         amount: Number(expense.amount),
         expensed_by: expense.expensed_by,
       })) as ExpenseRecord[];
-      setStoreExpenses(expensesToday.filter((expense) => expense.expensed_by === 'shop'));
+      setStoreExpenses(expensesToday);
       setEmployeeExpenses(expensesToday.filter(
         (expense) => expense.expensed_by !== null && expense.expensed_by !== 'shop',
       ));
