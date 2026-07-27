@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
@@ -17,6 +17,7 @@ type OrderItem = {
 type OrderRecord = {
   id: string;
   order_number: string;
+  status?: string;
   total_amount: number;
   amount_tendered: number;
   change_due: number;
@@ -93,44 +94,88 @@ export default function HistoryPage() {
   const [payrollPeople, setPayrollPeople] = useState<PayrollRecord[]>([]);
   const [isSalesReportOpen, setIsSalesReportOpen] = useState(false);
 
+  const fetchOrders = async () => {
+    const client = supabase;
+
+    if (!client) {
+      setFetchError('Supabase client is not configured.');
+      return;
+    }
+
+    setIsLoading(true);
+    const { data, error } = await client
+      .from('orders')
+      .select('*, order_items(*)')
+      .order('created_at', { ascending: false });
+    setIsLoading(false);
+
+    if (error) {
+      console.error(error);
+      setFetchError(error.message);
+      return;
+    }
+
+    const parsedOrders = (data ?? []).map((order) => ({
+      ...order,
+      status: (order as any).status,
+      total_amount: Number((order as any).total_amount),
+      amount_tendered: Number((order as any).amount_tendered),
+      change_due: Number((order as any).change_due),
+      order_items: ((order as any).order_items ?? []).map((item: any) => ({
+        ...item,
+        quantity: Number(item.quantity),
+        total_price: Number(item.total_price),
+        modifiers: item.modifiers ?? [],
+      })),
+    })) as OrderRecord[];
+
+    setOrders(parsedOrders);
+  };
+
+  const handleUpdateOrderStatus = async (order: OrderRecord, newStatus: 'Voided' | 'Refunded') => {
+    const isConfirmed = window.confirm(`Are you sure you want to mark this order as ${newStatus}?`);
+    if (!isConfirmed) return;
+
+    if (!supabase) {
+      alert('SUPABASE UPDATE ERROR: Supabase client is not configured.');
+      return;
+    }
+
+    const { error: updateError } = await supabase
+      .from('orders')
+      .update({ status: newStatus })
+      .eq('id', order.id);
+
+    if (updateError) {
+      alert("SUPABASE UPDATE ERROR: " + updateError.message);
+      return;
+    }
+
+    if (newStatus === 'Refunded') {
+      const { error: expenseError } = await supabase
+        .from('expenses')
+        .insert({
+          expense_date: new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' }),
+          description: `Refunded Order ${order.order_number || order.id}`,
+          amount: order.total_amount,
+          category: 'Refund'
+        });
+
+      if (expenseError) {
+        alert("SUPABASE EXPENSE ERROR: " + expenseError.message);
+        return;
+      }
+    }
+
+    alert(`Success! Order marked as ${newStatus}.`);
+    window.location.reload(); // Force hard refresh to update UI immediately
+  };
+
   useEffect(() => {
-    const loadOrders = async () => {
-      if (!supabase) {
-        setFetchError('Supabase client is not configured.');
-        return;
-      }
-
-      setIsLoading(true);
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*, order_items(*)')
-        .order('created_at', { ascending: false });
-      setIsLoading(false);
-
-      if (error) {
-        console.error(error);
-        setFetchError(error.message);
-        return;
-      }
-
-      const parsedOrders = (data ?? []).map((order) => ({
-        ...order,
-        total_amount: Number((order as any).total_amount),
-        amount_tendered: Number((order as any).amount_tendered),
-        change_due: Number((order as any).change_due),
-        order_items: ((order as any).order_items ?? []).map((item: any) => ({
-          ...item,
-          quantity: Number(item.quantity),
-          total_price: Number(item.total_price),
-          modifiers: item.modifiers ?? [],
-        })),
-      })) as OrderRecord[];
-
-      setOrders(parsedOrders);
-    };
-
     const loadDashboard = async () => {
-      if (!supabase) {
+      const client = supabase;
+
+      if (!client) {
         setFetchError('Supabase client is not configured.');
         return;
       }
@@ -145,16 +190,16 @@ export default function HistoryPage() {
       const tomorrowDate = tomorrowDateObj.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
 
       const [salesResult, expenseResult, payrollResult] = await Promise.all([
-        supabase
+        client
           .from('orders')
           .select('id, total_amount, created_at')
           .gte('created_at', todayDate)
           .lt('created_at', tomorrowDate),
-        supabase
+        client
           .from('expenses')
           .select('*')
           .eq('expense_date', todayDate),
-        supabase
+        client
           .from('payroll')
           .select('*')
           .eq('shift_date', todayDate),
@@ -217,7 +262,7 @@ export default function HistoryPage() {
             const finalTotal =
               employee.base_salary + payrollTiers.incentive + payrollTiers.snackAllowance - totalEmployeeExpenses;
 
-            const { error: payrollUpdateError } = await supabase
+            const { error: payrollUpdateError } = await client
               .from('payroll')
               .update({
                 incentives: payrollTiers.incentive,
@@ -248,7 +293,7 @@ export default function HistoryPage() {
       }
     };
 
-    loadOrders();
+    fetchOrders();
     loadDashboard();
   }, []);
 
@@ -277,6 +322,15 @@ export default function HistoryPage() {
       return matchesSearch && matchesFilter;
     });
   }, [activeFilter, searchQuery, orders]);
+
+  const todaysCompletedOrders = useMemo(() => {
+    const todayStr = new Date().toLocaleDateString('en-CA');
+    return orders.filter(order => {
+      const orderDateStr = new Date(order.created_at).toLocaleDateString('en-CA');
+      const isCompleted = order.status === 'Completed' || !order.status; // Fallback for old records
+      return orderDateStr === todayStr && isCompleted;
+    });
+  }, [orders]);
 
   const todayTotalSales = todaySales;
   const storeExpenseTotal = storeExpenses.reduce((sum, expense) => sum + expense.amount, 0);
@@ -324,7 +378,7 @@ export default function HistoryPage() {
             </div>
             <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-600">
               <FileText className="h-5 w-5" />
-              <span>{orders.length} completed orders</span>
+              <span>{todaysCompletedOrders.length} completed orders today</span>
             </div>
           </div>
         </header>
@@ -380,6 +434,7 @@ export default function HistoryPage() {
                   <th className="px-3 py-3 font-semibold">Order Number</th>
                   <th className="px-3 py-3 font-semibold">Total Amount</th>
                   <th className="px-3 py-3 font-semibold">Date</th>
+                  <th>Status</th>
                   <th className="px-3 py-3 font-semibold">Actions</th>
                 </tr>
               </thead>
@@ -390,14 +445,27 @@ export default function HistoryPage() {
                     <td className="px-3 py-4 font-semibold text-slate-900">{order.order_number}</td>
                     <td className="px-3 py-4 text-slate-700">{formatCurrency(order.total_amount)}</td>
                     <td className="px-3 py-4 text-slate-700">{formatDate(order.created_at)}</td>
+                    <td className="px-4 py-2">
+                      <span className={`px-2 py-1 rounded text-xs font-semibold ${order.status === 'Voided' ? 'bg-red-100 text-red-700' : order.status === 'Refunded' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>
+                        {order.status || 'Completed'}
+                      </span>
+                    </td>
                     <td className="px-3 py-4">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedOrder(order)}
-                        className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
-                      >
-                        View Details
-                      </button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedOrder(order)}
+                          className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                        >
+                          View Details
+                        </button>
+                        {order.status === 'Completed' && (
+                          <>
+                            <button type="button" onClick={(e) => { e.preventDefault(); handleUpdateOrderStatus(order, 'Voided'); }} className="text-red-500 hover:text-red-700 mx-2 text-sm font-bold cursor-pointer">Void</button>
+                            <button type="button" onClick={(e) => { e.preventDefault(); handleUpdateOrderStatus(order, 'Refunded'); }} className="text-orange-500 hover:text-orange-700 mx-2 text-sm font-bold cursor-pointer">Refund</button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
