@@ -50,6 +50,8 @@ type InventoryItem = {
     current_stock?: number;
     minimum_stock?: number;
     price_per_unit?: number;
+    base_price?: number | null;
+    selling_price?: number | null;
     unit?: string;
 };
 
@@ -200,28 +202,25 @@ export default function InventoryScreen() {
 
     const totalProducts = inventoryItems.length;
 
-    const lowStockCount = inventoryItems.filter(
-        (item) => item.status.toLowerCase().includes('low')
+    const outOfStockCount = inventoryItems.filter(
+        (item) => Number(item.pieces_stock ?? 0) === 0
     ).length;
 
-    const outOfStockCount = inventoryItems.filter(
-        (item) => item.status.toLowerCase().includes('critical') ||
-            item.status.toLowerCase().includes('out') ||
-            Number(item.pieces_stock ?? 0) === 0
-    ).length;
+    const lowStockCount = inventoryItems.filter((item) => {
+        const piecesStock = Number(item.pieces_stock ?? 0);
+        return piecesStock > 0 && piecesStock <= 10;
+    }).length;
 
     const totalInventoryValue = inventoryItems.reduce(
-        (sum, item) => sum + Number(item.current_stock ?? 0) * Number(item.price_per_unit ?? 0),
+        (sum, item) => sum + Number(item.base_price ?? 0) * Number(item.pieces_stock ?? 0),
         0
     );
 
-    const itemsAddedToday = todayLogs
-        .filter((log) => log.action === 'Stock In')
-        .reduce((sum, log) => sum + Number(log.quantity_changed), 0);
-
-    const itemsSoldToday = todayLogs
-        .filter((log) => log.action === 'Sold')
-        .reduce((sum, log) => sum + Math.abs(Number(log.quantity_changed)), 0);
+    const potentialProfit = inventoryItems.reduce(
+        (sum, item) =>
+            sum + (Number(item.selling_price ?? 0) - Number(item.base_price ?? 0)) * Number(item.pieces_stock ?? 0),
+        0
+    );
 
     const filteredInventory = useMemo(() => {
         let items = inventoryItems;
@@ -290,6 +289,32 @@ export default function InventoryScreen() {
         }
     };
 
+    const handlePriceUpdate = async (id: string, field: 'base_price' | 'selling_price', newValue: string) => {
+        if (!supabase) return;
+
+        const parsedValue = parseFloat(newValue);
+        if (Number.isNaN(parsedValue)) {
+            alert('Please enter a valid price.');
+            return;
+        }
+
+        const { error } = await supabase
+            .from('inventory')
+            .update({ [field]: parseFloat(newValue) })
+            .eq('id', id);
+
+        if (error) {
+            alert('Failed to update price: ' + error.message);
+            return;
+        }
+
+        setInventoryItems((prev) =>
+            prev.map((item) =>
+                item.id === id ? { ...item, [field]: parsedValue } : item,
+            ),
+        );
+    };
+
     const navItems = [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutGrid, path: '/manager/dashboard' },
         { id: 'transactions', label: 'Transactions', icon: ReceiptText, path: '/manager/transactions' },
@@ -331,20 +356,20 @@ export default function InventoryScreen() {
             trend: null,
         },
         {
-            label: 'Added Today',
-            value: itemsAddedToday,
+            label: 'Inventory Cost',
+            value: formatCurrency(totalInventoryValue),
             icon: TrendingUp,
             color: 'bg-indigo-50 text-indigo-700',
             iconColor: 'text-indigo-600',
-            trend: itemsAddedToday > 0 ? 'up' : 'neutral',
+            trend: totalInventoryValue > 0 ? 'up' : 'neutral',
         },
         {
-            label: 'Sold Today',
-            value: itemsSoldToday,
+            label: 'Potential Profit',
+            value: formatCurrency(potentialProfit),
             icon: TrendingDown,
             color: 'bg-purple-50 text-purple-700',
             iconColor: 'text-purple-600',
-            trend: itemsSoldToday > 0 ? 'down' : 'neutral',
+            trend: potentialProfit > 0 ? 'down' : 'neutral',
         },
     ];
 
@@ -604,6 +629,12 @@ export default function InventoryScreen() {
                                         <th className="py-3.5 px-6 text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-right">
                                             Pieces Stock
                                         </th>
+                                        <th className="py-3.5 px-6 text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-right">
+                                            Base Price
+                                        </th>
+                                        <th className="py-3.5 px-6 text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-right">
+                                            Selling Price
+                                        </th>
                                         <th className="py-3.5 px-6 text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-center">
                                             Status
                                         </th>
@@ -616,7 +647,7 @@ export default function InventoryScreen() {
                                     {isLoading ? (
                                         Array.from({ length: 5 }).map((_, i) => (
                                             <tr key={i} className="animate-pulse">
-                                                {Array.from({ length: 6 }).map((_, j) => (
+                                                {Array.from({ length: 8 }).map((_, j) => (
                                                     <td key={j} className="py-4 px-6">
                                                         <div className="h-4 bg-slate-200 rounded-lg w-20" />
                                                     </td>
@@ -625,7 +656,7 @@ export default function InventoryScreen() {
                                         ))
                                     ) : filteredInventory.length === 0 ? (
                                         <tr>
-                                            <td colSpan={6} className="py-16 text-center">
+                                            <td colSpan={8} className="py-16 text-center">
                                                 <div className="flex flex-col items-center gap-3">
                                                     <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center">
                                                         <PackageOpen className="w-7 h-7 text-slate-300" />
@@ -674,6 +705,24 @@ export default function InventoryScreen() {
                                                                 ⚠️ Needs restock
                                                             </div>
                                                         )}
+                                                    </td>
+                                                    <td className="py-3.5 px-6 text-right">
+                                                        <input
+                                                            type="number"
+                                                            step="0.01"
+                                                            defaultValue={item.base_price ?? 0}
+                                                            onBlur={(e) => void handlePriceUpdate(item.id, 'base_price', e.target.value)}
+                                                            className="w-20 bg-transparent border-b border-gray-300 focus:border-blue-500 outline-none text-sm text-right"
+                                                        />
+                                                    </td>
+                                                    <td className="py-3.5 px-6 text-right">
+                                                        <input
+                                                            type="number"
+                                                            step="0.01"
+                                                            defaultValue={item.selling_price ?? 0}
+                                                            onBlur={(e) => void handlePriceUpdate(item.id, 'selling_price', e.target.value)}
+                                                            className="w-20 bg-transparent border-b border-gray-300 focus:border-blue-500 outline-none text-sm text-right"
+                                                        />
                                                     </td>
                                                     <td className="py-3.5 px-6 text-center">
                                                         <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium ${config.bg} ${config.text} border ${config.border} shadow-sm ${config.ring}`}>
