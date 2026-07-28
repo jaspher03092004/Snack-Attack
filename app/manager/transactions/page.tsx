@@ -261,12 +261,30 @@ export default function TransactionsAuditPage() {
 
   const summaryTiles = useMemo(
     () => [
-      { label: "Today's Sales", value: formatCurrency(todaysOrders.reduce((sum, order) => sum + order.totalAmount, 0)) },
+      {
+        label: "Today's Sales",
+        value: formatCurrency(
+          todaysOrders
+            .filter((order) => order.status === 'Completed' || !order.status)
+            .reduce((sum, order) => sum + Number(order.totalAmount), 0),
+        ),
+      },
       {
         label: "Yesterday's Sales",
-        value: formatCurrency(yesterdaysOrders.reduce((sum, order) => sum + order.totalAmount, 0)),
+        value: formatCurrency(
+          yesterdaysOrders
+            .filter((order) => order.status === 'Completed' || !order.status)
+            .reduce((sum, order) => sum + Number(order.totalAmount), 0),
+        ),
       },
-      { label: 'Period Sales', value: formatCurrency(weeklyMonthlyOrders.reduce((sum, order) => sum + order.totalAmount, 0)) },
+      {
+        label: 'Period Sales',
+        value: formatCurrency(
+          weeklyMonthlyOrders
+            .filter((order) => order.status === 'Completed' || !order.status)
+            .reduce((sum, order) => sum + Number(order.totalAmount), 0),
+        ),
+      },
     ],
     [todaysOrders, weeklyMonthlyOrders, yesterdaysOrders],
   );

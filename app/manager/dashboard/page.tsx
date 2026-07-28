@@ -17,6 +17,7 @@ import { supabase } from '@/lib/supabase/client';
 type OrderRecord = {
   id: string;
   order_number: string;
+  status?: string;
   total_amount: number;
   created_at: string;
 };
@@ -42,11 +43,16 @@ export default function ManagerDashboard() {
 
   useEffect(() => {
     const fetchOrdersAndExpenses = async () => {
+      if (!supabase) {
+        console.error('Supabase client is not configured.');
+        return;
+      }
+
       const todayDate = getTodayDateString();
       const [ordersResult, expensesResult] = await Promise.all([
         supabase
           .from('orders')
-          .select('id, order_number, total_amount, created_at')
+          .select('id, order_number, status, total_amount, created_at')
           .order('created_at', { ascending: false }),
         supabase
           .from('expenses')
@@ -61,6 +67,7 @@ export default function ManagerDashboard() {
         const parsedOrders = (ordersResult.data ?? []).map((order: any) => ({
           id: order.id,
           order_number: order.order_number,
+          status: order.status,
           total_amount: Number(order.total_amount) || 0,
           created_at: order.created_at,
         })) as OrderRecord[];
@@ -103,7 +110,8 @@ export default function ManagerDashboard() {
       localDate: new Date(order.created_at),
     }));
 
-    const allOrders = ordersWithDate;
+    const completedOrders = ordersWithDate.filter((order) => order.status === 'Completed');
+    const allOrders = completedOrders;
     const ordersToday = allOrders.filter(
       (order) => order.localDate >= startOfToday && order.localDate < startOfTomorrow,
     );
@@ -358,7 +366,7 @@ export default function ManagerDashboard() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
                   <XAxis dataKey="day" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
                   <YAxis tickFormatter={(value) => `₱${value >= 1000 ? `${value / 1000}k` : value}`} tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
-                  <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                  <Tooltip formatter={(value) => formatCurrency(Number(value) || 0)} />
                   <Bar dataKey="sales" fill="#0f766e" radius={[8, 8, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
