@@ -164,24 +164,52 @@ export default function InventoryScreen() {
         setAddPieces('0');
     };
 
+    const getBulkMultiplier = (productName: string) => {
+        const name = productName.toLowerCase();
+        if (name.includes('cup')) return 100;
+        if (name.includes('halo-halo')) return 50;
+        if (name.includes('egg') || name.includes('itlog')) return 30; // 1 tray = 30 pcs
+        if (name.includes('pizza')) return 5; // 1 pack = 5 pcs
+        if (name.includes('fries')) return 4; // 1kg pack = 4 servings (1/4kg)
+        if (name.includes('hotdog') || name.includes('cheese')) return 12;
+        if (name.includes('siomai')) return 60; // 1 pack = 60 pcs
+        if (name.includes('chips')) return 24; // 1 pack = 24 pcs
+        if (name.includes('patty') || name.includes('7up') || name.includes('coke') || name.includes('pepsi') || name.includes('water')) return 24;
+        return 1; // Default fallback
+    };
+
+    const getBulkLabel = (productName: string) => {
+        const name = productName.toLowerCase();
+        if (name.includes('halo-halo')) return '(1 pack = 50 cups)';
+        if (name.includes('hotdog')) return '(1 pack = 12 pcs)';
+        if (name.includes('egg') || name.includes('itlog')) return '(1 tray = 30 pcs)';
+        if (name.includes('pizza')) return '(1 pack = 5 pcs)';
+        if (name.includes('fries')) return '(1kg pack = 4 servings)';
+        if (name.includes('siomai')) return '(1 pack = 60 pcs)';
+        if (name.includes('7up') || name.includes('coke') || name.includes('pepsi') || name.includes('water')) return '(1 case = 24 pcs)';
+        return '(Bulk)';
+    };
+
     const handleRefillSubmit = async () => {
         if (!supabase || !selectedItem || isSubmittingRefill) return;
 
-        const bulkToAdd = Math.max(0, Number(addBulk) || 0);
-        const piecesToAdd = Math.max(0, Number(addPieces) || 0);
+        const addBulkInput = Math.max(0, Number(addBulk) || 0);
+        const addPiecesInput = Math.max(0, Number(addPieces) || 0);
 
-        if (bulkToAdd === 0 && piecesToAdd === 0) return;
+        if (addBulkInput === 0 && addPiecesInput === 0) return;
 
         setIsSubmittingRefill(true);
 
-        const newBulkStock = Number(selectedItem.bulk_stock ?? 0) + bulkToAdd;
-        const newPiecesStock = Number(selectedItem.pieces_stock ?? 0) + piecesToAdd;
+        const multiplier = getBulkMultiplier(selectedItem.product_name);
+        const addedPiecesFromBulk = addBulkInput * multiplier;
+        const addedRawPieces = addPiecesInput;
+        const currentPiecesStock = Number(selectedItem.pieces_stock ?? 0);
+        const newTotalPieces = currentPiecesStock + addedPiecesFromBulk + addedRawPieces;
 
         const { error: updateError } = await supabase
             .from('inventory')
             .update({
-                bulk_stock: newBulkStock,
-                pieces_stock: newPiecesStock,
+                pieces_stock: newTotalPieces,
             })
             .eq('id', selectedItem.id);
 
@@ -189,7 +217,7 @@ export default function InventoryScreen() {
             await supabase.from('inventory_logs').insert({
                 item_id: selectedItem.id,
                 action: 'Refill',
-                quantity_changed: bulkToAdd + piecesToAdd,
+                quantity_changed: addedPiecesFromBulk + addedRawPieces,
                 action_by: 'Manager',
             });
 
@@ -199,6 +227,10 @@ export default function InventoryScreen() {
 
         setIsSubmittingRefill(false);
     };
+
+    const currentBulkDisplay = selectedItem
+        ? Math.floor(Number(selectedItem.pieces_stock ?? 0) / getBulkMultiplier(selectedItem.product_name))
+        : 0;
 
     const totalProducts = inventoryItems.length;
 
@@ -624,17 +656,18 @@ export default function InventoryScreen() {
                                             </div>
                                         </th>
                                         <th className="py-3.5 px-6 text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-right">
-                                            Bulk Stock
-                                        </th>
-                                        <th className="py-3.5 px-6 text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-right">
                                             Pieces Stock
                                         </th>
-                                        <th className="py-3.5 px-6 text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-right">
-                                            Base Price
-                                        </th>
-                                        <th className="py-3.5 px-6 text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-right">
-                                            Selling Price
-                                        </th>
+                                        {activeTab !== 'sub' && (
+                                            <>
+                                                <th className="py-3.5 px-6 text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-right">
+                                                    Base Price
+                                                </th>
+                                                <th className="py-3.5 px-6 text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-right">
+                                                    Selling Price
+                                                </th>
+                                            </>
+                                        )}
                                         <th className="py-3.5 px-6 text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-center">
                                             Status
                                         </th>
@@ -647,7 +680,7 @@ export default function InventoryScreen() {
                                     {isLoading ? (
                                         Array.from({ length: 5 }).map((_, i) => (
                                             <tr key={i} className="animate-pulse">
-                                                {Array.from({ length: 8 }).map((_, j) => (
+                                                {Array.from({ length: 7 }).map((_, j) => (
                                                     <td key={j} className="py-4 px-6">
                                                         <div className="h-4 bg-slate-200 rounded-lg w-20" />
                                                     </td>
@@ -656,7 +689,7 @@ export default function InventoryScreen() {
                                         ))
                                     ) : filteredInventory.length === 0 ? (
                                         <tr>
-                                            <td colSpan={8} className="py-16 text-center">
+                                            <td colSpan={7} className="py-16 text-center">
                                                 <div className="flex flex-col items-center gap-3">
                                                     <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center">
                                                         <PackageOpen className="w-7 h-7 text-slate-300" />
@@ -692,10 +725,6 @@ export default function InventoryScreen() {
                                                         </span>
                                                     </td>
                                                     <td className="py-3.5 px-6 text-right">
-                                                        <span className="text-sm font-semibold text-slate-800">{item.bulk_stock}</span>
-                                                        <span className="text-[10px] text-slate-400 ml-1 font-medium">{item.bulk_unit}</span>
-                                                    </td>
-                                                    <td className="py-3.5 px-6 text-right">
                                                         <span className={`text-sm font-semibold ${isLow ? 'text-amber-700' : 'text-slate-800'}`}>
                                                             {item.pieces_stock}
                                                         </span>
@@ -706,24 +735,28 @@ export default function InventoryScreen() {
                                                             </div>
                                                         )}
                                                     </td>
-                                                    <td className="py-3.5 px-6 text-right">
-                                                        <input
-                                                            type="number"
-                                                            step="0.01"
-                                                            defaultValue={item.base_price ?? 0}
-                                                            onBlur={(e) => void handlePriceUpdate(item.id, 'base_price', e.target.value)}
-                                                            className="w-20 bg-transparent border-b border-gray-300 focus:border-blue-500 outline-none text-sm text-right"
-                                                        />
-                                                    </td>
-                                                    <td className="py-3.5 px-6 text-right">
-                                                        <input
-                                                            type="number"
-                                                            step="0.01"
-                                                            defaultValue={item.selling_price ?? 0}
-                                                            onBlur={(e) => void handlePriceUpdate(item.id, 'selling_price', e.target.value)}
-                                                            className="w-20 bg-transparent border-b border-gray-300 focus:border-blue-500 outline-none text-sm text-right"
-                                                        />
-                                                    </td>
+                                                    {activeTab !== 'sub' && (
+                                                        <>
+                                                            <td className="py-3.5 px-6 text-right">
+                                                                <input
+                                                                    type="number"
+                                                                    step="0.01"
+                                                                    defaultValue={item.base_price ?? 0}
+                                                                    onBlur={(e) => void handlePriceUpdate(item.id, 'base_price', e.target.value)}
+                                                                    className="w-20 bg-transparent border-b border-gray-300 focus:border-blue-500 outline-none text-sm text-right"
+                                                                />
+                                                            </td>
+                                                            <td className="py-3.5 px-6 text-right">
+                                                                <input
+                                                                    type="number"
+                                                                    step="0.01"
+                                                                    defaultValue={item.selling_price ?? 0}
+                                                                    onBlur={(e) => void handlePriceUpdate(item.id, 'selling_price', e.target.value)}
+                                                                    className="w-20 bg-transparent border-b border-gray-300 focus:border-blue-500 outline-none text-sm text-right"
+                                                                />
+                                                            </td>
+                                                        </>
+                                                    )}
                                                     <td className="py-3.5 px-6 text-center">
                                                         <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium ${config.bg} ${config.text} border ${config.border} shadow-sm ${config.ring}`}>
                                                             <span className={`w-1.5 h-1.5 rounded-full ${status.dot} ${isLow ? 'animate-pulse' : ''}`} />
@@ -934,7 +967,7 @@ export default function InventoryScreen() {
                                 <h3 className="text-lg font-bold text-slate-900">Refill Stock</h3>
                                 <p className="text-sm text-slate-500 flex items-center gap-2 mt-0.5">
                                     <span className="bg-slate-100 px-2 py-0.5 rounded-lg text-xs font-medium">
-                                        {selectedItem.product_name}
+                                        {selectedItem?.product_name}
                                     </span>
                                 </p>
                             </div>
@@ -950,11 +983,11 @@ export default function InventoryScreen() {
                             <div className="grid grid-cols-2 gap-3 text-sm">
                                 <div>
                                     <span className="text-slate-400 text-xs font-medium">Current Bulk</span>
-                                    <div className="font-semibold text-slate-800">{selectedItem.bulk_stock} {selectedItem.bulk_unit}</div>
+                                    <div className="font-semibold text-slate-800">{currentBulkDisplay} {selectedItem?.bulk_unit}</div>
                                 </div>
                                 <div>
                                     <span className="text-slate-400 text-xs font-medium">Current Pieces</span>
-                                    <div className="font-semibold text-slate-800">{selectedItem.pieces_stock} {selectedItem.pieces_unit}</div>
+                                    <div className="font-semibold text-slate-800">{selectedItem?.pieces_stock ?? 0} {selectedItem?.pieces_unit}</div>
                                 </div>
                             </div>
                         </div>
@@ -963,7 +996,7 @@ export default function InventoryScreen() {
                             <div>
                                 <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                                     Add Bulk
-                                    <span className="text-slate-400 font-normal text-xs ml-1">({selectedItem.bulk_unit})</span>
+                                    <span className="text-slate-400 font-normal text-xs ml-1">{getBulkLabel(selectedItem?.product_name ?? '')}</span>
                                 </label>
                                 <input
                                     type="number"
@@ -979,7 +1012,7 @@ export default function InventoryScreen() {
                             <div>
                                 <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                                     Add Pieces
-                                    <span className="text-slate-400 font-normal text-xs ml-1">({selectedItem.pieces_unit})</span>
+                                    <span className="text-slate-400 font-normal text-xs ml-1">({selectedItem?.pieces_unit})</span>
                                 </label>
                                 <input
                                     type="number"
