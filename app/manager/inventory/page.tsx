@@ -232,6 +232,10 @@ export default function InventoryScreen() {
         ? Math.floor(Number(selectedItem.pieces_stock ?? 0) / getBulkMultiplier(selectedItem.product_name))
         : 0;
 
+    const isSubInventory = selectedItem?.category?.toLowerCase() !== 'main inventory' && selectedItem?.category?.toLowerCase() !== 'main';
+    const isBun = selectedItem?.product_name?.toLowerCase().includes('bun');
+    const isBulkOnly = isSubInventory && !isBun;
+
     const totalProducts = inventoryItems.length;
 
     const outOfStockCount = inventoryItems.filter(
@@ -656,7 +660,7 @@ export default function InventoryScreen() {
                                             </div>
                                         </th>
                                         <th className="py-3.5 px-6 text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-right">
-                                            Pieces Stock
+                                            {activeTab === 'sub' ? 'Bulk Stock' : 'Pieces Stock'}
                                         </th>
                                         {activeTab !== 'sub' && (
                                             <>
@@ -728,7 +732,11 @@ export default function InventoryScreen() {
                                                         <span className={`text-sm font-semibold ${isLow ? 'text-amber-700' : 'text-slate-800'}`}>
                                                             {item.pieces_stock}
                                                         </span>
-                                                        <span className="text-[10px] text-slate-400 ml-1 font-medium">{item.pieces_unit}</span>
+                                                        <span className="text-[10px] text-slate-400 ml-1 font-medium">
+                                                            {activeTab === 'sub'
+                                                                ? (item.product_name.toLowerCase().includes('bun') ? 'Piece' : 'Pack')
+                                                                : item.pieces_unit}
+                                                        </span>
                                                         {isLow && (
                                                             <div className="text-[10px] text-amber-500 font-medium mt-0.5">
                                                                 ⚠️ Needs restock
@@ -986,7 +994,7 @@ export default function InventoryScreen() {
                                     <div className="font-semibold text-slate-800">{currentBulkDisplay} {selectedItem?.bulk_unit}</div>
                                 </div>
                                 <div>
-                                    <span className="text-slate-400 text-xs font-medium">Current Pieces</span>
+                                    <span className="text-slate-400 text-xs font-medium">{isBulkOnly ? 'Current Stock' : 'Current Pieces'}</span>
                                     <div className="font-semibold text-slate-800">{selectedItem?.pieces_stock ?? 0} {selectedItem?.pieces_unit}</div>
                                 </div>
                             </div>
@@ -1009,21 +1017,23 @@ export default function InventoryScreen() {
                                 />
                             </div>
 
-                            <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                                    Add Pieces
-                                    <span className="text-slate-400 font-normal text-xs ml-1">({selectedItem?.pieces_unit})</span>
-                                </label>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    step="1"
-                                    value={addPieces}
-                                    onChange={(e) => setAddPieces(e.target.value)}
-                                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-300 transition-all bg-white"
-                                    placeholder="0"
-                                />
-                            </div>
+                            {!isBulkOnly && (
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                                        Add Pieces
+                                        <span className="text-slate-400 font-normal text-xs ml-1">({selectedItem?.pieces_unit})</span>
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="1"
+                                        value={addPieces}
+                                        onChange={(e) => setAddPieces(e.target.value)}
+                                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-300 transition-all bg-white"
+                                        placeholder="0"
+                                    />
+                                </div>
+                            )}
                         </div>
 
                         <div className="mt-6 flex items-center justify-end gap-2.5">
