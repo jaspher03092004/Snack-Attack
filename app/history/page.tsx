@@ -160,18 +160,22 @@ export default function HistoryPage() {
     }
 
     if (newStatus === 'Refunded') {
+      // Create a shop expense for the refunded order
+      const refundExpense = {
+        expense_date: new Date(order.created_at).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' }),
+        item_name: `Refund - Order ${order.order_number || order.id}`,
+        amount: Math.abs(order.total_amount),
+        expensed_by: 'shop'
+      };
+
       const { error: expenseError } = await supabase
         .from('expenses')
-        .insert({
-          expense_date: new Date(order.created_at).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' }),
-          item_name: `Refund for Order ${order.order_number || order.id}`,
-          amount: Math.abs(order.total_amount),
-          expensed_by: 'Refund'
-        });
+        .insert([refundExpense]);
 
       if (expenseError) {
-        alert("Order was refunded, but failed to write to expenses table: " + expenseError.message);
-        return;
+        console.error("Failed to log refund as expense:", expenseError);
+      } else {
+        console.log("Refund successfully logged as a shop expense.");
       }
     }
 
