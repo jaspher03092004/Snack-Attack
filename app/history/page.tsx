@@ -101,6 +101,9 @@ export default function HistoryPage() {
   const [employeeExpenses, setEmployeeExpenses] = useState<ExpenseRecord[]>([]);
   const [payrollPeople, setPayrollPeople] = useState<PayrollRecord[]>([]);
   const [isSalesReportOpen, setIsSalesReportOpen] = useState(false);
+  const [isEodModalOpen, setIsEodModalOpen] = useState(false);
+  const [pinCode, setPinCode] = useState('');
+  const [hasClosedToday, setHasClosedToday] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{ isOpen: boolean; type: '' | 'void' | 'refund'; order: OrderRecord | null; message: string }>({
     isOpen: false,
     type: '',
@@ -193,6 +196,87 @@ export default function HistoryPage() {
     showHistoryToast(`Success! Order marked as ${newStatus}.`);
     setConfirmDialog({ isOpen: false, type: '', order: null, message: '' });
     setTimeout(() => window.location.reload(), 600);
+  };
+
+  const handleEodClose = async () => {
+    if (pinCode.length !== 4) {
+      showHistoryToast('Invalid PIN');
+      return;
+    }
+    if (!supabase) {
+      showHistoryToast('SUPABASE UPDATE ERROR: Supabase client is not configured.');
+      return;
+    }
+
+    const today = new Date();
+    const todayDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const currentCashier = typeof window !== 'undefined' ? localStorage.getItem('activeCashier') : null;
+    if (!currentCashier) {
+      showHistoryToast('Active cashier not found. Please log in again.');
+      return;
+    }
+
+    const { data: staffRecord, error: staffError } = await supabase
+      .from('staff')
+      .select('pin_code')
+      .eq('name', currentCashier)
+      .limit(1)
+      .single();
+
+    if (staffError || !staffRecord) {
+      showHistoryToast('Unable to validate PIN.');
+      return;
+    }
+
+    if (String(staffRecord.pin_code) !== pinCode) {
+      showHistoryToast('Invalid PIN');
+      return;
+    }
+
+    // Prevent duplicate EOD closes in case the status changed while modal is open.
+    const { data: existingClose, error: existingCloseError } = await supabase
+      .from('net_income')
+      .select('id')
+      .eq('date', todayDate)
+      .maybeSingle();
+
+    if (existingCloseError) {
+      showHistoryToast('EOD CHECK ERROR: ' + existingCloseError.message);
+      return;
+    }
+
+    if (existingClose) {
+      setHasClosedToday(true);
+      setIsEodModalOpen(false);
+      setPinCode('');
+      window.print();
+      return;
+    }
+
+    const { error: insertError } = await supabase.from('net_income').insert([
+      {
+        date: todayDate,
+        total_sales: todayTotalSales,
+        total_expenses: storeExpenseTotal,
+        total_salaries: totalEmployeePayroll,
+        net_cash: netCash,
+        closed_by: currentCashier,
+      },
+    ]);
+
+    if (insertError) {
+      showHistoryToast('EOD SAVE ERROR: ' + insertError.message);
+      return;
+    }
+
+    setHasClosedToday(true);
+    setPinCode('');
+    setIsEodModalOpen(false);
+
+    // Give React time to unmount the modal before the print dialog blocks the UI thread.
+    setTimeout(() => {
+      window.print();
+    }, 100);
   };
 
   useEffect(() => {
@@ -334,6 +418,32 @@ export default function HistoryPage() {
     loadDashboard();
   }, []);
 
+  useEffect(() => {
+    const checkEodStatus = async () => {
+      if (!supabase) return;
+
+      const today = new Date();
+      const todayDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+      const { data, error } = await supabase
+        .from('net_income')
+        .select('id')
+        .eq('date', todayDate)
+        .maybeSingle();
+
+      if (error) {
+        console.error('EOD status check error:', error);
+        return;
+      }
+
+      if (data) {
+        setHasClosedToday(true);
+      }
+    };
+
+    void checkEodStatus();
+  }, []);
+
   const filteredOrders = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     const now = new Date();
@@ -435,6 +545,7 @@ export default function HistoryPage() {
             <div className="relative flex-1">
               <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
+                suppressHydrationWarning={true}
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder="Search by order number..."
@@ -718,11 +829,18 @@ export default function HistoryPage() {
             <div className="mt-6 flex flex-wrap justify-end gap-3">
               <button
                 type="button"
-                onClick={() => window.print()}
+                onClick={() => {
+                  if (hasClosedToday) {
+                    window.print();
+                    return;
+                  }
+                  setPinCode('');
+                  setIsEodModalOpen(true);
+                }}
                 className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
               >
                 <Printer className="h-4 w-4" />
-                Print Report
+                {hasClosedToday ? 'Reprint Report' : 'Close Shop & Print'}
               </button>
               <button
                 type="button"
@@ -730,6 +848,55 @@ export default function HistoryPage() {
                 className="rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isEodModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+            <h3 className="text-lg font-bold text-slate-900">Close Shop for Today?</h3>
+            <p className="mt-2 text-sm text-slate-500">
+              This will finalize today's net income. Enter your 4-digit PIN to confirm.
+            </p>
+
+            <div className="mt-5">
+              <label htmlFor="eod-pin" className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                PIN Code
+              </label>
+              <input
+                id="eod-pin"
+                type="password"
+                autoComplete="off"
+                maxLength={4}
+                value={pinCode}
+                onChange={(event) => setPinCode(event.target.value.replace(/\D/g, '').slice(0, 4))}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-300 focus:bg-white focus:ring-2 focus:ring-slate-200"
+                placeholder="Enter 4-digit PIN"
+              />
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsEodModalOpen(false);
+                  setPinCode('');
+                }}
+                className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void handleEodClose();
+                }}
+                className="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
+              >
+                Confirm
               </button>
             </div>
           </div>
