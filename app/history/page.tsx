@@ -374,9 +374,16 @@ export default function HistoryPage() {
     day: 'numeric',
     year: 'numeric',
   });
+  const receiptDateLabel = new Date().toLocaleDateString([], {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
+    <>
+    <div className="min-h-screen bg-slate-50 px-4 py-6 text-slate-900 sm:px-6 lg:px-8 print:hidden">
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
         <header className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -734,5 +741,80 @@ export default function HistoryPage() {
         </div>
       )}
     </div>
+
+    <div className="hidden print:block print:w-[58mm] print:bg-white print:p-0 print:m-0 font-mono text-[10px] leading-tight text-black">
+      <div className="mx-auto w-full px-2 py-2">
+        <div className="text-center font-bold uppercase">4 prince SNACK ATTACK</div>
+        <div className="mt-1 text-center font-semibold uppercase">DAILY SALES REPORT</div>
+        <div className="mt-1 text-center">{receiptDateLabel}</div>
+        <div className="mt-2 text-center">--------------------------------</div>
+
+        <div className="mt-2 space-y-1">
+          <div className="flex justify-between gap-2">
+            <span>TODAY REVENUE:</span>
+            <span>₱{todayTotalSales.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between gap-2">
+            <span>TOTAL EXPENSES:</span>
+            <span>₱{storeExpenseTotal.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between gap-2">
+            <span>EMPLOYEE SALARIES:</span>
+            <span>₱{totalEmployeePayroll.toFixed(2)}</span>
+          </div>
+        </div>
+
+        <div className="mt-2 text-center">--------------------------------</div>
+
+        <div className="mt-2 space-y-1">
+          {storeExpenses.length > 0 ? (
+            storeExpenses.map((expense) => (
+              <div key={expense.id} className="flex justify-between gap-2">
+                <span className="pr-2 break-words">{expense.item_name}</span>
+                <span className="whitespace-nowrap">₱{expense.amount.toFixed(2)}</span>
+              </div>
+            ))
+          ) : (
+            <div className="flex justify-between gap-2 text-black/60">
+              <span>No store expenses</span>
+              <span>₱0.00</span>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-2 text-center">--------------------------------</div>
+
+        <div className="mt-2 space-y-2">
+          {employeeTotals.map((employee) => (
+            <div key={employee.name} className="space-y-1">
+              <div className="flex justify-between gap-2 font-semibold">
+                <span className="pr-2 break-words">{employee.name}</span>
+                <span className="whitespace-nowrap">₱{employee.finalTotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span>Base Salary</span>
+                <span>₱{employee.baseSalary.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span>Deductions</span>
+                <span>₱{employee.totalEmployeeExpenses.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span>Final Payout</span>
+                <span>₱{employee.finalTotal.toFixed(2)}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-2 text-center">--------------------------------</div>
+
+        <div className="mt-2 flex justify-between gap-2 text-sm font-bold">
+          <span>NET CASH:</span>
+          <span>₱{netCash.toFixed(2)}</span>
+        </div>
+      </div>
+    </div>
+    </>
   );
 }
