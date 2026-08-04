@@ -29,6 +29,7 @@ type OrderSummary = {
   id: string;
   total_amount: number;
   created_at: string;
+  status?: string;
 };
  
 type ExpenseRecord = {
@@ -180,21 +181,25 @@ export default function HistoryPage() {
         return;
       }
 
-      // Use Asia/Manila local date strings to avoid UTC mismatches
-      const today = new Date();
+      // Use Asia/Manila local date strings for expense/payroll records.
       const todayDate = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
-      const tomorrow = new Date();
-      // compute tomorrow in Asia/Manila by parsing the todayDate and adding one day
+      // Compute tomorrow in Asia/Manila by parsing the todayDate and adding one day.
       const tomorrowDateObj = new Date(todayDate);
       tomorrowDateObj.setDate(tomorrowDateObj.getDate() + 1);
       const tomorrowDate = tomorrowDateObj.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
 
+      // Match dashboard-style local start/end day boundaries for order sales.
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date();
+      endOfDay.setHours(23, 59, 59, 999);
+
       const [salesResult, expenseResult, payrollResult] = await Promise.all([
         client
           .from('orders')
-          .select('id, total_amount, created_at')
-          .gte('created_at', todayDate)
-          .lt('created_at', tomorrowDate),
+          .select('id, total_amount, created_at, status')
+          .gte('created_at', startOfDay.toISOString())
+          .lte('created_at', endOfDay.toISOString()),
         client
           .from('expenses')
           .select('*')
@@ -222,8 +227,11 @@ export default function HistoryPage() {
         id: order.id,
         total_amount: Number(order.total_amount),
         created_at: order.created_at,
+        status: order.status,
       })) as OrderSummary[];
-      const todaySalesTotal = ordersToday.reduce((sum, order) => sum + order.total_amount, 0);
+
+      const completedOrdersToday = ordersToday.filter((order) => order.status === 'Completed');
+      const todaySalesTotal = completedOrdersToday.reduce((sum, order) => sum + order.total_amount, 0);
       setTodaySales(todaySalesTotal);
 
       const expensesToday = (expenseResult.data ?? []).map((expense: any) => ({
@@ -233,10 +241,19 @@ export default function HistoryPage() {
         amount: Number(expense.amount),
         expensed_by: expense.expensed_by,
       })) as ExpenseRecord[];
-      setStoreExpenses(expensesToday);
-      setEmployeeExpenses(expensesToday.filter(
-        (expense) => expense.expensed_by !== null && expense.expensed_by !== 'shop',
-      ));
+
+      const shopOnlyExpenses = expensesToday.filter(
+        (expense) => String(expense.expensed_by ?? '').trim().toLowerCase() === 'shop',
+      );
+      const employeeOnlyExpenses = expensesToday.filter(
+        (expense) => {
+          const owner = String(expense.expensed_by ?? '').trim().toLowerCase();
+          return owner !== '' && owner !== 'shop';
+        },
+      );
+
+      setStoreExpenses(shopOnlyExpenses);
+      setEmployeeExpenses(employeeOnlyExpenses);
 
       const payrollToday = (payrollResult.data ?? []).map((row: any) => ({
         id: row.id,
@@ -252,7 +269,7 @@ export default function HistoryPage() {
       try {
           const updatedPayrollRows = await Promise.all(
           payrollToday.map(async (employee) => {
-            const employeeExpenseList = expensesToday.filter(
+            const employeeExpenseList = employeeOnlyExpenses.filter(
               (expense) => expense.expensed_by === employee.employee_name,
             );
             const totalEmployeeExpenses = employeeExpenseList.reduce(
