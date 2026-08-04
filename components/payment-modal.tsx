@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Printer } from 'lucide-react';
-import { supabase } from '@/lib/supabase/client';
+import { supabase as defaultSupabase } from '@/lib/supabase/client';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export type PaymentCartItem = {
   id: string;
@@ -20,6 +21,8 @@ export interface PaymentModalProps {
   orderNumber?: string;
   orderType?: string;
   items?: PaymentCartItem[];
+  calculateTotalDeductions?: (items: any[]) => Record<string, number>;
+  supabaseClient?: SupabaseClient | null;
 }
 
 export function PaymentModal({
@@ -32,11 +35,14 @@ export function PaymentModal({
   items = [
     { id: '1', name: 'Classic Cheeseburger', price: 150.00, quantity: 2, modifiers: ['No Onions', 'Extra Mayo'] },
     { id: '2', name: 'Large Fries', price: 85.00, quantity: 1, modifiers: [] }
-  ]
+  ],
+  calculateTotalDeductions,
+  supabaseClient
 }: PaymentModalProps) {
   const [tenderedStr, setTenderedStr] = useState<string>('500');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string>('');
+  const supabase = supabaseClient || defaultSupabase;
 
   useEffect(() => {
     if (isOpen) {
@@ -61,6 +67,9 @@ export function PaymentModal({
       setCheckoutError('Amount tendered must cover the total due.');
       return;
     }
+
+    // Snapshot cart data at checkout time to avoid state/prop timing issues.
+    const cart = [...items];
 
     setIsSubmitting(true);
 
@@ -87,7 +96,7 @@ export function PaymentModal({
         throw new Error('Unable to create order record');
       }
 
-      const orderItems = items.map((item) => ({
+      const orderItems = cart.map((item) => ({
         order_id: order.id,
         item_name: item.name,
         quantity: Number(item.quantity),
@@ -98,6 +107,47 @@ export function PaymentModal({
       const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
       if (itemsError) {
         throw itemsError;
+      }
+
+      // --- Deduct Inventory with Promise.all ---
+      if (calculateTotalDeductions && supabase) {
+        console.log('Cart being passed to deductions:', cart);
+        const deductions = calculateTotalDeductions(cart);
+        console.log("Final Cart Deductions Tally:", deductions); // Audit trail
+
+        try {
+          const updatePromises = Object.entries(deductions).map(async ([ingredientName, qtyToDeduct]) => {
+            // 1. Fetch current stock
+            const { data: itemData, error: fetchError } = await supabase
+              .from('inventory')
+              .select('pieces_stock')
+              .eq('product_name', ingredientName)
+              .single();
+
+            if (fetchError || !itemData) {
+              console.error(`Failed to fetch stock for ${ingredientName}:`, fetchError);
+              return;
+            }
+
+            // 2. Subtract and update
+            const newStock = itemData.pieces_stock - qtyToDeduct;
+            const { error: updateError } = await supabase
+              .from('inventory')
+              .update({ pieces_stock: newStock })
+              .eq('product_name', ingredientName);
+
+            if (updateError) {
+              console.error(`Failed to update ${ingredientName}:`, updateError);
+            } else {
+              console.log(`Successfully deducted ${qtyToDeduct} from ${ingredientName}. New stock: ${newStock}`);
+            }
+          });
+
+          // Strictly wait for ALL inventory updates to finish
+          await Promise.all(updatePromises);
+        } catch (err) {
+          console.error("Critical error during inventory deduction:", err);
+        }
       }
 
       onComplete?.();

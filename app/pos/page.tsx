@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense, useState, useMemo } from 'react';
+import React, { Suspense, useState, useMemo, useEffect } from 'react';
 import { 
   Utensils, 
   CupSoda, 
@@ -19,6 +19,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { PaymentModal } from '@/components/payment-modal';
 import { ReceiptTemplate } from '@/components/receipt-template';
 import { menuItems } from '@/lib/menuData';
+import { supabase } from '@/lib/supabase/client';
 
 // --- Types ---
 type Category = {
@@ -105,6 +106,167 @@ const PRODUCTS: Product[] = menuItems.map((item) => ({
   description: item.description,
 }));
 
+// --- Recipe Mapping Dictionaries ---
+const recipeMap = {
+  // COMBOS
+  'Attack 1': [{ ingredient: 'Hotdog', qty: 1 }, { ingredient: 'Footlong Buns', qty: 1 }, { ingredient: '16 oz Cups', qty: 1 }, { ingredient: 'Fries', qty: 1 }],
+  'Attack 2': [{ ingredient: 'Hotdog', qty: 1 }, { ingredient: 'Footlong Buns', qty: 1 }, { ingredient: 'Halo-Halo', qty: 1 }, { ingredient: '22 oz Cups', qty: 1 }, { ingredient: 'Fries', qty: 1 }],
+  'Attack 3': [{ ingredient: 'Hotdog', qty: 1 }, { ingredient: 'Footlong Buns', qty: 1 }, { ingredient: '16 oz Cups', qty: 1 }],
+  'Attack 4': [{ ingredient: 'Burger Patty', qty: 1 }, { ingredient: 'Burger Buns', qty: 1 }, { ingredient: '16 oz Cups', qty: 1 }, { ingredient: 'Fries', qty: 1 }],
+  'Attack 5': [{ ingredient: '16 oz Cups', qty: 1 }, { ingredient: 'Fries', qty: 1 }],
+  'Attack 6': [{ ingredient: '16 oz Cups', qty: 1 }],
+  'Tea 1': [{ ingredient: '22 oz Cups', qty: 1 }, { ingredient: 'Burger Patty', qty: 1 }, { ingredient: 'Burger Buns', qty: 1 }, { ingredient: 'Fries', qty: 1 }],
+  'Tea 2': [{ ingredient: '22 oz Cups', qty: 1 }, { ingredient: 'Hotdog', qty: 1 }, { ingredient: 'Footlong Buns', qty: 1 }, { ingredient: 'Fries', qty: 1 }],
+  'Tea 3': [{ ingredient: '22 oz Cups', qty: 1 }, { ingredient: 'Fries', qty: 1 }],
+  // MILKTEA & MILKSHAKES
+  'Matcha Milktea': [{ ingredient: '22 oz Cups', qty: 1 }],
+  'Chocolate Milktea': [{ ingredient: '22 oz Cups', qty: 1 }],
+  'Red Velvet Milktea': [{ ingredient: '22 oz Cups', qty: 1 }],
+  'Salted Caramel Milktea': [{ ingredient: '22 oz Cups', qty: 1 }],
+  'Rocky Road Milktea': [{ ingredient: '22 oz Cups', qty: 1 }],
+  'Cookies and Cream Milktea': [{ ingredient: '22 oz Cups', qty: 1 }],
+  'Cookies and Cream Milk Shake': [{ ingredient: '16 oz Cups', qty: 1 }],
+  'Choco Kisses Milk Shake': [{ ingredient: '16 oz Cups', qty: 1 }],
+  'Mango Milk Shake': [{ ingredient: '16 oz Cups', qty: 1 }],
+  'Ube Macapuno Milk Shake': [{ ingredient: '16 oz Cups', qty: 1 }],
+  'Avocado Milk Shake': [{ ingredient: '16 oz Cups', qty: 1 }],
+  'Straw Berry Milk Shake': [{ ingredient: '16 oz Cups', qty: 1 }],
+  'Buco Pandan Milk Shake': [{ ingredient: '16 oz Cups', qty: 1 }],
+  'Melon Milk Shake': [{ ingredient: '16 oz Cups', qty: 1 }],
+  // BURGERS
+  'Plain Burger': [{ ingredient: 'Burger Patty', qty: 1 }, { ingredient: 'Burger Buns', qty: 1 }],
+  'Cheese Burger': [{ ingredient: 'Burger Patty', qty: 1 }, { ingredient: 'Burger Buns', qty: 1 }, { ingredient: 'Cheese', qty: 1 }],
+  'Egg Burger': [{ ingredient: 'Burger Patty', qty: 1 }, { ingredient: 'Burger Buns', qty: 1 }, { ingredient: 'Itlog/Egg', qty: 1 }],
+  'Egg & Cheese Burger': [{ ingredient: 'Burger Patty', qty: 1 }, { ingredient: 'Burger Buns', qty: 1 }, { ingredient: 'Cheese', qty: 1 }, { ingredient: 'Itlog/Egg', qty: 1 }],
+  'Overload Burger': [{ ingredient: 'Burger Patty', qty: 2 }, { ingredient: 'Burger Buns', qty: 1 }, { ingredient: 'Cheese', qty: 2 }, { ingredient: 'Itlog/Egg', qty: 1 }],
+  'Footlong Sandwich': [{ ingredient: 'Hotdog', qty: 1 }, { ingredient: 'Footlong Buns', qty: 1 }],
+  // PIZZA
+  'Hawaiian Pizza': [{ ingredient: 'Pizza Hawaiian', qty: 1 }],
+  'Pepperoni Pizza': [{ ingredient: 'Pizza Pepperoni', qty: 1 }],
+  'Beef Mushroom Pizza': [{ ingredient: 'Pizza Beef Mushroom', qty: 1 }],
+  'Ham and Cheese Pizza': [{ ingredient: 'Pizza Ham and Cheese', qty: 1 }],
+  'Overload Pizza': [{ ingredient: 'Pizza Overload', qty: 1 }],
+  // SIDES & DRINKS
+  'Frenchy Fries w/ Cheese': [{ ingredient: 'Fries', qty: 1 }, { ingredient: 'Cheese', qty: 1 }],
+  'Nachos': [{ ingredient: 'Nachos', qty: 1 }],
+  'Halo-Halo': [{ ingredient: 'Halo-Halo', qty: 1 }, { ingredient: '22 oz Cups', qty: 1 }],
+  'Chicken Siomai': [{ ingredient: 'Siomai Chicken', qty: 1 }],
+  'Beef Siomai': [{ ingredient: 'Siomai Beef', qty: 1 }],
+  'Japanese Siomai': [{ ingredient: 'Siomai Japanese', qty: 1 }],
+  'Coke': [{ ingredient: 'Coke', qty: 1 }],
+  'Pepsi': [{ ingredient: 'Pepsi', qty: 1 }],
+  '7Up': [{ ingredient: '7Up', qty: 1 }],
+  'Water': [{ ingredient: 'Water', qty: 1 }]
+};
+
+const burgerAddons = {
+  '': [],
+  'add-cheese': [{ ingredient: 'Cheese', qty: 1 }],
+  'add-egg': [{ ingredient: 'Itlog/Egg', qty: 1 }],
+  'add-cheese-egg': [{ ingredient: 'Cheese', qty: 1 }, { ingredient: 'Itlog/Egg', qty: 1 }]
+};
+
+const siomaiChoices = {
+  'Chicken': [{ ingredient: 'Siomai Chicken', qty: 6 }],
+  'Beef': [{ ingredient: 'Siomai Beef', qty: 6 }]
+};
+
+// --- Availability Checker ---
+type InventoryItem = {
+  product_name: string;
+  pieces_stock: number;
+  [key: string]: any;
+};
+
+const checkAvailability = (
+  posItem: { name: string; selectedBurgerAddon?: string; selectedSiomaiChoice?: string },
+  currentInventory: InventoryItem[]
+): boolean => {
+  let deductions: { ingredient: string; qty: number }[] = [];
+
+  // Get base recipe from mapping
+  const itemName = posItem.name;
+  if (recipeMap[itemName as keyof typeof recipeMap]) {
+    deductions.push(...recipeMap[itemName as keyof typeof recipeMap]);
+  } else {
+    // Fallback for unmapped items
+    deductions.push({ ingredient: itemName, qty: 1 });
+  }
+
+  // Append dynamic choices if they exist
+  const posItemTyped = posItem as any;
+  if (posItemTyped.selectedBurgerAddon && burgerAddons[posItemTyped.selectedBurgerAddon as keyof typeof burgerAddons]) {
+    deductions.push(...burgerAddons[posItemTyped.selectedBurgerAddon as keyof typeof burgerAddons]);
+  }
+  if (posItemTyped.selectedSiomaiChoice && siomaiChoices[posItemTyped.selectedSiomaiChoice as keyof typeof siomaiChoices]) {
+    deductions.push(...siomaiChoices[posItemTyped.selectedSiomaiChoice as keyof typeof siomaiChoices]);
+  }
+
+  // Check each required ingredient
+  for (const deduction of deductions) {
+    const inventoryItem = currentInventory.find(
+      (inv) => inv.product_name.toLowerCase() === deduction.ingredient.toLowerCase()
+    );
+
+    if (!inventoryItem || inventoryItem.pieces_stock < deduction.qty) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
+// --- Cart Tally Function ---
+const calculateTotalDeductions = (cart: CartItem[]): Record<string, number> => {
+  const ingredientTotals: Record<string, number> = {};
+
+  const processDeductions = (deductionArray: { ingredient: string; qty: number }[], cartItemQty: number) => {
+    deductionArray.forEach((req) => {
+      ingredientTotals[req.ingredient] = (ingredientTotals[req.ingredient] || 0) + (req.qty * cartItemQty);
+    });
+  };
+
+  cart.forEach((item) => {
+    // Ensure quantity has a fallback
+    const itemQty = item.quantity || 1;
+    const normalizedItemName = item.name?.trim();
+
+    // Find a matching key in the recipe map regardless of casing
+    const recipeKey = Object.keys(recipeMap).find(
+      (key) => key.toLowerCase() === (normalizedItemName ?? '').toLowerCase()
+    );
+
+    if (recipeKey) {
+      processDeductions(recipeMap[recipeKey as keyof typeof recipeMap], itemQty);
+    } else {
+      // Fallback for unmapped items
+      processDeductions([{ ingredient: normalizedItemName || item.name, qty: 1 }], itemQty);
+    }
+
+    // Burger add-ons (case-insensitive)
+    if (item.selectedBurgerAddon) {
+      const addonKey = Object.keys(burgerAddons).find(
+        (key) => key.toLowerCase() === item.selectedBurgerAddon!.toLowerCase().trim()
+      );
+      if (addonKey) {
+        processDeductions(burgerAddons[addonKey as keyof typeof burgerAddons], itemQty);
+      }
+    }
+
+    // Siomai choices (case-insensitive)
+    if (item.selectedSiomaiChoice) {
+      const siomaiKey = Object.keys(siomaiChoices).find(
+        (key) => key.toLowerCase() === item.selectedSiomaiChoice!.toLowerCase().trim()
+      );
+      if (siomaiKey) {
+        processDeductions(siomaiChoices[siomaiKey as keyof typeof siomaiChoices], itemQty);
+      }
+    }
+  });
+
+  return ingredientTotals;
+};
+
 const generateOrderNumber = () => {
   const seed = Math.floor(1000 + Math.random() * 9000);
   return `#${seed}`;
@@ -116,7 +278,7 @@ function POSScreenContent() {
   const [activeCategory, setActiveCategory] = useState('combos');
   const [searchQuery, setSearchQuery] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [orderNumber, setOrderNumber] = useState(() => generateOrderNumber());
+  const [orderNumber, setOrderNumber] = useState('');
   const [orderType, setOrderType] = useState<'Dine In' | 'Take Out' | null>(() => {
     const param = searchParams?.get('orderType');
     if (param === 'dine-in') return 'Dine In';
@@ -134,6 +296,30 @@ function POSScreenContent() {
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [isClearCartModalOpen, setIsClearCartModalOpen] = useState(false);
+  const [inventoryData, setInventoryData] = useState<InventoryItem[]>([]);
+
+  // Generate order number on client after mount to avoid hydration mismatch.
+  useEffect(() => {
+    setOrderNumber(generateOrderNumber());
+  }, []);
+
+  // --- Fetch Inventory Data ---
+  useEffect(() => {
+    const fetchInventory = async () => {
+      if (!supabase) return;
+
+      const { data, error } = await supabase
+        .from('inventory')
+        .select('product_name, pieces_stock, status')
+        .order('product_name', { ascending: true });
+
+      if (!error && data) {
+        setInventoryData(data as InventoryItem[]);
+      }
+    };
+
+    fetchInventory();
+  }, []);
 
   // --- Derived State ---
   const filteredProducts = useMemo(() => {
@@ -425,12 +611,16 @@ function POSScreenContent() {
         {/* Product Grid */}
         <div className="flex-1 w-full overflow-y-auto p-8 pb-32 lg:pb-8">
           <div className="w-full flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 auto-rows-fr">
-            {filteredProducts.map((product) => (
+            {filteredProducts.map((product) => {
+              const isAvailable = checkAvailability(product as unknown as CartItem, inventoryData);
+              return (
               <div 
                 key={product.id}
                 onClick={() => handleProductClick(product)}
                 className={`group relative bg-white rounded-[24px] overflow-hidden border border-slate-200/60 shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer flex flex-col ${
-                  product.soldOut ? 'opacity-60 grayscale-[0.5] pointer-events-none' : 'hover:-translate-y-1'
+                  !isAvailable ? 'opacity-50 pointer-events-none grayscale' : 'hover:-translate-y-1'
+                } ${
+                  product.soldOut ? 'opacity-60 grayscale-[0.5] pointer-events-none' : ''
                 }`}
               >
                 {/* Image Container */}
@@ -447,11 +637,11 @@ function POSScreenContent() {
                     <span className="font-sans text-sm align-text-top mr-[2px]">₱</span>{product.price}
                   </div>
                   
-                  {/* Sold Out Overlay */}
-                  {product.soldOut && (
+                  {/* Out of Stock / Sold Out Overlay */}
+                  {(!isAvailable || product.soldOut) && (
                     <div className="absolute inset-0 bg-slate-900/40 flex items-center justify-center backdrop-blur-[2px]">
                       <span className="bg-slate-900 text-white px-4 py-2 rounded-lg font-bold tracking-wider text-sm">
-                        SOLD OUT
+                        {product.soldOut ? 'SOLD OUT' : 'OUT OF STOCK'}
                       </span>
                     </div>
                   )}
@@ -469,7 +659,9 @@ function POSScreenContent() {
                   ) : null}
                 </div>
               </div>
-            ))}
+            );
+            })}
+
 
             {filteredProducts.length === 0 && (
               <div className="col-span-full flex flex-col items-center justify-center py-20 text-slate-400">
@@ -958,6 +1150,8 @@ function POSScreenContent() {
       orderNumber={orderNumber}
       orderType="Dine In"
       items={cart}
+      calculateTotalDeductions={calculateTotalDeductions}
+      supabaseClient={supabase}
     />
     </>
   );
