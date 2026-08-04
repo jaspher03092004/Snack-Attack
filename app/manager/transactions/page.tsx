@@ -1,380 +1,853 @@
 'use client';
 
-import React, { useState } from 'react';
-import { 
-  LayoutGrid, 
-  ReceiptText, 
-  Box, 
-  Users, 
-  ArrowLeft,
-  Calculator,
-  Search,
-  ChevronDown,
-  X,
-  Printer,
-  LogOut
+import { useEffect, useMemo, useState } from 'react';
+import {
+    Box,
+    ChevronDown,
+    LayoutGrid,
+    LogOut,
+    ReceiptText,
+    Search,
+    Users,
+    X,
+    Calendar,
+    Clock,
+    DollarSign,
+    TrendingUp,
+    AlertCircle,
+    Printer,
+    FileText,
+    Filter,
+    MoreHorizontal,
+    Eye,
+    CheckCircle,
+    XCircle,
+    AlertTriangle,
+    ArrowUpRight,
+    ArrowDownRight,
+    Zap,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase/client';
 
-// --- Mock Data ---
-const MOCK_TRANSACTIONS = [
-  {
-    id: '#ORD-142',
-    time: '12:42 PM',
-    cashier: 'Jasper (1234)',
-    method: 'Cash',
-    status: 'Completed',
-    total: 431.20,
-    contents: [
-      { name: '1x Classic Cheeseburger', price: 150.00 },
-      { name: '1x Double Smash Burger', price: 220.00 },
-      { name: '1x Large Fries', price: 61.20 }
-    ],
-    transactionId: 'TX_9823475924',
-    terminal: 'POS-01 (Kitchen Hub)'
-  },
-  {
-    id: '#ORD-138',
-    time: '12:28 PM',
-    cashier: 'Jasper (1234)',
-    method: 'GCash',
-    status: 'VOIDED',
-    total: -220.00,
-    voidReason: '"Customer changed mind after punch-in. Accidentally ordered Double Patty instead of Solo."',
-    authorizedBy: 'Admin (0001)',
-    contents: [
-      { 
-        name: '1x Double Patty Smash', 
-        price: 220.00, 
-        subnote: '- Extra Cheese (₱20 included)' 
-      }
-    ],
-    transactionId: 'TX_9823475923',
-    terminal: 'POS-01 (Kitchen Hub)'
-  },
-  {
-    id: '#ORD-137',
-    time: '12:15 PM',
-    cashier: 'Maria (5678)',
-    method: 'Maya',
-    status: 'Completed',
-    total: 850.00,
-    contents: [
-      { name: '1x Family Pizza Combo', price: 850.00 }
-    ],
-    transactionId: 'TX_9823475920',
-    terminal: 'POS-02 (Front)'
-  }
-];
+type TransactionStatus = 'Completed' | 'Voided' | 'Refunded';
 
-export default function TransactionsAudit() {
-  const router = useRouter();
-  const [activeNav, setActiveNav] = useState('transactions');
-  const [selectedOrder, setSelectedOrder] = useState<typeof MOCK_TRANSACTIONS[0] | null>(MOCK_TRANSACTIONS[1]); // Default to the voided one for preview
-  const [searchQuery, setSearchQuery] = useState('');
+type TransactionRecord = {
+    id: string;
+    createdAt: string | null;
+    time: string;
+    orderId: string;
+    cashier: string;
+    status: TransactionStatus;
+    items: Array<{
+        name: string;
+        quantity: number;
+        price: number;
+    }>;
+    subtotal: number;
+    tax: number;
+    totalAmount: number;
+    transactionId: string;
+    receiptNumber: string;
+    managerApproval?: string;
+    voidOrRefundReason?: string;
+};
 
-  const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutGrid, path: '/manager/dashboard' },
-    { id: 'transactions', label: 'Transactions', icon: ReceiptText, path: '/manager/transactions' },
-    { id: 'inventory', label: 'Inventory', icon: Box, path: '/manager/inventory' },
-    { id: 'staff', label: 'Staff', icon: Users, path: '/manager/staff' },
-  ];
+type OrderRow = {
+    id: string;
+    order_number: string | null;
+    created_at: string | null;
+    cashier_name: string | null;
+    total_amount: number | null;
+    status?: string | null;
+};
 
-  return (
-    <div className="flex min-h-screen bg-[#F4F4F5] font-sans text-slate-900 overflow-hidden">
-      
-      {/* 1. Left Sidebar */}
-      <aside className="w-[240px] bg-white border-r border-slate-200 flex flex-col flex-shrink-0 h-screen sticky top-0 z-20 shadow-sm relative">
-        <div className="p-6 flex items-center gap-3 mb-4">
-          <div className="w-8 h-8 bg-slate-900 rounded-[8px] flex items-center justify-center flex-shrink-0 shadow-sm">
-            <div className="w-3 h-3 border-[2px] border-white rounded-[2px]" />
-          </div>
-          <span className="font-extrabold text-[19px] tracking-tight text-slate-900">
-            QuickServe
-          </span>
-        </div>
+const formatCurrency = (amount: number) =>
+    `₱${amount.toLocaleString('en-PH', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    })}`;
 
-        <nav className="flex flex-col gap-1.5 px-4 flex-1">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeNav === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => {
-                  setActiveNav(item.id);
-                  if (item.path) router.push(item.path);
-                }}
-                className={`flex items-center gap-3 px-4 py-3 rounded-[12px] font-semibold text-[15px] transition-all focus:outline-none ${
-                  isActive
-                    ? 'bg-[#F1F5F9] text-slate-900'
-                    : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-                }`}
-              >
-                <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5px]' : 'stroke-[2px]'}`} />
-                {item.label}
-              </button>
-            );
-          })}
-        </nav>
+const getStatusBadge = (status: TransactionStatus) => {
+    const configs = {
+        Completed: {
+            bg: 'bg-emerald-50',
+            text: 'text-emerald-700',
+            border: 'border-emerald-200',
+            dot: 'bg-emerald-500',
+            icon: CheckCircle,
+            label: 'Completed',
+        },
+        Voided: {
+            bg: 'bg-rose-50',
+            text: 'text-rose-700',
+            border: 'border-rose-200',
+            dot: 'bg-rose-500',
+            icon: XCircle,
+            label: 'Voided',
+        },
+        Refunded: {
+            bg: 'bg-amber-50',
+            text: 'text-amber-700',
+            border: 'border-amber-200',
+            dot: 'bg-amber-500',
+            icon: AlertTriangle,
+            label: 'Refunded',
+        },
+    };
+    return configs[status];
+};
 
-        {/* Bottom Status & Actions */}
-        <div className="p-4 flex flex-col gap-2">
-          {/* Log Out Button */}
-          <button 
-            onClick={() => router.push('/')}
-            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-[10px] text-slate-500 hover:text-slate-800 hover:bg-slate-50 font-semibold text-[13px] transition-colors mb-2 focus:outline-none"
-          >
-            <LogOut className="w-4 h-4 stroke-[2px]" />
-            Log Out
-          </button>
+const matchesSearchAndCashier = (
+    transaction: TransactionRecord,
+    searchQuery: string,
+    cashierFilter: string,
+) => {
+    const normalizedSearch = searchQuery.trim().toLowerCase();
+    const matchesSearch =
+        normalizedSearch.length === 0 ||
+        transaction.orderId.toLowerCase().includes(normalizedSearch) ||
+        transaction.receiptNumber.toLowerCase().includes(normalizedSearch);
 
-          {/* Status Box */}
-          <div className="bg-[#F0F7FF] border border-[#E0EFFF] rounded-[12px] p-3">
-            <div className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-1">
-              PI 5 STATUS
-            </div>
+    const matchesCashier = cashierFilter === 'all' || transaction.cashier === cashierFilter;
+
+    return matchesSearch && matchesCashier;
+};
+
+type TransactionTableProps = {
+    title: string;
+    subtitle: string;
+    transactions: TransactionRecord[];
+    onSelectTransaction: (transaction: TransactionRecord) => void;
+    isLoading?: boolean;
+};
+
+const TransactionTable = ({ title, subtitle, transactions, onSelectTransaction, isLoading }: TransactionTableProps) => (
+    <section className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden flex flex-col transition-all hover:shadow-md">
+        <div className="px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
             <div className="flex items-center justify-between">
-              <span className="text-[13px] font-bold text-slate-800">
-                Temp: 42°C
-              </span>
-              <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+                <div>
+                    <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-400 inline-block" />
+                        {title}
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>
+                </div>
+                <span className="text-xs font-semibold text-slate-500 bg-white px-3 py-1 rounded-full border border-slate-200 shadow-sm">
+                    {transactions.length}
+                </span>
             </div>
-          </div>
         </div>
-      </aside>
-
-      {/* 2. Main Content Area */}
-      <main className="flex-1 overflow-y-auto flex">
-        
-        {/* Table & Filters Section */}
-        <div className="flex-1 p-10 max-w-full">
-          
-          {/* Header */}
-          <div className="flex items-start justify-between mb-8">
-            <div>
-              <h1 className="text-[32px] font-extrabold tracking-tight text-slate-900 mb-1 leading-none">
-                Transactions & Audit
-              </h1>
-              <p className="text-[15px] font-medium text-slate-500">
-                Verify sales integrity and reconcile drawer
-              </p>
-            </div>
-            
-            <button className="flex items-center gap-2 px-5 py-3 rounded-full bg-slate-900 hover:bg-black text-white font-bold text-[14px] transition-colors shadow-md focus:outline-none focus:ring-4 focus:ring-slate-900/20 active:scale-[0.98]">
-              <Calculator className="w-4 h-4 stroke-[2.5px]" />
-              EOD Reconciliation
-            </button>
-          </div>
-
-          {/* Filters Bar */}
-          <div className="flex items-center gap-4 mb-6">
-            <div className="relative flex-1 max-w-[360px]">
-              <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-                <Search className="h-4 w-4 text-slate-400" />
-              </div>
-              <input
-                type="text"
-                placeholder="Search Order ID / Receipt..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-[12px] text-[14px] font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent transition-all shadow-sm"
-              />
-            </div>
-
-            <button className="flex items-center justify-between gap-10 bg-white border border-slate-200 px-4 py-3 rounded-[12px] text-[14px] font-semibold text-slate-800 hover:bg-slate-50 transition-colors shadow-sm focus:outline-none min-w-[150px]">
-              Today: April 8
-              <ChevronDown className="w-4 h-4 text-slate-400" />
-            </button>
-
-            <button className="flex items-center justify-between gap-10 bg-white border border-slate-200 px-4 py-3 rounded-[12px] text-[14px] font-semibold text-slate-800 hover:bg-slate-50 transition-colors shadow-sm focus:outline-none min-w-[160px]">
-              All Cashiers
-              <ChevronDown className="w-4 h-4 text-slate-400" />
-            </button>
-
-            <button className="flex items-center justify-between gap-10 bg-white border border-slate-200 px-4 py-3 rounded-[12px] text-[14px] font-semibold text-slate-800 hover:bg-slate-50 transition-colors shadow-sm focus:outline-none min-w-[150px]">
-              All Methods
-              <ChevronDown className="w-4 h-4 text-slate-400" />
-            </button>
-          </div>
-
-          {/* Transactions Table */}
-          <div className="bg-white rounded-[24px] shadow-[0_2px_12px_rgba(0,0,0,0.02)] border border-slate-100 overflow-hidden">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-2">
-                  <th className="py-5 px-6 font-bold w-[120px]">Time</th>
-                  <th className="py-5 px-6 font-bold">Order ID</th>
-                  <th className="py-5 px-6 font-bold">Cashier</th>
-                  <th className="py-5 px-6 font-bold">Method</th>
-                  <th className="py-5 px-6 font-bold">Status</th>
-                  <th className="py-5 px-6 font-bold text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {MOCK_TRANSACTIONS.map((txn, idx) => {
-                  const isVoid = txn.status === 'VOIDED';
-                  const isSelected = selectedOrder?.id === txn.id;
-                  
-                  return (
-                    <tr 
-                      key={txn.id}
-                      onClick={() => setSelectedOrder(txn)}
-                      className={`border-b border-slate-50 last:border-0 cursor-pointer transition-colors ${
-                        isSelected 
-                          ? (isVoid ? 'bg-red-50/40' : 'bg-slate-50') 
-                          : 'hover:bg-slate-50/50'
-                      }`}
-                    >
-                      <td className={`py-5 px-6 text-[14px] font-medium ${isVoid ? 'text-red-400' : 'text-slate-500'}`}>
-                        {txn.time}
-                      </td>
-                      <td className={`py-5 px-6 text-[15px] font-bold ${isVoid ? 'text-red-600' : 'text-slate-900'}`}>
-                        {txn.id}
-                      </td>
-                      <td className={`py-5 px-6 text-[14px] font-medium ${isVoid ? 'text-red-500' : 'text-slate-600'}`}>
-                        {txn.cashier}
-                      </td>
-                      <td className={`py-5 px-6 text-[14px] font-medium ${isVoid ? 'text-red-500' : 'text-slate-600'}`}>
-                        {txn.method}
-                      </td>
-                      <td className="py-5 px-6">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider ${
-                          isVoid 
-                            ? 'bg-red-500 text-white shadow-sm' 
-                            : 'bg-emerald-100/50 text-emerald-600 border border-emerald-200/50'
-                        }`}>
-                          {txn.status}
-                        </span>
-                      </td>
-                      <td className={`py-5 px-6 text-[15px] font-bold text-right ${isVoid ? 'text-red-600' : 'text-slate-900'}`}>
-                        {isVoid && '-'}<span className="font-sans mr-0.5">₱</span>{Math.abs(txn.total).toFixed(2)}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-
-        </div>
-
-        {/* 3. Order Details Side-Panel (Right) */}
-        {selectedOrder && (
-          <aside className="w-[380px] bg-white border-l border-slate-200 flex flex-col flex-shrink-0 min-h-screen shadow-[-4px_0_24px_rgba(0,0,0,0.02)] z-10 sticky top-0 animate-in slide-in-from-right-8 duration-300">
-            
-            {/* Header */}
-            <header className="flex items-center justify-between px-7 py-8 border-b border-slate-100">
-              <div>
-                <h2 className="text-[20px] font-bold text-slate-900 tracking-tight leading-tight">Order Details</h2>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Digital Audit Trail</p>
-              </div>
-              <button 
-                onClick={() => setSelectedOrder(null)}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors focus:outline-none"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </header>
-
-            <div className="flex-1 overflow-y-auto p-7 flex flex-col gap-8 custom-scrollbar">
-              
-              {/* Order ID & Badge Location */}
-              <div className="flex items-center justify-between">
-                <h3 className="text-[28px] font-black tracking-tight text-slate-900 leading-none">
-                  {selectedOrder.id}
-                </h3>
-                {selectedOrder.status === 'VOIDED' && (
-                  <span className="bg-red-50 text-red-600 text-[11px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-md">
-                    VOIDED
-                  </span>
-                )}
-              </div>
-
-              {/* Void Reason Box (Only if voided) */}
-              {selectedOrder.status === 'VOIDED' && selectedOrder.voidReason && (
-                <div className="bg-[#FFF5F5] rounded-[16px] p-5">
-                  <div className="text-[10px] font-bold text-red-400 uppercase tracking-widest mb-2.5">
-                    VOID REASON
-                  </div>
-                  <p className="text-[15px] font-semibold text-[#991B1B] leading-snug">
-                    {selectedOrder.voidReason}
-                  </p>
-                  
-                  {selectedOrder.authorizedBy && (
-                    <div className="mt-5">
-                      <div className="text-[10px] font-bold text-red-400 uppercase tracking-widest mb-2.5">
-                        MANAGER AUTHORIZATION
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 bg-slate-900 rounded-full flex items-center justify-center text-white text-[10px] font-bold">
-                          AM
+        <div className="overflow-x-auto flex-1">
+            {isLoading ? (
+                <div className="p-6 space-y-4">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                        <div key={i} className="animate-pulse flex items-center gap-4">
+                            <div className="h-4 w-16 bg-slate-200 rounded" />
+                            <div className="h-4 w-24 bg-slate-200 rounded" />
+                            <div className="h-4 w-20 bg-slate-200 rounded" />
+                            <div className="h-6 w-16 bg-slate-200 rounded-full" />
+                            <div className="h-4 w-20 bg-slate-200 rounded ml-auto" />
                         </div>
-                        <span className="text-[13px] font-bold text-[#991B1B]">
-                          Signed by: {selectedOrder.authorizedBy}
-                        </span>
-                      </div>
+                    ))}
+                </div>
+            ) : transactions.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-3">
+                        <FileText className="h-8 w-8" strokeWidth={1.5} />
                     </div>
-                  )}
+                    <p className="text-sm font-medium text-slate-500">No transactions</p>
+                    <p className="text-xs text-slate-400 mt-1">Try adjusting your filters</p>
                 </div>
-              )}
+            ) : (
+                <table className="min-w-full">
+                    <thead className="bg-slate-50/60 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                        <tr>
+                            <th className="px-6 py-3 text-left">Time</th>
+                            <th className="px-6 py-3 text-left">Order ID</th>
+                            <th className="px-6 py-3 text-left">Cashier</th>
+                            <th className="px-6 py-3 text-left">Status</th>
+                            <th className="px-6 py-3 text-right">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                        {transactions.map((transaction, index) => {
+                            const statusConfig = getStatusBadge(transaction.status);
+                            const StatusIcon = statusConfig.icon;
+                            return (
+                                <tr
+                                    key={transaction.id}
+                                    onClick={() => onSelectTransaction(transaction)}
+                                    className={`cursor-pointer transition-all hover:bg-slate-50/80 group ${
+                                        index % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'
+                                    }`}
+                                >
+                                    <td className="px-6 py-4 text-sm text-slate-500 whitespace-nowrap">
+                                        <div className="flex items-center gap-2">
+                                            <Clock className="w-3.5 h-3.5 text-slate-400" />
+                                            {transaction.time}
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 text-sm font-medium text-slate-800">
+                                        {transaction.orderId}
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-slate-600">{transaction.cashier}</td>
+                                    <td className="px-6 py-4">
+                                        <span
+                                            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${statusConfig.bg} ${statusConfig.text} border ${statusConfig.border}`}
+                                        >
+                                            <StatusIcon className="w-3 h-3" />
+                                            {transaction.status}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-right text-sm font-semibold text-slate-800">
+                                        {formatCurrency(transaction.totalAmount)}
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            )}
+        </div>
+    </section>
+);
 
-              {/* Order Contents */}
-              <div>
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">
-                  ORDER CONTENTS
-                </div>
-                
-                <div className="flex flex-col gap-4">
-                  {selectedOrder.contents.map((item, i) => (
-                    <div key={i} className="flex flex-col gap-1">
-                      <div className="flex justify-between items-start">
-                        <span className="font-bold text-[14px] text-slate-900">
-                          {item.name}
-                        </span>
-                        <span className="font-bold text-[14px] text-slate-900 flex-shrink-0">
-                          <span className="font-sans mr-[1px]">₱</span>{item.price.toFixed(2)}
-                        </span>
-                      </div>
-                      {'subnote' in item && item.subnote && (
-                        <span className="text-[13px] italic text-slate-400 font-medium">
-                          {item.subnote}
-                        </span>
-                      )}
+export default function TransactionsAuditPage() {
+    const router = useRouter();
+    const [activeNav, setActiveNav] = useState('transactions');
+    const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
+    const [statusCounts, setStatusCounts] = useState({
+        todayCompleted: 0, overallCompleted: 0,
+        todayVoided: 0, overallVoided: 0,
+        todayRefunded: 0, overallRefunded: 0,
+    });
+    const [searchQuery, setSearchQuery] = useState('');
+    const [cashierFilter, setCashierFilter] = useState('all');
+    const [activeTab, setActiveTab] = useState('today');
+    const [selectedTransaction, setSelectedTransaction] = useState<TransactionRecord | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    const navItems = [
+        { id: 'dashboard', label: 'Dashboard', icon: LayoutGrid, path: '/manager/dashboard' },
+        { id: 'transactions', label: 'Transactions', icon: ReceiptText, path: '/manager/transactions' },
+        { id: 'inventory', label: 'Inventory', icon: Box, path: '/manager/inventory' },
+        { id: 'staff', label: 'Staff', icon: Users, path: '/manager/staff' },
+    ];
+
+    useEffect(() => {
+        const fetchOrders = async () => {
+            if (!supabase) {
+                setIsLoading(false);
+                return;
+            }
+
+            const { data, error } = await supabase
+                .from('orders')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                console.error('Orders fetch error:', error);
+                setIsLoading(false);
+                return;
+            }
+
+            const parsedTransactions = ((data ?? []) as OrderRow[]).map((order) => {
+                const amount = Number(order.total_amount ?? 0);
+                const createdAt = order.created_at ? new Date(order.created_at) : null;
+                const normalizedStatus = String(order.status ?? 'Completed').toLowerCase();
+                const status: TransactionStatus = normalizedStatus === 'voided'
+                    ? 'Voided'
+                    : normalizedStatus === 'refunded'
+                        ? 'Refunded'
+                        : 'Completed';
+
+                return {
+                    id: order.id,
+                    createdAt: order.created_at,
+                    time: createdAt
+                        ? createdAt.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', hour12: true })
+                        : '--:--',
+                    orderId: order.order_number || order.id,
+                    cashier: order.cashier_name || 'Unknown',
+                    status,
+                    items: [],
+                    subtotal: amount,
+                    tax: 0,
+                    totalAmount: amount,
+                    transactionId: order.id,
+                    receiptNumber: order.order_number || order.id,
+                };
+            });
+
+            const now = new Date();
+            const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+            let tComp = 0, oComp = 0, tVoid = 0, oVoid = 0, tRef = 0, oRef = 0;
+
+            parsedTransactions.forEach((order) => {
+                if (!order.createdAt) return;
+                const orderTime = new Date(order.createdAt).getTime();
+                if (Number.isNaN(orderTime)) return;
+
+                const isToday = orderTime >= startOfToday;
+
+                if (order.status === 'Completed') {
+                    oComp++;
+                    if (isToday) tComp++;
+                } else if (order.status === 'Voided') {
+                    oVoid++;
+                    if (isToday) tVoid++;
+                } else if (order.status === 'Refunded') {
+                    oRef++;
+                    if (isToday) tRef++;
+                }
+            });
+
+            setStatusCounts({
+                todayCompleted: tComp, overallCompleted: oComp,
+                todayVoided: tVoid, overallVoided: oVoid,
+                todayRefunded: tRef, overallRefunded: oRef,
+            });
+
+            setTransactions(parsedTransactions);
+            setIsLoading(false);
+        };
+
+        void fetchOrders();
+    }, []);
+
+    const { todaysOrders, yesterdaysOrders, monthlyOrders, overallOrders } = useMemo(() => {
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        const startOfYesterday = startOfToday - (24 * 60 * 60 * 1000);
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+
+        const todayOrders: TransactionRecord[] = [];
+        const yesterdayOrders: TransactionRecord[] = [];
+        const monthOrders: TransactionRecord[] = [];
+
+        transactions.forEach((order) => {
+            if (!order.createdAt) return;
+
+            const orderTime = new Date(order.createdAt).getTime();
+            if (Number.isNaN(orderTime)) return;
+
+            const isToday = orderTime >= startOfToday;
+            const isYesterday = orderTime >= startOfYesterday && orderTime < startOfToday;
+            const isThisMonth = orderTime >= startOfMonth;
+
+            if (isToday) todayOrders.push(order);
+            if (isYesterday) yesterdayOrders.push(order);
+            if (isThisMonth) monthOrders.push(order);
+        });
+
+        return {
+            todaysOrders: todayOrders,
+            yesterdaysOrders: yesterdayOrders,
+            monthlyOrders: monthOrders,
+            overallOrders: transactions,
+        };
+    }, [transactions]);
+
+    const filteredTodaysOrders = useMemo(
+        () => todaysOrders.filter((transaction) => matchesSearchAndCashier(transaction, searchQuery, cashierFilter)),
+        [cashierFilter, searchQuery, todaysOrders],
+    );
+
+    const filteredYesterdaysOrders = useMemo(
+        () => yesterdaysOrders.filter((transaction) => matchesSearchAndCashier(transaction, searchQuery, cashierFilter)),
+        [cashierFilter, searchQuery, yesterdaysOrders],
+    );
+
+    const filteredMonthlyOrders = useMemo(
+        () => monthlyOrders.filter((transaction) => matchesSearchAndCashier(transaction, searchQuery, cashierFilter)),
+        [cashierFilter, monthlyOrders, searchQuery],
+    );
+
+    const filteredOverallOrders = useMemo(
+        () => overallOrders.filter((transaction) => matchesSearchAndCashier(transaction, searchQuery, cashierFilter)),
+        [cashierFilter, overallOrders, searchQuery],
+    );
+
+    const summaryTiles = useMemo(
+        () => [
+            {
+                label: "Today's Sales",
+                value: formatCurrency(
+                    todaysOrders
+                        .filter((order) => order.status === 'Completed' || !order.status)
+                        .reduce((sum, order) => sum + Number(order.totalAmount), 0),
+                ),
+                icon: TrendingUp,
+                color: 'text-emerald-600',
+                bg: 'bg-emerald-50',
+                trend: '+12%',
+                trendUp: true,
+            },
+            {
+                label: "Yesterday's Sales",
+                value: formatCurrency(
+                    yesterdaysOrders
+                        .filter((order) => order.status === 'Completed' || !order.status)
+                        .reduce((sum, order) => sum + Number(order.totalAmount), 0),
+                ),
+                icon: Calendar,
+                color: 'text-blue-600',
+                bg: 'bg-blue-50',
+                trend: '-3%',
+                trendUp: false,
+            },
+            {
+                label: 'Period Sales',
+                value: formatCurrency(
+                    monthlyOrders
+                        .filter((order) => order.status === 'Completed' || !order.status)
+                        .reduce((sum, order) => sum + Number(order.totalAmount), 0),
+                ),
+                icon: DollarSign,
+                color: 'text-indigo-600',
+                bg: 'bg-indigo-50',
+                trend: '+8%',
+                trendUp: true,
+            },
+        ],
+        [monthlyOrders, todaysOrders, yesterdaysOrders],
+    );
+
+    const activeTransactions =
+        activeTab === 'today'
+            ? filteredTodaysOrders
+            : activeTab === 'yesterday'
+                ? filteredYesterdaysOrders
+                : activeTab === 'month'
+                    ? filteredMonthlyOrders
+                    : filteredOverallOrders;
+
+    const activeSubtitle =
+        activeTab === 'today'
+            ? 'Local-time orders placed today'
+            : activeTab === 'yesterday'
+                ? 'Local-time orders placed yesterday'
+                : activeTab === 'month'
+                    ? 'Local-time orders for the current month'
+                    : 'All transactions (overall history)';
+
+    const activeTitle =
+        activeTab === 'today'
+            ? 'Today'
+            : activeTab === 'yesterday'
+                ? 'Yesterday'
+                : activeTab === 'month'
+                    ? 'This Month'
+                    : 'Overall';
+
+    const cashierOptions = Array.from(new Set(transactions.map((transaction) => transaction.cashier))).sort(
+        (a, b) => a.localeCompare(b),
+    );
+
+    // Helper to render status icon in drawer
+    const renderStatusIcon = (status: TransactionStatus) => {
+        const config = getStatusBadge(status);
+        const Icon = config.icon;
+        return <Icon className="w-3 h-3" />;
+    };
+
+    return (
+        <div className="flex h-screen bg-slate-50 font-sans text-slate-900 overflow-hidden">
+
+            {/* Sidebar */}
+            <aside className="w-[240px] bg-white border-r border-slate-200 flex flex-col flex-shrink-0 h-full sticky top-0 z-20 shadow-sm">
+                <div className="p-6 flex items-center gap-3 border-b border-slate-100">
+                    <div className="w-9 h-9 bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
+                        <div className="w-3.5 h-3.5 border-2 border-white rounded-sm" />
                     </div>
-                  ))}
+                    <span className="font-bold text-lg tracking-tight text-slate-900">QuickServe</span>
                 </div>
-              </div>
 
-              {/* Divider */}
-              <div className="border-t border-slate-100"></div>
+                <nav className="flex flex-col gap-1 px-4 flex-1 mt-4">
+                    {navItems.map((item) => {
+                        const Icon = item.icon;
+                        const isActive = activeNav === item.id;
+                        return (
+                            <button
+                                key={item.id}
+                                onClick={() => {
+                                    setActiveNav(item.id);
+                                    router.push(item.path);
+                                }}
+                                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 focus:outline-none group ${
+                                    isActive
+                                        ? 'bg-slate-100 text-slate-900 shadow-sm'
+                                        : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                                }`}
+                            >
+                                <Icon className={`w-5 h-5 transition-all ${isActive ? 'stroke-[2.5px]' : 'stroke-[2px] group-hover:stroke-[2.5px]'}`} />
+                                {item.label}
+                                {isActive && (
+                                    <span className="ml-auto w-1.5 h-1.5 rounded-full bg-slate-900" />
+                                )}
+                            </button>
+                        );
+                    })}
+                </nav>
 
-              {/* Technical Details */}
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-[13px] font-semibold text-slate-500">Transaction ID</span>
-                  <span className="text-[13px] font-medium text-slate-400 tabular-nums">{selectedOrder.transactionId}</span>
+                <div className="p-4 border-t border-slate-100 space-y-3 mt-auto">
+                    <button
+                        onClick={() => router.push('/')}
+                        className="flex w-full items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 text-sm font-medium transition-colors"
+                    >
+                        <LogOut className="w-4 h-4" />
+                        Log Out
+                    </button>
+                    <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl p-4 text-white shadow-lg">
+                        <div className="flex items-center justify-between mb-3">
+                            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">
+                                System Health
+                            </span>
+                            <span className="flex items-center gap-1.5 text-[10px] font-medium text-emerald-400">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                Online
+                            </span>
+                        </div>
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-medium text-slate-300">Pi 5 CPU</span>
+                            <span className="text-xs font-bold text-emerald-400">42°C</span>
+                        </div>
+                        <div className="w-full bg-slate-700/50 rounded-full h-1.5 overflow-hidden">
+                            <div className="bg-emerald-500 h-full rounded-full transition-all" style={{ width: '42%' }} />
+                        </div>
+                    </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[13px] font-semibold text-slate-500">Terminal</span>
-                  <span className="text-[13px] font-medium text-slate-400">{selectedOrder.terminal}</span>
-                </div>
-              </div>
+            </aside>
 
+            {/* Main Content */}
+            <main className="flex-1 overflow-y-auto p-6 lg:p-8 space-y-6 bg-slate-50/80">
+                {/* Header */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2.5">
+                            <span className="bg-slate-900 text-white p-1.5 rounded-xl">
+                                <ReceiptText className="w-5 h-5" />
+                            </span>
+                            Transactions & Audit
+                        </h1>
+                        <p className="text-sm text-slate-500 mt-1 flex items-center gap-2">
+                            <Calendar className="w-4 h-4" />
+                            {new Date().toLocaleDateString('en-US', {
+                                weekday: 'long',
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric',
+                            })}
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-medium transition-all shadow-sm hover:shadow-md">
+                            <FileText className="w-4 h-4" />
+                            Export
+                        </button>
+                        <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium transition-all shadow-lg shadow-slate-900/10 hover:shadow-xl">
+                            <Printer className="w-4 h-4" />
+                            EOD Reconciliation
+                        </button>
+                    </div>
+                </div>
+
+                {/* Summary Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {summaryTiles.map((card) => {
+                        const Icon = card.icon;
+                        return (
+                            <div key={card.label} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 hover:shadow-md transition-all group">
+                                <div className="flex items-start justify-between">
+                                    <div>
+                                        <p className="text-xs font-medium uppercase tracking-wider text-slate-400">{card.label}</p>
+                                        <p className="text-2xl font-bold text-slate-900 mt-1.5">{card.value}</p>
+                                        {card.trend && (
+                                            <div className={`flex items-center gap-1 mt-2 text-xs font-medium ${card.trendUp ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                                {card.trendUp ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                                                {card.trend}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className={`w-11 h-11 rounded-xl ${card.bg} flex items-center justify-center ${card.color} group-hover:scale-105 transition-transform`}>
+                                        <Icon className="w-5 h-5" />
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {/* Status Cards - Today vs Overall */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 hover:shadow-md transition-all">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Completed</p>
+                                <div className="flex items-baseline gap-3 mt-1">
+                                    <span className="text-2xl font-bold text-emerald-600">{statusCounts.todayCompleted}</span>
+                                    <span className="text-sm text-slate-400">today</span>
+                                </div>
+                                <p className="text-xs text-slate-500 mt-2">Overall: {statusCounts.overallCompleted}</p>
+                            </div>
+                            <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+                                <CheckCircle className="w-5 h-5" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 hover:shadow-md transition-all">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Refunded</p>
+                                <div className="flex items-baseline gap-3 mt-1">
+                                    <span className="text-2xl font-bold text-amber-600">{statusCounts.todayRefunded}</span>
+                                    <span className="text-sm text-slate-400">today</span>
+                                </div>
+                                <p className="text-xs text-slate-500 mt-2">Overall: {statusCounts.overallRefunded}</p>
+                            </div>
+                            <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
+                                <AlertTriangle className="w-5 h-5" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 hover:shadow-md transition-all">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Voided</p>
+                                <div className="flex items-baseline gap-3 mt-1">
+                                    <span className="text-2xl font-bold text-rose-600">{statusCounts.todayVoided}</span>
+                                    <span className="text-sm text-slate-400">today</span>
+                                </div>
+                                <p className="text-xs text-slate-500 mt-2">Overall: {statusCounts.overallVoided}</p>
+                            </div>
+                            <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center text-rose-600">
+                                <XCircle className="w-5 h-5" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Filters */}
+                <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80">
+                    <div className="flex flex-col md:flex-row gap-4 md:items-center">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                            <input
+                                type="text"
+                                placeholder="Search by Order ID or Receipt Number..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-11 pr-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:bg-white focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
+                            />
+                        </div>
+                        <div className="relative min-w-[200px]">
+                            <select
+                                value={cashierFilter}
+                                onChange={(e) => setCashierFilter(e.target.value)}
+                                className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 pr-9 text-sm text-slate-700 outline-none transition focus:bg-white focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
+                            >
+                                <option value="all">All Cashiers</option>
+                                {cashierOptions.map((cashier) => (
+                                    <option key={cashier} value={cashier}>
+                                        {cashier}
+                                    </option>
+                                ))}
+                            </select>
+                            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Transaction Tables */}
+                <div>
+                    <div className="flex items-center gap-4 border-b border-slate-200 mb-6 pb-2 overflow-x-auto">
+                        {['today', 'yesterday', 'month', 'overall'].map((tab) => (
+                            <button
+                                key={tab}
+                                onClick={() => setActiveTab(tab)}
+                                className={`px-4 py-2 text-sm font-semibold capitalize transition-colors whitespace-nowrap ${
+                                    activeTab === tab
+                                        ? 'border-b-2 border-slate-900 text-slate-900'
+                                        : 'text-slate-400 hover:text-slate-600'
+                                }`}
+                            >
+                                {tab === 'month' ? 'This Month' : tab}
+                            </button>
+                        ))}
+                    </div>
+
+                    <TransactionTable
+                        title={activeTitle}
+                        subtitle={activeSubtitle}
+                        transactions={activeTransactions}
+                        onSelectTransaction={setSelectedTransaction}
+                        isLoading={isLoading}
+                    />
+                </div>
+            </main>
+
+            {/* Transaction Detail Drawer */}
+            <div
+                className={`fixed inset-0 z-40 transition-opacity duration-300 ${
+                    selectedTransaction ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+                }`}
+            >
+                <button
+                    type="button"
+                    aria-label="Close transaction drawer"
+                    onClick={() => setSelectedTransaction(null)}
+                    className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm"
+                />
+
+                <aside
+                    className={`absolute right-0 top-0 flex h-full w-full max-w-md flex-col bg-white shadow-2xl transition-transform duration-300 ease-in-out ${
+                        selectedTransaction ? 'translate-x-0' : 'translate-x-full'
+                    }`}
+                >
+                    {/* Drawer Header */}
+                    <div className="flex items-start justify-between border-b border-slate-200 p-5 bg-slate-50/60">
+                        <div>
+                            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Transaction Details</p>
+                            <h2 className="mt-1 text-xl font-bold text-slate-900">
+                                {selectedTransaction?.orderId ?? 'Order'}
+                            </h2>
+                            <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-2">
+                                <Clock className="w-3 h-3" />
+                                {selectedTransaction?.time} • {selectedTransaction?.cashier}
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setSelectedTransaction(null)}
+                            className="rounded-full border border-slate-200 p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                        >
+                            <X className="h-5 w-5" />
+                        </button>
+                    </div>
+
+                    {selectedTransaction && (
+                        <div className="flex-1 overflow-y-auto p-5 space-y-6">
+                            {/* Status & Summary */}
+                            <div className="flex items-center justify-between rounded-xl bg-slate-50 p-4 border border-slate-200">
+                                <div>
+                                    <p className="text-xs font-medium text-slate-500">Status</p>
+                                    <span
+                                        className={`inline-flex items-center gap-1.5 mt-1 rounded-full px-3 py-1 text-sm font-semibold ${
+                                            getStatusBadge(selectedTransaction.status).bg
+                                        } ${getStatusBadge(selectedTransaction.status).text} border ${
+                                            getStatusBadge(selectedTransaction.status).border
+                                        }`}
+                                    >
+                                        {renderStatusIcon(selectedTransaction.status)}
+                                        {selectedTransaction.status}
+                                    </span>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-xs font-medium text-slate-500">Total Amount</p>
+                                    <p className="text-xl font-bold text-slate-900">
+                                        {formatCurrency(selectedTransaction.totalAmount)}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Order Items */}
+                            <div>
+                                <h3 className="text-sm font-semibold text-slate-800 mb-3">Order Items</h3>
+                                <div className="rounded-xl border border-slate-200 divide-y divide-slate-100 bg-slate-50/50">
+                                    {selectedTransaction.items.length > 0 ? (
+                                        selectedTransaction.items.map((item, idx) => (
+                                            <div key={idx} className="flex items-center justify-between px-4 py-3 text-sm">
+                                                <span className="text-slate-700">
+                                                    {item.quantity}x {item.name}
+                                                </span>
+                                                <span className="font-medium text-slate-800">
+                                                    {formatCurrency(item.price * item.quantity)}
+                                                </span>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="px-4 py-6 text-center text-sm text-slate-400">
+                                            Item-level details not available
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Payment Summary */}
+                            <div>
+                                <h3 className="text-sm font-semibold text-slate-800 mb-3">Payment Summary</h3>
+                                <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-2">
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-slate-500">Subtotal</span>
+                                        <span className="font-medium text-slate-800">{formatCurrency(selectedTransaction.subtotal)}</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-slate-500">Tax</span>
+                                        <span className="font-medium text-slate-800">{formatCurrency(selectedTransaction.tax)}</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm border-t border-slate-200 pt-2 font-semibold">
+                                        <span className="text-slate-800">Total</span>
+                                        <span className="text-slate-900">{formatCurrency(selectedTransaction.totalAmount)}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Audit Info */}
+                            <div>
+                                <h3 className="text-sm font-semibold text-slate-800 mb-3">Audit Information</h3>
+                                <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-2 text-sm">
+                                    <div className="flex justify-between">
+                                        <span className="text-slate-500">Transaction ID</span>
+                                        <span className="font-mono text-slate-700">{selectedTransaction.transactionId}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-slate-500">Receipt Number</span>
+                                        <span className="font-mono text-slate-700">{selectedTransaction.receiptNumber}</span>
+                                    </div>
+                                    {selectedTransaction.createdAt && (
+                                        <div className="flex justify-between">
+                                            <span className="text-slate-500">Date</span>
+                                            <span className="text-slate-700">
+                                                {new Date(selectedTransaction.createdAt).toLocaleDateString('en-PH', {
+                                                    month: 'short',
+                                                    day: 'numeric',
+                                                    year: 'numeric',
+                                                })}
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Void/Refund Details */}
+                            {(selectedTransaction.status === 'Voided' || selectedTransaction.status === 'Refunded') && (
+                                <div className="rounded-xl border border-rose-200 bg-rose-50 p-4">
+                                    <h4 className="text-sm font-semibold text-rose-800">Void/Refund Reason</h4>
+                                    <p className="mt-1 text-sm text-rose-700">{selectedTransaction.voidOrRefundReason || 'No reason provided'}</p>
+                                    {selectedTransaction.managerApproval && (
+                                        <div className="mt-3 pt-3 border-t border-rose-200">
+                                            <p className="text-xs font-medium uppercase tracking-wider text-rose-600">Manager Approval</p>
+                                            <p className="text-sm font-semibold text-rose-800">{selectedTransaction.managerApproval}</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Drawer Footer */}
+                    <div className="border-t border-slate-200 p-5 bg-slate-50/60">
+                        <button className="w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 flex items-center justify-center gap-2 shadow-md">
+                            <Printer className="w-4 h-4" />
+                            Reprint Receipt
+                        </button>
+                    </div>
+                </aside>
             </div>
-
-            {/* Footer */}
-            <div className="p-6 bg-white border-t border-slate-100 mt-auto">
-              <button className="w-full py-4 rounded-[14px] bg-[#F8FAFC] hover:bg-slate-100 border border-slate-200 text-slate-900 font-bold text-[15px] flex items-center justify-center gap-2.5 transition-colors focus:outline-none focus:ring-4 focus:ring-slate-100 active:scale-[0.98]">
-                <Printer className="w-4 h-4 stroke-[2.5px]" /> 
-                Re-print Digital Receipt
-              </button>
-            </div>
-
-          </aside>
-        )}
-
-      </main>
-    </div>
-  );
+        </div>
+    );
 }
