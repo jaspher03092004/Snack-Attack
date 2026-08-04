@@ -19,6 +19,7 @@ import {
     CheckCircle,
     AlertCircle,
     PackagePlus,
+    PackageOpen,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
@@ -60,6 +61,8 @@ export default function StartOrderPage() {
     const [isProductInOpen, setIsProductInOpen] = useState(false);
     const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
     const [selectedProductId, setSelectedProductId] = useState('');
+    const [isOpenPackModalOpen, setIsOpenPackModalOpen] = useState(false);
+    const [selectedPackId, setSelectedPackId] = useState('');
     const [addBulk, setAddBulk] = useState('0');
     const [addPieces, setAddPieces] = useState('0');
     const [productInTab, setProductInTab] = useState('Main');
@@ -280,6 +283,60 @@ export default function StartOrderPage() {
         setAddPieces('0');
     };
 
+    const openOpenPackModal = async () => {
+        if (!supabase) {
+            alert('Supabase client is not configured.');
+            return;
+        }
+
+        const { data, error } = await supabase
+            .from('inventory')
+            .select('id, product_name, category, pieces_stock, inventory_type')
+            .order('product_name', { ascending: true });
+
+        if (error) {
+            console.error('Inventory fetch error:', error);
+            alert('Failed to load inventory products.');
+            return;
+        }
+
+        const items = (data ?? []) as InventoryItem[];
+        setInventoryItems(items);
+
+        const subInventoryItems = items.filter((item) => {
+            const normalizedCategory = (item.category || '').toLowerCase();
+            const normalizedType = (item.inventory_type || '').toLowerCase();
+            return normalizedCategory !== 'main inventory' && normalizedType !== 'main';
+        });
+
+        setSelectedPackId(subInventoryItems[0]?.id ?? '');
+        setIsOpenPackModalOpen(true);
+    };
+
+    const handleOpenPackSubmit = async () => {
+        if (!supabase || !selectedPackId) return;
+
+        const selectedItem = inventoryItems.find((item) => item.id === selectedPackId);
+        if (!selectedItem) return;
+
+        const newStock = Number(selectedItem.pieces_stock || 0) - 1;
+
+        const { error } = await supabase
+            .from('inventory')
+            .update({ pieces_stock: newStock })
+            .eq('id', selectedPackId);
+
+        if (error) {
+            console.error('Open Pack update error:', error);
+            alert('Failed to open pack.');
+            return;
+        }
+
+        alert('Pack opened and stock deducted successfully.');
+        setIsOpenPackModalOpen(false);
+        setSelectedPackId('');
+    };
+
     const selectedProduct = inventoryItems.find((item) => item.id === selectedProductId) ?? null;
     const isSubInventory = selectedProduct?.category?.toLowerCase() !== 'main inventory' && selectedProduct?.category?.toLowerCase() !== 'main';
     const isBun = selectedProduct?.product_name?.toLowerCase().includes('bun');
@@ -294,6 +351,11 @@ export default function StartOrderPage() {
         const matchesSearch = item.product_name.toLowerCase().includes(productSearch.toLowerCase());
 
         return matchesTab && matchesSearch;
+    });
+    const subInventoryItems = inventoryItems.filter((item) => {
+        const normalizedCategory = (item.category || '').toLowerCase();
+        const normalizedType = (item.inventory_type || '').toLowerCase();
+        return normalizedCategory !== 'main inventory' && normalizedType !== 'main';
     });
 
     const resetExpenseForm = () => {
@@ -398,6 +460,16 @@ export default function StartOrderPage() {
                             >
                                 <PackagePlus className="h-4 w-4" />
                                 Product In
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    void openOpenPackModal();
+                                }}
+                                className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 hover:shadow-md"
+                            >
+                                <PackageOpen className="h-4 w-4" />
+                                Open Pack
                             </button>
                             <Link
                                 href="/time-in"
@@ -756,6 +828,67 @@ export default function StartOrderPage() {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {isOpenPackModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+                        <div className="flex items-start justify-between">
+                            <div>
+                                <h2 className="text-2xl font-bold text-slate-900">Open Pack</h2>
+                                <p className="mt-1 text-sm text-slate-500">Select a sub-inventory flavor to deduct 1 pack.</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setIsOpenPackModalOpen(false)}
+                                className="rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                            >
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
+
+                        <div className="mt-6 space-y-5">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700">Sub-Inventory Item</label>
+                                <select
+                                    value={selectedPackId}
+                                    onChange={(e) => setSelectedPackId(e.target.value)}
+                                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200"
+                                >
+                                    {subInventoryItems.length === 0 ? (
+                                        <option value="" disabled>No sub-inventory items found</option>
+                                    ) : (
+                                        subInventoryItems.map((item) => (
+                                            <option key={item.id} value={item.id}>
+                                                {item.product_name} (Current: {Number(item.pieces_stock || 0)} packs)
+                                            </option>
+                                        ))
+                                    )}
+                                </select>
+                            </div>
+
+                            <div className="flex justify-end gap-3 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsOpenPackModalOpen(false)}
+                                    className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        void handleOpenPackSubmit();
+                                    }}
+                                    disabled={!selectedPackId || subInventoryItems.length === 0}
+                                    className="rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 focus:ring-4 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-slate-300"
+                                >
+                                    Open Pack
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}

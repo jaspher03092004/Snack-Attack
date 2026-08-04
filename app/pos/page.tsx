@@ -171,6 +171,12 @@ const siomaiChoices = {
   'Beef': [{ ingredient: 'Siomai Beef', qty: 6 }]
 };
 
+const getFullFlavorName = (shortName: string, type: string) => {
+  if (type === 'milktea') return `${shortName} Milktea`;
+  if (type === 'milkshake') return `${shortName} Milk Shake`;
+  return shortName;
+};
+
 // --- Availability Checker ---
 type InventoryItem = {
   product_name: string;
@@ -613,14 +619,17 @@ function POSScreenContent() {
           <div className="w-full flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 auto-rows-fr">
             {filteredProducts.map((product) => {
               const isAvailable = checkAvailability(product as unknown as CartItem, inventoryData);
+              const inventoryItem = inventoryData.find(
+                (inv) => inv.product_name.toLowerCase() === product.name.toLowerCase()
+              );
+              const isOutOfStock = inventoryItem ? Number(inventoryItem.pieces_stock) <= 0 : false;
+              const isCardUnavailable = !isAvailable || isOutOfStock || Boolean(product.soldOut);
               return (
               <div 
                 key={product.id}
-                onClick={() => handleProductClick(product)}
+                onClick={() => !isCardUnavailable && handleProductClick(product)}
                 className={`group relative bg-white rounded-[24px] overflow-hidden border border-slate-200/60 shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer flex flex-col ${
-                  !isAvailable ? 'opacity-50 pointer-events-none grayscale' : 'hover:-translate-y-1'
-                } ${
-                  product.soldOut ? 'opacity-60 grayscale-[0.5] pointer-events-none' : ''
+                  isCardUnavailable ? 'opacity-50 grayscale pointer-events-none cursor-not-allowed' : 'hover:-translate-y-1'
                 }`}
               >
                 {/* Image Container */}
@@ -638,7 +647,7 @@ function POSScreenContent() {
                   </div>
                   
                   {/* Out of Stock / Sold Out Overlay */}
-                  {(!isAvailable || product.soldOut) && (
+                  {isCardUnavailable && (
                     <div className="absolute inset-0 bg-slate-900/40 flex items-center justify-center backdrop-blur-[2px]">
                       <span className="bg-slate-900 text-white px-4 py-2 rounded-lg font-bold tracking-wider text-sm">
                         {product.soldOut ? 'SOLD OUT' : 'OUT OF STOCK'}
@@ -949,18 +958,26 @@ function POSScreenContent() {
                   'Buco Pandan',
                   'Melon',
                 ].map((flavor) => {
+                  const fullDBName = getFullFlavorName(flavor, 'milkshake');
+                  const inventoryItem = inventoryData.find(
+                    (item) => item.product_name.trim().toLowerCase() === fullDBName.toLowerCase()
+                  );
+                  const isOutOfStock = inventoryItem ? Number(inventoryItem.pieces_stock) <= 0 : false;
                   const isSelected = selectedShakeFlavor === flavor;
                   return (
                     <button
                       key={flavor}
                       onClick={() => setSelectedShakeFlavor(flavor)}
+                      disabled={isOutOfStock}
                       className={`rounded-full border px-4 py-2 text-sm font-semibold transition-all ${
-                        isSelected
+                        isOutOfStock
+                          ? 'opacity-50 grayscale cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'
+                          : isSelected
                           ? 'border-emerald-500 bg-emerald-50 text-emerald-600'
                           : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
                       }`}
                     >
-                      {flavor}
+                      {flavor}{isOutOfStock ? ' · Out of Stock' : ''}
                     </button>
                   );
                 })}
@@ -1052,18 +1069,26 @@ function POSScreenContent() {
               <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Milktea Flavor</h4>
               <div className="mt-3 flex flex-wrap gap-3">
                 {['Matcha','Chocolate','Red Velvet','Salted Caramel','Rocky Road','Cookies and Cream'].map((flav) => {
+                  const fullDBName = getFullFlavorName(flav, 'milktea');
+                  const inventoryItem = inventoryData.find(
+                    (item) => item.product_name.trim().toLowerCase() === fullDBName.toLowerCase()
+                  );
+                  const isOutOfStock = inventoryItem ? Number(inventoryItem.pieces_stock) <= 0 : false;
                   const isSelected = selectedMilkteaFlavor === flav;
                   return (
                     <button
                       key={flav}
                       onClick={() => setSelectedMilkteaFlavor(flav)}
+                      disabled={isOutOfStock}
                       className={`rounded-full border px-4 py-2 text-sm font-semibold transition-all ${
-                        isSelected
+                        isOutOfStock
+                          ? 'opacity-50 grayscale cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'
+                          : isSelected
                           ? 'border-emerald-500 bg-emerald-50 text-emerald-600'
                           : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
                       }`}
                     >
-                      {flav}
+                      {flav}{isOutOfStock ? ' · Out of Stock' : ''}
                     </button>
                   );
                 })}
