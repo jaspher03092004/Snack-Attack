@@ -30,16 +30,36 @@ type ExpenseRecord = {
   expensed_by: string;
 };
 
+type NetIncomeRecord = {
+  id: string;
+  date: string;
+  net_cash: number;
+  total_expenses: number;
+  total_salaries: number;
+};
+
 export default function ManagerDashboard() {
   const router = useRouter();
   const [activeNav, setActiveNav] = useState('dashboard');
   const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [expensesToday, setExpensesToday] = useState<ExpenseRecord[]>([]);
+  const [netStats, setNetStats] = useState({
+    netToday: 0,
+    netYesterday: 0,
+    netWeek: 0,
+    netMonth: 0,
+    expensesToday: 0,
+    salariesToday: 0,
+  });
+  const [netChartData, setNetChartData] = useState<Array<{ name: string; net: number }>>([]);
 
   const getTodayDateString = () => {
     const today = new Date();
     return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   };
+
+  const getDateKey = (date: Date) =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
   useEffect(() => {
     const fetchOrdersAndExpenses = async () => {
@@ -49,7 +69,7 @@ export default function ManagerDashboard() {
       }
 
       const todayDate = getTodayDateString();
-      const [ordersResult, expensesResult] = await Promise.all([
+      const [ordersResult, expensesResult, netIncomeResult] = await Promise.all([
         supabase
           .from('orders')
           .select('id, order_number, status, total_amount, created_at')
@@ -59,6 +79,10 @@ export default function ManagerDashboard() {
           .select('id, item_name, amount, expense_date, expensed_by')
           .eq('expense_date', todayDate)
           .order('id', { ascending: false }),
+        supabase
+          .from('net_income')
+          .select('id, date, net_cash, total_expenses, total_salaries')
+          .order('date', { ascending: true }),
       ]);
 
       if (ordersResult.error) {
@@ -85,6 +109,80 @@ export default function ManagerDashboard() {
           expensed_by: expense.expensed_by,
         })) as ExpenseRecord[];
         setExpensesToday(parsedExpenses);
+      }
+
+      if (netIncomeResult.error) {
+        console.error('Net income fetch error:', netIncomeResult.error);
+      } else {
+        const parsedNetIncome = (netIncomeResult.data ?? []).map((row: any) => ({
+          id: row.id,
+          date: row.date,
+          net_cash: Number(row.net_cash) || 0,
+          total_expenses: Number(row.total_expenses) || 0,
+          total_salaries: Number(row.total_salaries) || 0,
+        })) as NetIncomeRecord[];
+
+        const today = new Date();
+        const todayKey = getDateKey(today);
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayKey = getDateKey(yesterday);
+        const startOfLast7 = new Date(today);
+        startOfLast7.setDate(startOfLast7.getDate() - 6);
+        const startOfLast7Key = getDateKey(startOfLast7);
+        const currentMonthPrefix = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+
+        const isToday = (dateKey: string) => dateKey === todayKey;
+        const isYesterday = (dateKey: string) => dateKey === yesterdayKey;
+        const isWithinLast7Days = (dateKey: string) => dateKey >= startOfLast7Key && dateKey <= todayKey;
+        const isThisMonth = (dateKey: string) => dateKey.startsWith(currentMonthPrefix);
+
+        const netToday = parsedNetIncome
+          .filter((row) => isToday(row.date))
+          .reduce((sum, row) => sum + row.net_cash, 0);
+        const netYesterday = parsedNetIncome
+          .filter((row) => isYesterday(row.date))
+          .reduce((sum, row) => sum + row.net_cash, 0);
+        const netWeek = parsedNetIncome
+          .filter((row) => isWithinLast7Days(row.date))
+          .reduce((sum, row) => sum + row.net_cash, 0);
+        const netMonth = parsedNetIncome
+          .filter((row) => isThisMonth(row.date))
+          .reduce((sum, row) => sum + row.net_cash, 0);
+
+        const todaysNetRows = parsedNetIncome.filter((row) => isToday(row.date));
+        const expensesTodayTotal = todaysNetRows.reduce((sum, row) => sum + row.total_expenses, 0);
+        const salariesTodayTotal = todaysNetRows.reduce((sum, row) => sum + row.total_salaries, 0);
+
+        setNetStats({
+          netToday,
+          netYesterday,
+          netWeek,
+          netMonth,
+          expensesToday: expensesTodayTotal,
+          salariesToday: salariesTodayTotal,
+        });
+
+        const last7DateLabels = Array.from({ length: 7 }, (_, index) => {
+          const date = new Date(today);
+          date.setDate(today.getDate() - (6 - index));
+          return {
+            key: getDateKey(date),
+            name: date.toLocaleDateString('en-US', { weekday: 'short' }),
+          };
+        });
+
+        const netByDate = parsedNetIncome.reduce<Record<string, number>>((acc, row) => {
+          acc[row.date] = (acc[row.date] || 0) + row.net_cash;
+          return acc;
+        }, {});
+
+        const chartData = last7DateLabels.map((day) => ({
+          name: day.name,
+          net: netByDate[day.key] || 0,
+        }));
+
+        setNetChartData(chartData);
       }
     };
 
@@ -315,6 +413,65 @@ export default function ManagerDashboard() {
           </div>
         </div>
 
+        <section className="mb-6">
+          <h2 className="text-[18px] font-bold text-slate-900 mb-4">Net Income & EOD Metrics</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div className="bg-white rounded-[24px] p-7 shadow-sm border border-slate-100/50">
+              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-3">
+                NET CASH TODAY
+              </div>
+              <div className="text-[32px] font-black text-emerald-600 leading-none">
+                {formatCurrency(netStats.netToday)}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-[24px] p-7 shadow-sm border border-slate-100/50">
+              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-3">
+                NET CASH YESTERDAY
+              </div>
+              <div className="text-[32px] font-black text-slate-900 leading-none">
+                {formatCurrency(netStats.netYesterday)}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-[24px] p-7 shadow-sm border border-slate-100/50">
+              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-3">
+                NET CASH THIS WEEK
+              </div>
+              <div className="text-[32px] font-black text-slate-900 leading-none">
+                {formatCurrency(netStats.netWeek)}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-[24px] p-7 shadow-sm border border-slate-100/50">
+              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-3">
+                NET CASH THIS MONTH
+              </div>
+              <div className="text-[32px] font-black text-slate-900 leading-none">
+                {formatCurrency(netStats.netMonth)}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-[24px] p-7 shadow-sm border border-slate-100/50">
+              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-3">
+                TODAY&apos;S EXPENSES
+              </div>
+              <div className="text-[32px] font-black text-rose-600 leading-none">
+                {formatCurrency(netStats.expensesToday)}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-[24px] p-7 shadow-sm border border-slate-100/50">
+              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-3">
+                TODAY&apos;S SALARIES
+              </div>
+              <div className="text-[32px] font-black text-indigo-600 leading-none">
+                {formatCurrency(netStats.salariesToday)}
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Today&apos;s Sales Target */}
         <div className="bg-white rounded-[24px] p-7 shadow-sm border border-slate-100/50 mb-6">
           <div className="flex items-center justify-between mb-5 gap-4">
@@ -420,6 +577,29 @@ export default function ManagerDashboard() {
             </div>
           </div>
 
+        </div>
+
+        <div className="mt-6">
+          <div className="bg-white rounded-[24px] p-8 shadow-sm border border-slate-100/50 h-[380px] flex flex-col">
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="text-[18px] font-bold text-slate-900">Daily Net Cash (Last 7 Days)</h2>
+              <div className="bg-slate-100 rounded-full px-4 py-1.5 flex items-center select-none cursor-pointer">
+                <span className="text-[13px] font-bold text-slate-800">Last 7 days</span>
+              </div>
+            </div>
+
+            <div className="flex-1">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={netChartData} margin={{ top: 8, right: 16, left: -12, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+                  <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
+                  <YAxis tickFormatter={(value) => `₱${value >= 1000 ? `${value / 1000}k` : value}`} tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
+                  <Tooltip formatter={(value) => formatCurrency(Number(value) || 0)} />
+                  <Bar dataKey="net" fill="#10b981" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         </div>
 
       </main>
