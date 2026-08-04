@@ -33,7 +33,10 @@ export default function StaffScreen() {
   const [activeNav, setActiveNav] = useState('staff');
   const [staffMembers, setStaffMembers] = useState<Array<{ id: string; name: string; pin_code: string; base_salary: number; snack_allowance: number }>>([]);
   const [payrollLogs, setPayrollLogs] = useState<PayrollLog[]>([]);
-  const [weeklySchedule, setWeeklySchedule] = useState<Array<{ id: string; day_of_week: string; assigned_staff: string[] }>>([]);
+  const [monthlySchedule, setMonthlySchedule] = useState<Array<{ id: string; date: string; staff_name: string }>>([]);
+  const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
+  const [selectedShiftDate, setSelectedShiftDate] = useState<string | null>(null);
+  const [staffToAdd, setStaffToAdd] = useState('');
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [editingDay, setEditingDay] = useState<string | null>(null);
   const [editingAssigned, setEditingAssigned] = useState<string[]>([]);
@@ -108,36 +111,72 @@ export default function StaffScreen() {
     setPayrollLogs(parsedPayroll);
   };
 
-  const getWeeklySchedule = async () => {
+  const getMonthlySchedule = async () => {
     if (!supabase) return;
 
     const { data, error } = await supabase
-      .from('weekly_schedule')
-      .select('id, day_of_week, assigned_staff');
+      .from('monthly_schedule')
+      .select('*');
 
     if (error) {
-      console.error('Weekly schedule fetch error:', error);
+      console.error('Schedule fetch error:', error?.message || error);
       return;
     }
 
-    const daysOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-
     const parsed = (data ?? []).map((row: any) => ({
       id: row.id,
-      day_of_week: row.day_of_week,
-      assigned_staff: (row.assigned_staff ?? []) as string[],
+      date: String(row.date ?? ''),
+      staff_name: String(row.staff_name ?? ''),
     }));
 
-    parsed.sort((a, b) => daysOrder.indexOf(a.day_of_week) - daysOrder.indexOf(b.day_of_week));
+    parsed.sort((a, b) => a.date.localeCompare(b.date));
 
-    setWeeklySchedule(parsed as Array<{ id: string; day_of_week: string; assigned_staff: string[] }>);
+    setMonthlySchedule(parsed as Array<{ id: string; date: string; staff_name: string }>);
+  };
+
+  const handleAddStaffToShift = async () => {
+    if (!staffToAdd || !selectedShiftDate) return;
+    if (!supabase) return;
+
+    const { error: insertError } = await supabase
+      .from('monthly_schedule')
+      .insert([
+        {
+          date: selectedShiftDate,
+          staff_name: staffToAdd,
+        },
+      ]);
+
+    if (insertError) {
+      console.error('Add staff to shift error:', insertError?.message || insertError);
+      return;
+    }
+
+    await getMonthlySchedule();
+    setStaffToAdd('');
+  };
+
+  const handleRemoveStaffFromShift = async (recordId: string) => {
+    if (!supabase) return;
+
+    const { error } = await supabase
+      .from('monthly_schedule')
+      .delete()
+      .eq('id', recordId);
+
+    if (error) {
+      console.error('Remove staff from shift error:', error);
+      return;
+    }
+
+    await getMonthlySchedule();
   };
 
   useEffect(() => {
     let subscription: any = null;
 
     const loadData = async () => {
-      await Promise.all([getStaffDirectory(), getPayrollLogs(), getWeeklySchedule()]);
+      await Promise.all([getStaffDirectory(), getPayrollLogs(), getMonthlySchedule()]);
     };
 
     // run initial load, then create a uniquely named channel to avoid duplicate .on() bindings
@@ -188,18 +227,10 @@ export default function StaffScreen() {
   };
 
   const saveSchedule = async () => {
+    // Legacy weekly editor is kept for compatibility with existing UI state.
+    // Monthly schedule is now managed through date-specific add/remove handlers.
     if (!editingDay) return;
-    const { error } = await supabase
-      .from('weekly_schedule')
-      .update({ assigned_staff: editingAssigned })
-      .eq('day_of_week', editingDay);
-
-    if (error) {
-      console.error('Weekly schedule update error:', error);
-      return;
-    }
-
-    await getWeeklySchedule();
+    await getMonthlySchedule();
     closeScheduleModal();
   };
 
@@ -219,6 +250,11 @@ export default function StaffScreen() {
     event.preventDefault();
     setStaffError('');
     setStaffSuccess('');
+
+    if (!supabase) {
+      setStaffError('Supabase client is not configured.');
+      return;
+    }
 
     if (!formName.trim() || formPin.trim().length !== 4) {
       setStaffError('Please enter a valid name and 4-digit PIN code.');
@@ -257,6 +293,11 @@ export default function StaffScreen() {
     setStaffError('');
     setStaffSuccess('');
     if (!editingStaffId) return;
+
+    if (!supabase) {
+      setStaffError('Supabase client is not configured.');
+      return;
+    }
 
     if (!formName.trim() || formPin.trim().length !== 4) {
       setStaffError('Please enter a valid name and 4-digit PIN code.');
@@ -319,6 +360,25 @@ export default function StaffScreen() {
     { id: 'inventory', label: 'Inventory', icon: Box, path: '/manager/inventory' },
     { id: 'staff', label: 'Staff', icon: Users, path: '/manager/staff' },
   ];
+
+  const getDaysInMonth = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const monthName = now.toLocaleDateString('en-US', { month: 'short' });
+
+    return Array.from({ length: daysInMonth }, (_, i) => {
+      const date = new Date(year, month, i + 1);
+      return {
+        fullDateString: date.toISOString().split('T')[0],
+        dayOfWeek: date.toLocaleDateString('en-US', { weekday: 'short' }),
+        displayDate: `${monthName} ${date.getDate()}`,
+      };
+    });
+  };
+
+  const currentMonthDays = getDaysInMonth();
 
   return (
     <div className="flex h-screen bg-[#F4F4F5] font-sans text-slate-900 overflow-hidden">
@@ -418,41 +478,46 @@ export default function StaffScreen() {
             </div>
           </div>
 
-          {/* Weekly Schedule Redesign */}
+          {/* Monthly Schedule */}
           <div id="weekly-schedule-section" className="bg-white rounded-[24px] p-7 shadow-sm border border-slate-100">
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="text-[19px] font-bold text-slate-900 tracking-tight flex items-center gap-2">
                   <Calendar className="w-5 h-5 text-slate-400" />
-                  Weekly Schedule
+                  Monthly Schedule
                 </h2>
                 <p className="text-sm text-slate-500 mt-1">
-                  Manage daily staff assignments and rotations.
+                  Manage daily staff assignments and rotations for the current month.
                 </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {weeklySchedule.map((day) => (
-                <div key={day.id} className="bg-[#F8FAFC] border border-slate-100 rounded-[20px] p-5 flex flex-col h-full relative group transition-all hover:border-slate-300 hover:shadow-sm">
+            <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-4">
+              {currentMonthDays.map((day) => {
+                const dayAssignments = monthlySchedule.filter((assignment) => assignment.date === day.fullDateString);
+
+                return (
+                <div
+                  key={day.fullDateString}
+                  onClick={() => {
+                    setSelectedShiftDate(day.fullDateString);
+                    setIsShiftModalOpen(true);
+                  }}
+                  className="bg-[#F8FAFC] border border-slate-100 rounded-[20px] p-5 flex flex-col h-full relative group cursor-pointer hover:border-slate-400 hover:shadow-md transition-all"
+                >
                   <div className="flex justify-between items-center mb-4">
-                    <h3 className="font-bold text-slate-800 text-[16px]">{day.day_of_week}</h3>
-                    <button
-                      type="button"
-                      onClick={() => openScheduleEditModal(day)}
-                      className="p-1.5 rounded-full bg-white border border-slate-200 text-slate-400 hover:text-slate-900 hover:border-slate-300 transition-colors shadow-sm"
-                      title={`Edit ${day.day_of_week} Schedule`}
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
+                    <div>
+                      <h3 className="font-bold text-slate-800 text-[16px]">{day.displayDate}</h3>
+                      <p className="text-xs font-medium text-slate-400 mt-0.5">{day.dayOfWeek}</p>
+                    </div>
                   </div>
                   
                   <div className="flex-1 flex flex-wrap gap-2 items-start content-start">
-                    {day.assigned_staff && day.assigned_staff.length > 0 ? (
-                      day.assigned_staff.map((name) => (
-                        <span key={name} className="inline-flex items-center gap-1.5 rounded-lg bg-white border border-slate-200 px-2.5 py-1.5 text-[13px] font-medium text-slate-700 shadow-sm">
+                    {dayAssignments.length > 0 ? (
+                      dayAssignments.map((record) => (
+                        <span key={record.id} className="inline-flex items-center gap-1.5 rounded-lg bg-white border border-slate-200 px-2.5 py-1.5 text-[13px] font-medium text-slate-700 shadow-sm">
                           <User className="w-3 h-3 text-slate-400" />
-                          {name}
+                          {record.staff_name}
                         </span>
                       ))
                     ) : (
@@ -462,7 +527,7 @@ export default function StaffScreen() {
                     )}
                   </div>
                 </div>
-              ))}
+              )})}
             </div>
           </div>
 
@@ -764,6 +829,94 @@ export default function StaffScreen() {
                   </button>
                   <button onClick={saveSchedule} className="rounded-[12px] bg-slate-900 px-5 py-3 text-[14px] font-bold text-white transition hover:bg-black shadow-md active:scale-[0.98]">
                     Save Schedule
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {isShiftModalOpen && selectedShiftDate && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm px-4 py-6">
+              <div className="w-full max-w-lg rounded-[28px] bg-white p-7 shadow-2xl ring-1 ring-slate-200 animate-in fade-in zoom-in-95 duration-200">
+                <div className="flex items-start justify-between mb-6">
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-900 tracking-tight">Manage Shift: {selectedShiftDate}</h3>
+                    <p className="mt-1 text-sm text-slate-500">Add or remove staff assignments for this date.</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setIsShiftModalOpen(false);
+                      setStaffToAdd('');
+                    }}
+                    className="rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-900 transition"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <div className="space-y-2 max-h-[32vh] overflow-y-auto pr-2 custom-scrollbar">
+                  {monthlySchedule.filter((record) => record.date === selectedShiftDate).length > 0 ? (
+                    monthlySchedule
+                      .filter((record) => record.date === selectedShiftDate)
+                      .map((record) => {
+                        return (
+                          <div key={record.id} className="flex items-center justify-between rounded-[14px] border border-slate-200 bg-slate-50 px-4 py-3">
+                            <div className="flex items-center gap-2 text-slate-800 font-medium">
+                              <User className="w-4 h-4 text-slate-400" />
+                              {record.staff_name}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                void handleRemoveStaffFromShift(record.id);
+                              }}
+                              className="rounded-lg bg-rose-100 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-200 transition"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        );
+                      })
+                  ) : (
+                    <div className="text-center text-slate-400 text-sm py-6 border border-dashed border-slate-200 rounded-[14px]">
+                      No staff assigned yet.
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-6 grid gap-3 sm:grid-cols-[1fr_auto]">
+                  <select
+                    value={staffToAdd}
+                    onChange={(event) => setStaffToAdd(event.target.value)}
+                    className="w-full rounded-[12px] border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] font-medium text-slate-700 outline-none transition focus:border-slate-400 focus:bg-white"
+                  >
+                    <option value="">Select Staff</option>
+                    {staffMembers.map((staff) => (
+                      <option key={staff.id} value={staff.name}>
+                        {staff.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void handleAddStaffToShift();
+                    }}
+                    className="rounded-[12px] bg-slate-900 px-5 py-3 text-[14px] font-bold text-white transition hover:bg-black shadow-md active:scale-[0.98]"
+                  >
+                    Add to Shift
+                  </button>
+                </div>
+
+                <div className="mt-6 flex justify-end">
+                  <button
+                    onClick={() => {
+                      setIsShiftModalOpen(false);
+                      setStaffToAdd('');
+                    }}
+                    className="rounded-[12px] border border-slate-200 bg-white px-5 py-3 text-[14px] font-bold text-slate-700 transition hover:bg-slate-50"
+                  >
+                    Close
                   </button>
                 </div>
               </div>
