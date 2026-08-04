@@ -98,25 +98,6 @@ const getStatusBadge = (status: TransactionStatus) => {
     return configs[status];
 };
 
-const getLocalDateBoundaries = () => {
-    const now = new Date();
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const startOfTomorrow = new Date(startOfToday);
-    startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
-
-    const startOfYesterday = new Date(startOfToday);
-    startOfYesterday.setDate(startOfYesterday.getDate() - 1);
-
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
-    return {
-        startOfToday,
-        startOfTomorrow,
-        startOfYesterday,
-        startOfMonth,
-    };
-};
-
 const matchesSearchAndCashier = (
     transaction: TransactionRecord,
     searchQuery: string,
@@ -243,6 +224,7 @@ export default function TransactionsAuditPage() {
     });
     const [searchQuery, setSearchQuery] = useState('');
     const [cashierFilter, setCashierFilter] = useState('all');
+    const [activeTab, setActiveTab] = useState('today');
     const [selectedTransaction, setSelectedTransaction] = useState<TransactionRecord | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -300,14 +282,15 @@ export default function TransactionsAuditPage() {
             });
 
             const now = new Date();
-            const todayString = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
             let tComp = 0, oComp = 0, tVoid = 0, oVoid = 0, tRef = 0, oRef = 0;
 
             parsedTransactions.forEach((order) => {
                 if (!order.createdAt) return;
-                const orderDate = new Date(order.createdAt);
-                const orderDateString = `${orderDate.getFullYear()}-${String(orderDate.getMonth() + 1).padStart(2, '0')}-${String(orderDate.getDate()).padStart(2, '0')}`;
-                const isToday = orderDateString === todayString;
+                const orderTime = new Date(order.createdAt).getTime();
+                if (Number.isNaN(orderTime)) return;
+
+                const isToday = orderTime >= startOfToday;
 
                 if (order.status === 'Completed') {
                     oComp++;
@@ -334,30 +317,36 @@ export default function TransactionsAuditPage() {
         void fetchOrders();
     }, []);
 
-    const { todaysOrders, yesterdaysOrders, weeklyMonthlyOrders } = useMemo(() => {
-        const { startOfToday, startOfTomorrow, startOfYesterday, startOfMonth } = getLocalDateBoundaries();
+    const { todaysOrders, yesterdaysOrders, monthlyOrders, overallOrders } = useMemo(() => {
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        const startOfYesterday = startOfToday - (24 * 60 * 60 * 1000);
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
 
-        const transactionsWithDates = transactions
-            .map((transaction) => ({
-                ...transaction,
-                localCreatedAt: transaction.createdAt ? new Date(transaction.createdAt) : null,
-            }))
-            .filter((transaction) => transaction.localCreatedAt && !Number.isNaN(transaction.localCreatedAt.getTime()));
+        const todayOrders: TransactionRecord[] = [];
+        const yesterdayOrders: TransactionRecord[] = [];
+        const monthOrders: TransactionRecord[] = [];
 
-        const todays = transactionsWithDates.filter(
-            (transaction) => transaction.localCreatedAt! >= startOfToday && transaction.localCreatedAt! < startOfTomorrow,
-        );
-        const yesterdays = transactionsWithDates.filter(
-            (transaction) => transaction.localCreatedAt! >= startOfYesterday && transaction.localCreatedAt! < startOfToday,
-        );
-        const weeklyMonthly = transactionsWithDates.filter(
-            (transaction) => transaction.localCreatedAt! >= startOfMonth && transaction.localCreatedAt! < startOfTomorrow,
-        );
+        transactions.forEach((order) => {
+            if (!order.createdAt) return;
+
+            const orderTime = new Date(order.createdAt).getTime();
+            if (Number.isNaN(orderTime)) return;
+
+            const isToday = orderTime >= startOfToday;
+            const isYesterday = orderTime >= startOfYesterday && orderTime < startOfToday;
+            const isThisMonth = orderTime >= startOfMonth;
+
+            if (isToday) todayOrders.push(order);
+            if (isYesterday) yesterdayOrders.push(order);
+            if (isThisMonth) monthOrders.push(order);
+        });
 
         return {
-            todaysOrders: todays,
-            yesterdaysOrders: yesterdays,
-            weeklyMonthlyOrders: weeklyMonthly,
+            todaysOrders: todayOrders,
+            yesterdaysOrders: yesterdayOrders,
+            monthlyOrders: monthOrders,
+            overallOrders: transactions,
         };
     }, [transactions]);
 
@@ -371,9 +360,14 @@ export default function TransactionsAuditPage() {
         [cashierFilter, searchQuery, yesterdaysOrders],
     );
 
-    const filteredWeeklyMonthlyOrders = useMemo(
-        () => weeklyMonthlyOrders.filter((transaction) => matchesSearchAndCashier(transaction, searchQuery, cashierFilter)),
-        [cashierFilter, searchQuery, weeklyMonthlyOrders],
+    const filteredMonthlyOrders = useMemo(
+        () => monthlyOrders.filter((transaction) => matchesSearchAndCashier(transaction, searchQuery, cashierFilter)),
+        [cashierFilter, monthlyOrders, searchQuery],
+    );
+
+    const filteredOverallOrders = useMemo(
+        () => overallOrders.filter((transaction) => matchesSearchAndCashier(transaction, searchQuery, cashierFilter)),
+        [cashierFilter, overallOrders, searchQuery],
     );
 
     const summaryTiles = useMemo(
@@ -407,7 +401,7 @@ export default function TransactionsAuditPage() {
             {
                 label: 'Period Sales',
                 value: formatCurrency(
-                    weeklyMonthlyOrders
+                    monthlyOrders
                         .filter((order) => order.status === 'Completed' || !order.status)
                         .reduce((sum, order) => sum + Number(order.totalAmount), 0),
                 ),
@@ -418,8 +412,35 @@ export default function TransactionsAuditPage() {
                 trendUp: true,
             },
         ],
-        [todaysOrders, weeklyMonthlyOrders, yesterdaysOrders],
+        [monthlyOrders, todaysOrders, yesterdaysOrders],
     );
+
+    const activeTransactions =
+        activeTab === 'today'
+            ? filteredTodaysOrders
+            : activeTab === 'yesterday'
+                ? filteredYesterdaysOrders
+                : activeTab === 'month'
+                    ? filteredMonthlyOrders
+                    : filteredOverallOrders;
+
+    const activeSubtitle =
+        activeTab === 'today'
+            ? 'Local-time orders placed today'
+            : activeTab === 'yesterday'
+                ? 'Local-time orders placed yesterday'
+                : activeTab === 'month'
+                    ? 'Local-time orders for the current month'
+                    : 'All transactions (overall history)';
+
+    const activeTitle =
+        activeTab === 'today'
+            ? 'Today'
+            : activeTab === 'yesterday'
+                ? 'Yesterday'
+                : activeTab === 'month'
+                    ? 'This Month'
+                    : 'Overall';
 
     const cashierOptions = Array.from(new Set(transactions.map((transaction) => transaction.cashier))).sort(
         (a, b) => a.localeCompare(b),
@@ -642,25 +663,27 @@ export default function TransactionsAuditPage() {
                 </div>
 
                 {/* Transaction Tables */}
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                <div>
+                    <div className="flex items-center gap-4 border-b border-slate-200 mb-6 pb-2 overflow-x-auto">
+                        {['today', 'yesterday', 'month', 'overall'].map((tab) => (
+                            <button
+                                key={tab}
+                                onClick={() => setActiveTab(tab)}
+                                className={`px-4 py-2 text-sm font-semibold capitalize transition-colors whitespace-nowrap ${
+                                    activeTab === tab
+                                        ? 'border-b-2 border-slate-900 text-slate-900'
+                                        : 'text-slate-400 hover:text-slate-600'
+                                }`}
+                            >
+                                {tab === 'month' ? 'This Month' : tab}
+                            </button>
+                        ))}
+                    </div>
+
                     <TransactionTable
-                        title="Today"
-                        subtitle="Local-time orders placed today"
-                        transactions={filteredTodaysOrders}
-                        onSelectTransaction={setSelectedTransaction}
-                        isLoading={isLoading}
-                    />
-                    <TransactionTable
-                        title="Yesterday"
-                        subtitle="Local-time orders placed yesterday"
-                        transactions={filteredYesterdaysOrders}
-                        onSelectTransaction={setSelectedTransaction}
-                        isLoading={isLoading}
-                    />
-                    <TransactionTable
-                        title="This Month"
-                        subtitle="Local-time orders for the current month"
-                        transactions={filteredWeeklyMonthlyOrders}
+                        title={activeTitle}
+                        subtitle={activeSubtitle}
+                        transactions={activeTransactions}
                         onSelectTransaction={setSelectedTransaction}
                         isLoading={isLoading}
                     />
