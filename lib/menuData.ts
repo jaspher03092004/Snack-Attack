@@ -317,6 +317,30 @@ const RAW_MENU_ITEMS = [
     ],
   },
   {
+    id: "drink-coke",
+    name: "Coke",
+    category: "Sides & Others",
+    basePrice: 20,
+  },
+  {
+    id: "drink-pepsi",
+    name: "Pepsi",
+    category: "Sides & Others",
+    basePrice: 20,
+  },
+  {
+    id: "drink-7up",
+    name: "7Up",
+    category: "Sides & Others",
+    basePrice: 20,
+  },
+  {
+    id: "drink-water",
+    name: "Water",
+    category: "Sides & Others",
+    basePrice: 15,
+  },
+  {
     id: "siomai-chicken",
     name: "Chicken Siomai",
     category: "Siomai",

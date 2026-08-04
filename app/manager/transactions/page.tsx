@@ -462,7 +462,7 @@ export default function TransactionsAuditPage() {
                     <div className="w-9 h-9 bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
                         <div className="w-3.5 h-3.5 border-2 border-white rounded-sm" />
                     </div>
-                    <span className="font-bold text-lg tracking-tight text-slate-900">QuickServe</span>
+                    <span className="font-bold text-lg tracking-tight text-slate-900">SnackAttack</span>
                 </div>
 
                 <nav className="flex flex-col gap-1 px-4 flex-1 mt-4">
