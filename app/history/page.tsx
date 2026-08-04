@@ -101,6 +101,18 @@ export default function HistoryPage() {
   const [employeeExpenses, setEmployeeExpenses] = useState<ExpenseRecord[]>([]);
   const [payrollPeople, setPayrollPeople] = useState<PayrollRecord[]>([]);
   const [isSalesReportOpen, setIsSalesReportOpen] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState<{ isOpen: boolean; type: '' | 'void' | 'refund'; order: OrderRecord | null; message: string }>({
+    isOpen: false,
+    type: '',
+    order: null,
+    message: '',
+  });
+  const [historyToast, setHistoryToast] = useState('');
+
+  const showHistoryToast = (message: string) => {
+    setHistoryToast(message);
+    setTimeout(() => setHistoryToast(''), 3000);
+  };
 
   const fetchOrders = async () => {
     const client = supabase;
@@ -141,11 +153,9 @@ export default function HistoryPage() {
   };
 
   const handleUpdateOrderStatus = async (order: OrderRecord, newStatus: 'Voided' | 'Refunded') => {
-    const isConfirmed = window.confirm(`Are you sure you want to mark this order as ${newStatus}?`);
-    if (!isConfirmed) return;
-
     if (!supabase) {
-      alert('SUPABASE UPDATE ERROR: Supabase client is not configured.');
+      showHistoryToast('SUPABASE UPDATE ERROR: Supabase client is not configured.');
+      setConfirmDialog({ isOpen: false, type: '', order: null, message: '' });
       return;
     }
 
@@ -155,7 +165,8 @@ export default function HistoryPage() {
       .eq('id', order.id);
 
     if (updateError) {
-      alert("SUPABASE UPDATE ERROR: " + updateError.message);
+      showHistoryToast('SUPABASE UPDATE ERROR: ' + updateError.message);
+      setConfirmDialog({ isOpen: false, type: '', order: null, message: '' });
       return;
     }
 
@@ -179,8 +190,9 @@ export default function HistoryPage() {
       }
     }
 
-    alert(`Success! Order marked as ${newStatus}.`);
-    window.location.reload(); // Force hard refresh to update UI immediately
+    showHistoryToast(`Success! Order marked as ${newStatus}.`);
+    setConfirmDialog({ isOpen: false, type: '', order: null, message: '' });
+    setTimeout(() => window.location.reload(), 600);
   };
 
   useEffect(() => {
@@ -530,14 +542,28 @@ export default function HistoryPage() {
                               <>
                                 <button
                                   type="button"
-                                  onClick={() => handleUpdateOrderStatus(order, 'Voided')}
+                                  onClick={() =>
+                                    setConfirmDialog({
+                                      isOpen: true,
+                                      type: 'void',
+                                      order,
+                                      message: 'Are you sure you want to mark this order as Voided?',
+                                    })
+                                  }
                                   className="text-red-500 hover:text-red-700 text-xs font-medium px-2 py-1 rounded-full border border-red-200 hover:bg-red-50 transition"
                                 >
                                   Void
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => handleUpdateOrderStatus(order, 'Refunded')}
+                                  onClick={() =>
+                                    setConfirmDialog({
+                                      isOpen: true,
+                                      type: 'refund',
+                                      order,
+                                      message: 'Are you sure you want to mark this order as Refunded?',
+                                    })
+                                  }
                                   className="text-amber-500 hover:text-amber-700 text-xs font-medium px-2 py-1 rounded-full border border-amber-200 hover:bg-amber-50 transition"
                                 >
                                   Refund
@@ -772,6 +798,49 @@ export default function HistoryPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {confirmDialog.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-4 text-slate-900">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+                <AlertCircle className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold">Confirm Action</h3>
+                <p className="text-sm text-slate-500">{confirmDialog.message}</p>
+              </div>
+            </div>
+            <div className="mt-8 flex justify-end gap-3">
+              <button
+                onClick={() => setConfirmDialog({ isOpen: false, type: '', order: null, message: '' })}
+                className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (!confirmDialog.order) return;
+                  void handleUpdateOrderStatus(
+                    confirmDialog.order,
+                    confirmDialog.type === 'refund' ? 'Refunded' : 'Voided',
+                  );
+                }}
+                className="rounded-xl bg-rose-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-rose-700"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {historyToast && (
+        <div className="fixed bottom-10 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-full bg-slate-900 px-6 py-3 text-sm font-medium text-white shadow-2xl animate-in slide-in-from-bottom-5 fade-in duration-300">
+          <CheckCircle className="h-5 w-5 text-emerald-400" />
+          {historyToast}
         </div>
       )}
     </div>

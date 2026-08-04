@@ -67,6 +67,12 @@ export default function StartOrderPage() {
     const [addPieces, setAddPieces] = useState('0');
     const [productInTab, setProductInTab] = useState('Main');
     const [productSearch, setProductSearch] = useState('');
+    const [toastMessage, setToastMessage] = useState('');
+
+    const showToast = (message: string) => {
+        setToastMessage(message);
+        setTimeout(() => setToastMessage(''), 3000);
+    };
 
     // Time updater
     useEffect(() => {
@@ -276,7 +282,7 @@ export default function StartOrderPage() {
             return;
         }
 
-        alert('Product stock updated successfully.');
+        showToast('Product stock updated successfully.');
         setIsProductInOpen(false);
         setSelectedProductId('');
         setAddBulk('0');
@@ -332,7 +338,7 @@ export default function StartOrderPage() {
             return;
         }
 
-        alert('Pack opened and stock deducted successfully.');
+        showToast('Pack opened and stock deducted successfully.');
         setIsOpenPackModalOpen(false);
         setSelectedPackId('');
     };
@@ -930,6 +936,13 @@ export default function StartOrderPage() {
                             </button>
                         </div>
                     </div>
+                </div>
+            )}
+
+            {toastMessage && (
+                <div className="fixed bottom-10 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-full bg-slate-900 px-6 py-3 text-sm font-medium text-white shadow-2xl animate-in slide-in-from-bottom-5 fade-in duration-300">
+                    <CheckCircle className="h-5 w-5 text-emerald-400" />
+                    {toastMessage}
                 </div>
             )}
 
