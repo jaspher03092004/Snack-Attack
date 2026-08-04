@@ -81,7 +81,7 @@ export default function EntrancePage() {
             Enter PIN
           </h1>
           <p className="text-[16px] text-slate-500 m-0">
-            QuickServe Terminal 01
+            Snack Attack Terminal 01
           </p>
         </div>
 

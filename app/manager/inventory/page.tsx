@@ -419,7 +419,7 @@ export default function InventoryScreen() {
                         <div className="w-3.5 h-3.5 border-2 border-white rounded-sm" />
                     </div>
                     <span className="font-bold text-lg tracking-tight text-slate-900">
-                        QuickServe
+                        SnackAttack
                     </span>
                 </div>
 

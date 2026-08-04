@@ -314,7 +314,7 @@ export default function ManagerDashboard() {
                     <div className="w-8 h-8 bg-slate-900 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
                         <div className="w-3 h-3 border-2 border-white rounded-sm" />
                     </div>
-                    <span className="font-bold text-lg tracking-tight text-slate-900">QuickServe</span>
+                    <span className="font-bold text-lg tracking-tight text-slate-900">SnackAttack</span>
                 </div>
 
                 <nav className="flex flex-col gap-1 px-4 flex-1">
