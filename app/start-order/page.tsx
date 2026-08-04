@@ -28,6 +28,7 @@ type InventoryItem = {
     product_name: string;
     category: string;
     pieces_stock: number;
+    inventory_type?: string;
 };
 
 const formatTime = (date: Date) =>
@@ -61,6 +62,8 @@ export default function StartOrderPage() {
     const [selectedProductId, setSelectedProductId] = useState('');
     const [addBulk, setAddBulk] = useState('0');
     const [addPieces, setAddPieces] = useState('0');
+    const [productInTab, setProductInTab] = useState('Main');
+    const [productSearch, setProductSearch] = useState('');
 
     // Time updater
     useEffect(() => {
@@ -243,6 +246,8 @@ export default function StartOrderPage() {
         setSelectedProductId(items[0]?.id ?? '');
         setAddBulk('0');
         setAddPieces('0');
+        setProductInTab('Main');
+        setProductSearch('');
         setIsProductInOpen(true);
     };
 
@@ -279,6 +284,17 @@ export default function StartOrderPage() {
     const isSubInventory = selectedProduct?.category?.toLowerCase() !== 'main inventory' && selectedProduct?.category?.toLowerCase() !== 'main';
     const isBun = selectedProduct?.product_name?.toLowerCase().includes('bun');
     const isBulkOnly = isSubInventory && !isBun;
+    const filteredInventory = inventoryItems.filter((item) => {
+        const normalizedCategory = (item.category || '').toLowerCase();
+        const normalizedType = (item.inventory_type || '').toLowerCase();
+        const matchesTab = productInTab === 'Main'
+            ? normalizedCategory === 'main inventory' || normalizedType === 'main'
+            : normalizedCategory !== 'main inventory' && normalizedType !== 'main';
+
+        const matchesSearch = item.product_name.toLowerCase().includes(productSearch.toLowerCase());
+
+        return matchesTab && matchesSearch;
+    });
 
     const resetExpenseForm = () => {
         setExpenseAmount('');
@@ -631,22 +647,69 @@ export default function StartOrderPage() {
                         <form onSubmit={handleProductInSubmit} className="mt-6 space-y-5">
                             <div>
                                 <label className="block text-sm font-medium text-slate-700">Product</label>
-                                <select
-                                    value={selectedProductId}
-                                    onChange={(e) => {
-                                        setSelectedProductId(e.target.value);
-                                        setAddBulk('0');
-                                        setAddPieces('0');
-                                    }}
-                                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200"
-                                    required
-                                >
-                                    {inventoryItems.map((item) => (
-                                        <option key={item.id} value={item.id}>
-                                            {item.product_name} (Current: {Number(item.pieces_stock || 0)} pcs)
-                                        </option>
-                                    ))}
-                                </select>
+                                <div className="mt-1.5 space-y-3">
+                                    <div className="flex gap-2 rounded-xl bg-slate-100 p-1">
+                                        <button
+                                            type="button"
+                                            onClick={() => setProductInTab('Main')}
+                                            className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition ${
+                                                productInTab === 'Main'
+                                                    ? 'bg-slate-900 text-white'
+                                                    : 'bg-transparent text-slate-600 hover:bg-slate-200'
+                                            }`}
+                                        >
+                                            Main Inventory
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setProductInTab('Sub')}
+                                            className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition ${
+                                                productInTab === 'Sub'
+                                                    ? 'bg-slate-900 text-white'
+                                                    : 'bg-transparent text-slate-600 hover:bg-slate-200'
+                                            }`}
+                                        >
+                                            Sub Inventory
+                                        </button>
+                                    </div>
+
+                                    <input
+                                        type="text"
+                                        value={productSearch}
+                                        onChange={(e) => setProductSearch(e.target.value)}
+                                        placeholder="Search product..."
+                                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200"
+                                    />
+
+                                    <div className="max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-2">
+                                        {filteredInventory.length > 0 ? (
+                                            filteredInventory.map((item) => {
+                                                const isSelected = selectedProductId === item.id;
+                                                return (
+                                                    <button
+                                                        key={item.id}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setSelectedProductId(item.id);
+                                                            setAddBulk('0');
+                                                            setAddPieces('0');
+                                                        }}
+                                                        className={`mb-2 w-full rounded-lg border px-3 py-2 text-left transition last:mb-0 ${
+                                                            isSelected
+                                                                ? 'border-emerald-400 bg-emerald-50'
+                                                                : 'border-slate-200 bg-white hover:border-slate-300'
+                                                        }`}
+                                                    >
+                                                        <p className="text-sm font-semibold text-slate-900">{item.product_name}</p>
+                                                        <p className="text-xs text-slate-500">Current: {Number(item.pieces_stock || 0)} pcs</p>
+                                                    </button>
+                                                );
+                                            })
+                                        ) : (
+                                            <p className="px-2 py-3 text-sm text-slate-500">No matching products found.</p>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
 
                             <div>
