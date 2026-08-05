@@ -341,6 +341,18 @@ const RAW_MENU_ITEMS = [
     basePrice: 15,
   },
   {
+    id: "side-fried-chicken",
+    name: "Fried Chicken",
+    category: "Sides & Others",
+    basePrice: 35,
+  },
+  {
+    id: "side-ice-cream",
+    name: "Ice Cream",
+    category: "Sides & Others",
+    basePrice: 0,
+  },
+  {
     id: "siomai-chicken",
     name: "Chicken Siomai",
     category: "Siomai",
