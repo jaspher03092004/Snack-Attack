@@ -54,6 +54,13 @@ type NetIncomeRecord = {
     total_salaries: number;
 };
 
+type OrderItemRecord = {
+    order_id: string;
+    item_name: string;
+    quantity: number;
+    total_price: number;
+};
+
 export default function ManagerDashboard() {
     const router = useRouter();
     const [activeNav, setActiveNav] = useState('dashboard');
@@ -68,6 +75,12 @@ export default function ManagerDashboard() {
         salariesToday: 0,
     });
     const [netChartData, setNetChartData] = useState<Array<{ name: string; net: number }>>([]);
+    const [specialItemSales, setSpecialItemSales] = useState({
+        chickenToday: 0,
+        chickenMonth: 0,
+        iceCreamToday: 0,
+        iceCreamMonth: 0,
+    });
     const [isLoading, setIsLoading] = useState(true);
 
     const getTodayDateString = () => {
@@ -87,7 +100,7 @@ export default function ManagerDashboard() {
             }
 
             const todayDate = getTodayDateString();
-            const [ordersResult, expensesResult, netIncomeResult] = await Promise.all([
+            const [ordersResult, expensesResult, netIncomeResult, orderItemsResult] = await Promise.all([
                 supabase
                     .from('orders')
                     .select('id, order_number, status, total_amount, created_at')
@@ -101,12 +114,17 @@ export default function ManagerDashboard() {
                     .from('net_income')
                     .select('id, date, net_cash, total_expenses, total_salaries')
                     .order('date', { ascending: true }),
+                supabase
+                    .from('order_items')
+                    .select('order_id, item_name, quantity, total_price'),
             ]);
+
+            let parsedOrders: OrderRecord[] = [];
 
             if (ordersResult.error) {
                 console.error('Orders fetch error:', ordersResult.error);
             } else {
-                const parsedOrders = (ordersResult.data ?? []).map((order: any) => ({
+                parsedOrders = (ordersResult.data ?? []).map((order: any) => ({
                     id: order.id,
                     order_number: order.order_number,
                     status: order.status,
@@ -114,6 +132,59 @@ export default function ManagerDashboard() {
                     created_at: order.created_at,
                 })) as OrderRecord[];
                 setOrders(parsedOrders);
+            }
+
+            if (orderItemsResult.error) {
+                console.error('Order items fetch error:', orderItemsResult.error);
+            } else {
+                const parsedOrderItems = (orderItemsResult.data ?? []).map((row: any) => ({
+                    order_id: row.order_id,
+                    item_name: row.item_name,
+                    quantity: Number(row.quantity) || 0,
+                    total_price: Number(row.total_price) || 0,
+                })) as OrderItemRecord[];
+
+                const ordersById = new Map(parsedOrders.map((order) => [order.id, order]));
+                const now = new Date();
+                const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const startOfTomorrow = new Date(startOfToday);
+                startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
+                const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+                let chickenToday = 0;
+                let chickenMonth = 0;
+                let iceCreamToday = 0;
+                let iceCreamMonth = 0;
+
+                parsedOrderItems.forEach((item) => {
+                    const order = ordersById.get(item.order_id);
+                    if (!order || order.status !== 'Completed') return;
+
+                    const orderDate = new Date(order.created_at);
+                    if (Number.isNaN(orderDate.getTime())) return;
+
+                    const isToday = orderDate >= startOfToday && orderDate < startOfTomorrow;
+                    const isThisMonth = orderDate >= startOfMonth;
+                    const lineTotal = item.total_price;
+                    const itemName = String(item.item_name ?? '');
+
+                    if (itemName === 'Fried Chicken') {
+                        if (isToday) chickenToday += lineTotal;
+                        if (isThisMonth) chickenMonth += lineTotal;
+                    }
+
+                    if (itemName.toLowerCase().includes('ice cream')) {
+                        if (isToday) iceCreamToday += lineTotal;
+                        if (isThisMonth) iceCreamMonth += lineTotal;
+                    }
+                });
+
+                setSpecialItemSales({
+                    chickenToday,
+                    chickenMonth,
+                    iceCreamToday,
+                    iceCreamMonth,
+                });
             }
 
             if (expensesResult.error) {
@@ -493,6 +564,19 @@ export default function ManagerDashboard() {
                         </div>
                     </div>
                 )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div className="rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 p-6 text-white shadow-lg shadow-orange-500/25">
+                        <p className="text-sm font-semibold uppercase tracking-wider text-white/85">Fried Chicken Sales</p>
+                        <p className="mt-3 text-3xl font-black leading-none">Today: {formatCurrency(specialItemSales.chickenToday)}</p>
+                        <p className="mt-3 text-sm font-medium text-white/85">This Month: {formatCurrency(specialItemSales.chickenMonth)}</p>
+                    </div>
+                    <div className="rounded-2xl bg-gradient-to-br from-pink-400 to-purple-500 p-6 text-white shadow-lg shadow-purple-500/25">
+                        <p className="text-sm font-semibold uppercase tracking-wider text-white/85">Ice Cream Sales</p>
+                        <p className="mt-3 text-3xl font-black leading-none">Today: {formatCurrency(specialItemSales.iceCreamToday)}</p>
+                        <p className="mt-3 text-sm font-medium text-white/85">This Month: {formatCurrency(specialItemSales.iceCreamMonth)}</p>
+                    </div>
+                </div>
 
                 {/* Sales Target Progress */}
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
