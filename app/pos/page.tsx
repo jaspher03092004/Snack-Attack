@@ -649,17 +649,19 @@ function POSScreenContent() {
               return (
               <div 
                 key={product.id}
-                onClick={() => {
-                  if (isCardUnavailable) return;
-                  if (product.name === 'Ice Cream') {
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (isOutOfStock) return;
+
+                  if (product.name.toLowerCase() === 'ice cream') {
                     setIceCreamPriceInput('');
                     setIsIceCreamModalOpen(true);
-                    return;
+                  } else {
+                    handleProductClick(product);
                   }
-                  handleProductClick(product);
                 }}
                 className={`group relative bg-white rounded-[24px] overflow-hidden border border-slate-200/60 shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer flex flex-col ${
-                  isCardUnavailable ? 'opacity-50 grayscale pointer-events-none cursor-not-allowed' : 'hover:-translate-y-1'
+                  isCardUnavailable ? 'opacity-50 grayscale cursor-not-allowed' : 'hover:-translate-y-1'
                 }`}
               >
                 {/* Image Container */}
@@ -1132,43 +1134,6 @@ function POSScreenContent() {
               <span className="text-xl font-bold text-slate-900">₱{selectedTotal.toFixed(2)}</span>
             </div>
           </div>
-
-
-        {isIceCreamModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm">
-            <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl">
-              <h3 className="mb-4 text-lg font-bold text-slate-900">Enter Ice Cream Amount</h3>
-              <div className="relative mb-6">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 font-medium text-slate-500">₱</span>
-                <input
-                  type="number"
-                  value={iceCreamPriceInput}
-                  onChange={(e) => setIceCreamPriceInput(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-8 pr-4 font-medium text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                  placeholder="0.00"
-                  autoFocus
-                />
-              </div>
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => {
-                    setIsIceCreamModalOpen(false);
-                    setIceCreamPriceInput('');
-                  }}
-                  className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleAddCustomIceCream}
-                  className="rounded-xl bg-emerald-500 px-6 py-2.5 text-sm font-medium text-white hover:bg-emerald-600"
-                >
-                  Add to Order
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
           <div className="mt-6 flex justify-end gap-3">
             <button
               onClick={() => {
@@ -1244,6 +1209,42 @@ function POSScreenContent() {
       calculateTotalDeductions={calculateTotalDeductions}
       supabaseClient={supabase}
     />
+
+    {isIceCreamModalOpen && (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm">
+        <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl">
+          <h3 className="mb-4 text-lg font-bold text-slate-900">Enter Ice Cream Amount</h3>
+          <div className="relative mb-6">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 font-medium text-slate-500">₱</span>
+            <input
+              type="number"
+              value={iceCreamPriceInput}
+              onChange={(e) => setIceCreamPriceInput(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-8 pr-4 font-medium text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+              placeholder="0.00"
+              autoFocus
+            />
+          </div>
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={() => {
+                setIsIceCreamModalOpen(false);
+                setIceCreamPriceInput('');
+              }}
+              className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleAddCustomIceCream}
+              className="rounded-xl bg-emerald-500 px-6 py-2.5 text-sm font-medium text-white hover:bg-emerald-600"
+            >
+              Add to Order
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     </>
   );
 }
