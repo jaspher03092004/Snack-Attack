@@ -42,6 +42,7 @@ export function PaymentModal({
   const [tenderedStr, setTenderedStr] = useState<string>('500');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string>('');
+  const [printStep, setPrintStep] = useState<'customer' | 'kitchen'>('customer');
   const supabase = supabaseClient || defaultSupabase;
 
   useEffect(() => {
@@ -49,10 +50,24 @@ export function PaymentModal({
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setTenderedStr('500');
       setCheckoutError('');
+      setPrintStep('customer');
     }
   }, [isOpen]);
 
+  const handleCloseModal = () => {
+    setPrintStep('customer');
+    onClose();
+  };
+
   const handleCharge = async () => {
+    if (printStep === 'kitchen') {
+      window.print();
+      onComplete?.();
+      setPrintStep('customer');
+      onClose();
+      return;
+    }
+
     setCheckoutError('');
     if (!supabase) {
       setCheckoutError('Supabase client is not configured.');
@@ -149,10 +164,8 @@ export function PaymentModal({
           console.error("Critical error during inventory deduction:", err);
         }
       }
-
-      onComplete?.();
       window.print();
-      onClose();
+      setPrintStep('kitchen');
     } catch (error) {
       const message = error instanceof Error ? error.message : JSON.stringify(error);
       console.error('Supabase Insert Error:', error);
@@ -195,7 +208,7 @@ export function PaymentModal({
           {/* Order Summary */}
           <section className="w-full lg:w-1/3 border-b border-slate-200 pb-6 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-6">
             <button 
-              onClick={onClose}
+              onClick={handleCloseModal}
               className="flex items-center text-slate-500 hover:text-slate-900 transition-colors mb-8 font-semibold w-fit focus:outline-none"
             >
               <ArrowLeft className="w-5 h-5 mr-2 stroke-[2.5px]" />
@@ -266,7 +279,7 @@ export function PaymentModal({
               </div>
 
               <button 
-                onClick={onClose}
+                onClick={handleCloseModal}
                 className="mt-auto w-full py-[22px] rounded-[18px] bg-slate-100 text-slate-600 font-bold text-[16px] hover:bg-slate-200 transition-all active:scale-[0.98] border border-slate-200/60 focus:outline-none"
               >
                 Cancel
@@ -326,11 +339,16 @@ export function PaymentModal({
               )}
 
               <button 
-                className="mt-2 w-full py-[22px] rounded-[18px] bg-[#10B981] hover:bg-[#059669] disabled:bg-slate-300 disabled:text-slate-500 text-white font-bold text-[17px] flex items-center justify-center gap-2.5 transition-all shadow-lg shadow-emerald-500/25 focus:outline-none focus:ring-4 focus:ring-emerald-500/20 active:scale-[0.98]"
+                className={`mt-2 w-full py-[22px] rounded-[18px] disabled:bg-slate-300 disabled:text-slate-500 text-white font-bold text-[17px] flex items-center justify-center gap-2.5 transition-all focus:outline-none focus:ring-4 active:scale-[0.98] ${
+                  printStep === 'customer'
+                    ? 'bg-emerald-500 hover:bg-emerald-600 shadow-lg shadow-emerald-500/25 focus:ring-emerald-500/20'
+                    : 'bg-amber-500 hover:bg-amber-600 shadow-lg shadow-amber-500/25 focus:ring-amber-500/20'
+                }`}
                 onClick={handleCharge}
                 disabled={isSubmitting}
               >
-                <Printer className="w-5 h-5 stroke-[2.5px]" /> {isSubmitting ? 'PROCESSING...' : 'PRINT RECEIPT'}
+                <Printer className="w-5 h-5 stroke-[2.5px]" />
+                {isSubmitting ? 'PROCESSING...' : printStep === 'customer' ? 'PRINT RECEIPT' : 'PRINT KITCHEN COPY'}
               </button>
             </div>
           </section>
