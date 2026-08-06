@@ -202,9 +202,9 @@ export function PaymentModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-3 sm:p-4 print:hidden">
-      <div className="w-[95%] max-w-4xl max-h-[90vh] overflow-y-auto rounded-[32px] bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-        <div className="flex flex-col gap-6 lg:flex-row lg:gap-8 p-4 sm:p-6 lg:p-8">
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-4 print:hidden">
+      <div className="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl p-6 sm:p-8 shadow-2xl animate-in slide-in-from-bottom-4 duration-300 max-h-[90dvh] overflow-y-auto">
+        <div className="flex flex-col gap-6 lg:flex-row lg:gap-8">
           {/* Order Summary */}
           <section className="w-full lg:w-1/3 border-b border-slate-200 pb-6 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-6">
             <button 
@@ -280,7 +280,7 @@ export function PaymentModal({
 
               <button 
                 onClick={handleCloseModal}
-                className="mt-auto w-full py-[22px] rounded-[18px] bg-slate-100 text-slate-600 font-bold text-[16px] hover:bg-slate-200 transition-all active:scale-[0.98] border border-slate-200/60 focus:outline-none"
+                className="mt-auto w-full py-4 text-lg font-bold rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all active:scale-[0.98] border border-slate-200/60 focus:outline-none"
               >
                 Cancel
               </button>
@@ -311,12 +311,12 @@ export function PaymentModal({
 
               <button 
                 onClick={handleExactAmount}
-                className="w-full py-4 rounded-[16px] bg-slate-100 text-slate-700 font-bold text-[16px] border-2 border-transparent hover:bg-slate-200 transition-all active:scale-[0.98] focus:outline-none"
+                className="w-full py-4 text-lg font-bold rounded-xl bg-slate-100 text-slate-700 border-2 border-transparent hover:bg-slate-200 transition-all active:scale-[0.98] focus:outline-none"
               >
                 Exact Amount (₱{totalDue.toFixed(2)})
               </button>
 
-              <div className="grid grid-cols-3 gap-3 mt-1">
+              <div className="grid grid-cols-3 gap-2 sm:gap-4 mt-1">
                 {['1','2','3','4','5','6','7','8','9','C','0','00'].map((val) => (
                   <button
                     key={val}
@@ -339,7 +339,7 @@ export function PaymentModal({
               )}
 
               <button 
-                className={`mt-2 w-full py-[22px] rounded-[18px] disabled:bg-slate-300 disabled:text-slate-500 text-white font-bold text-[17px] flex items-center justify-center gap-2.5 transition-all focus:outline-none focus:ring-4 active:scale-[0.98] ${
+                className={`mt-2 w-full py-4 text-lg font-bold rounded-xl disabled:bg-slate-300 disabled:text-slate-500 text-white flex items-center justify-center gap-2.5 transition-all focus:outline-none focus:ring-4 active:scale-[0.98] ${
                   printStep === 'customer'
                     ? 'bg-emerald-500 hover:bg-emerald-600 shadow-lg shadow-emerald-500/25 focus:ring-emerald-500/20'
                     : 'bg-amber-500 hover:bg-amber-600 shadow-lg shadow-amber-500/25 focus:ring-amber-500/20'
