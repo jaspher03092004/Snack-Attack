@@ -616,7 +616,7 @@ function POSScreenContent() {
 
         <nav
           aria-label="Mobile product categories"
-          className="flex lg:hidden overflow-x-auto whitespace-nowrap gap-3 py-3 px-4 border-b border-slate-100 bg-white/80 backdrop-blur-sm [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+          className="flex items-center gap-2 overflow-x-auto whitespace-nowrap pb-2 scrollbar-hide w-full lg:hidden"
         >
           {CATEGORIES.map((category) => {
             const isActive = activeCategory === category.id;
@@ -624,7 +624,7 @@ function POSScreenContent() {
               <button
                 key={category.id}
                 onClick={() => setActiveCategory(category.id)}
-                className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                className={`flex-shrink-0 px-3 py-1.5 text-xs md:text-sm rounded-full font-medium transition-colors ${
                   isActive
                     ? 'bg-slate-900 text-white shadow-sm'
                     : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200 hover:text-gray-800'
@@ -638,7 +638,7 @@ function POSScreenContent() {
 
         {/* Product Grid */}
         <div className="flex-1 w-full overflow-y-auto p-8 pb-32 lg:pb-8">
-          <div className="w-full flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 auto-rows-fr">
+          <div className="grid grid-cols-4 gap-2 md:grid-cols-4 lg:grid-cols-5 md:gap-4 overflow-y-auto pb-24">
             {filteredProducts.map((product) => {
               const isAvailable = checkAvailability(product as unknown as CartItem, inventoryData);
               const inventoryItem = inventoryData.find(
@@ -660,22 +660,22 @@ function POSScreenContent() {
                     handleProductClick(product);
                   }
                 }}
-                className={`group relative bg-white rounded-[24px] overflow-hidden border border-slate-200/60 shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer flex flex-col ${
-                  isCardUnavailable ? 'opacity-50 grayscale cursor-not-allowed' : 'hover:-translate-y-1'
+                className={`rounded-xl bg-white shadow-sm overflow-hidden flex flex-col ${
+                  isCardUnavailable ? 'opacity-50 grayscale cursor-not-allowed' : 'cursor-pointer'
                 }`}
               >
                 {/* Image Container */}
-                <div className="relative w-full h-80 overflow-hidden bg-slate-100">
+                <div className="relative w-full h-16 md:h-32 bg-slate-100">
                   <Image
                     src={product.image}
                     alt={product.name}
                     width={400}
                     height={300}
-                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    className="h-full w-full object-cover"
                   />
                   {/* Price Badge */}
-                  <div className="absolute bottom-3 right-3 bg-slate-900 px-3 py-1.5 rounded-full shadow-xl text-white font-bold text-base tracking-tight">
-                    <span className="font-sans text-sm align-text-top mr-[2px]">₱</span>{product.price}
+                  <div className="absolute bottom-1 right-1 bg-slate-900 text-white text-[9px] md:text-xs font-bold px-1.5 py-0.5 rounded-md">
+                    <span className="font-sans mr-[2px]">₱</span>{product.price}
                   </div>
                   
                   {/* Out of Stock / Sold Out Overlay */}
@@ -689,12 +689,12 @@ function POSScreenContent() {
                 </div>
 
                 {/* Info Container */}
-                <div className="p-4 flex flex-col justify-between flex-1">
-                  <h3 className="text-xl font-bold text-slate-900 leading-snug">
+                <div className="flex flex-col justify-between flex-1">
+                  <h3 className="p-1 md:p-3 text-[10px] md:text-sm font-bold text-slate-900 leading-tight line-clamp-2">
                     {product.name}
                   </h3>
                   {product.description ? (
-                    <p className="mt-2 text-sm text-slate-500 line-clamp-2 leading-snug">
+                    <p className="px-1 pb-1 md:px-3 md:pb-3 text-[9px] md:text-xs text-slate-500 line-clamp-2 leading-tight">
                       {product.description}
                     </p>
                   ) : null}
@@ -714,7 +714,7 @@ function POSScreenContent() {
         </div>
       </main>
 
-      <div className="fixed inset-x-0 bottom-0 z-30 flex items-center justify-between gap-4 bg-white/95 border-t border-slate-200 px-5 py-4 shadow-[0_-8px_30px_rgba(15,23,42,0.08)] lg:hidden">
+      <div className={`fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 p-3 md:p-4 items-center justify-between z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] ${isMobileCartOpen ? 'hidden' : 'flex md:hidden'}`}>
         <div>
           <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Total</p>
           <p className="text-2xl font-bold text-slate-900">₱{total.toFixed(2)}</p>
@@ -842,10 +842,10 @@ function POSScreenContent() {
         className={`absolute inset-0 bg-black/50 transition-opacity duration-300 ${isMobileCartOpen ? 'opacity-100' : 'opacity-0'}`}
       />
       <div
-        className={`absolute inset-x-0 bottom-0 z-50 w-full max-h-[85vh] overflow-hidden bg-white rounded-t-[32px] shadow-2xl transition-transform duration-300 ease-in-out ${isMobileCartOpen ? 'translate-y-0' : 'translate-y-full'}`}
+        className={`fixed inset-0 z-50 flex flex-col h-[100dvh] w-full bg-slate-50 md:relative md:h-full md:w-96 md:border-l md:border-slate-200 overflow-hidden transition-transform duration-300 ease-in-out ${isMobileCartOpen ? 'translate-y-0' : 'translate-y-full'}`}
       >
-        <div className="mx-auto flex max-w-3xl h-full flex-col">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+        <div className="flex h-full w-full flex-col">
+          <div className="shrink-0 bg-white p-4 border-b border-slate-200 flex justify-between items-center">
             <div>
               <h2 className="text-lg font-bold text-slate-900">Current Order</h2>
               <p className="text-sm text-slate-500">{orderNumber} · {orderType ?? 'Select Type'}</p>
@@ -858,7 +858,7 @@ function POSScreenContent() {
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          <div className="flex-1 overflow-y-auto p-4 pb-24">
             {cart.length === 0 ? (
               <div className="flex h-64 flex-col items-center justify-center text-slate-400">
                 <p className="font-medium">Order is empty.</p>
@@ -903,8 +903,9 @@ function POSScreenContent() {
             )}
           </div>
 
-          <div className="p-6 bg-slate-50 border-t border-slate-200">
-            <div className="space-y-3 mb-6">
+          <div className="shrink-0 bg-white p-4 border-t border-slate-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10">
+            <div className="flex flex-col gap-3 w-full">
+              <div className="space-y-3 mb-3">
               <div className="flex justify-between text-slate-600 font-medium">
                 <span>Subtotal</span>
                 <span className="text-slate-900">₱{subtotal.toFixed(2)}</span>
@@ -915,18 +916,19 @@ function POSScreenContent() {
                   <span className="font-sans mr-1">₱</span>{total.toFixed(2)}
                 </span>
               </div>
-            </div>
+              </div>
             <button
               disabled={cart.length === 0}
               onClick={() => {
                 setIsPaymentModalOpen(true);
                 setIsMobileCartOpen(false);
               }}
-              className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-lg font-bold py-4 rounded-full transition-colors focus:outline-none focus:ring-4 focus:ring-emerald-500/20 shadow-lg shadow-emerald-500/20"
+              className="w-full py-4 text-lg font-bold rounded-xl bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-300 disabled:cursor-not-allowed text-white transition-colors focus:outline-none focus:ring-4 focus:ring-emerald-500/20 shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
             >
               CHARGE
               <ArrowRight className="w-6 h-6 stroke-[2.5px]" />
             </button>
+            </div>
           </div>
         </div>
       </div>

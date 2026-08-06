@@ -553,7 +553,7 @@ export default function HistoryPage() {
               />
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2 mt-4">
               <div className="flex flex-wrap gap-2">
                 {filterOptions.map((filter) => {
                   const isActive = filter === activeFilter;
@@ -587,17 +587,17 @@ export default function HistoryPage() {
         </section>
 
         {/* Orders Table */}
-        <section className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
+        <section>
+          <div className="w-full overflow-x-auto bg-white rounded-xl shadow-sm border border-slate-100">
+            <table className="w-full text-left min-w-[600px]">
               <thead className="bg-slate-50/80 text-xs font-semibold uppercase tracking-wider text-slate-500">
                 <tr>
-                  <th className="px-4 py-3 text-left">#</th>
-                  <th className="px-4 py-3 text-left">Order #</th>
-                  <th className="px-4 py-3 text-left">Total</th>
-                  <th className="px-4 py-3 text-left">Date</th>
-                  <th className="px-4 py-3 text-left">Status</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
+                  <th className="px-4 py-3 text-left whitespace-nowrap">#</th>
+                  <th className="px-4 py-3 text-left whitespace-nowrap">Order #</th>
+                  <th className="px-4 py-3 text-left whitespace-nowrap">Total</th>
+                  <th className="px-4 py-3 text-left whitespace-nowrap">Date</th>
+                  <th className="px-4 py-3 text-left whitespace-nowrap">Status</th>
+                  <th className="px-4 py-3 text-right whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -605,7 +605,7 @@ export default function HistoryPage() {
                   Array.from({ length: 5 }).map((_, i) => (
                     <tr key={i} className="animate-pulse">
                       {Array.from({ length: 6 }).map((_, j) => (
-                        <td key={j} className="px-4 py-4">
+                        <td key={j} className="px-4 py-4 whitespace-nowrap">
                           <div className="h-4 w-20 rounded bg-slate-200" />
                         </td>
                       ))}
@@ -613,7 +613,7 @@ export default function HistoryPage() {
                   ))
                 ) : filteredOrders.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-12 text-center text-sm text-slate-500">
+                    <td colSpan={6} className="px-4 py-12 text-center text-sm text-slate-500 whitespace-nowrap">
                       <div className="flex flex-col items-center gap-2">
                         <FileText className="h-8 w-8 text-slate-300" />
                         <p>No orders found</p>
@@ -630,16 +630,16 @@ export default function HistoryPage() {
                       'bg-emerald-100 text-emerald-700';
                     return (
                       <tr key={order.id} className="hover:bg-slate-50/70 transition-colors">
-                        <td className="px-4 py-4 font-mono text-xs text-slate-500">{order.id.slice(0, 6)}</td>
-                        <td className="px-4 py-4 font-medium text-slate-900">{order.order_number}</td>
-                        <td className="px-4 py-4 font-semibold text-slate-800">{formatCurrency(order.total_amount)}</td>
-                        <td className="px-4 py-4 text-slate-600">{formatDate(order.created_at)}</td>
-                        <td className="px-4 py-4">
+                        <td className="px-4 py-4 font-mono text-xs text-slate-500 whitespace-nowrap">{order.id.slice(0, 6)}</td>
+                        <td className="px-4 py-4 font-medium text-slate-900 whitespace-nowrap">{order.order_number}</td>
+                        <td className="px-4 py-4 font-semibold text-slate-800 whitespace-nowrap">{formatCurrency(order.total_amount)}</td>
+                        <td className="px-4 py-4 text-slate-600 whitespace-nowrap">{formatDate(order.created_at)}</td>
+                        <td className="px-4 py-4 whitespace-nowrap">
                           <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${statusColor}`}>
                             {status}
                           </span>
                         </td>
-                        <td className="px-4 py-4 text-right">
+                        <td className="px-4 py-4 text-right whitespace-nowrap">
                           <div className="flex items-center justify-end gap-2">
                             <button
                               type="button"
@@ -695,8 +695,8 @@ export default function HistoryPage() {
 
       {/* Sales Report Modal */}
       {isSalesReportOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-6 backdrop-blur-sm">
-          <div className="w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl sm:p-8">
+        <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center bg-slate-900/60 p-0 md:p-4 backdrop-blur-sm">
+          <div className="w-full max-w-2xl bg-white rounded-t-3xl md:rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom-4 duration-300 max-h-[90dvh] flex flex-col">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Daily Summary</p>
@@ -711,6 +711,8 @@ export default function HistoryPage() {
                 <X className="h-5 w-5" />
               </button>
             </div>
+
+            <div className="flex-1 overflow-y-auto pr-2">
 
             {/* Summary Cards */}
             <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -849,6 +851,7 @@ export default function HistoryPage() {
               >
                 Close
               </button>
+            </div>
             </div>
           </div>
         </div>
