@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Printer } from 'lucide-react';
 import { supabase as defaultSupabase } from '@/lib/supabase/client';
+import { buildReceiptData } from '@/lib/printing/build-receipt';
+import { printReceipt } from '@/lib/printing/print-receipt';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export type PaymentCartItem = {
@@ -59,12 +61,29 @@ export function PaymentModal({
     onClose();
   };
 
+  const createReceiptData = () => {
+    const amountTendered = parseFloat(tenderedStr || '0');
+
+    return buildReceiptData({
+      orderNumber,
+      orderType,
+      totalDue,
+      amountTendered,
+      items,
+    });
+  };
+
   const handleCharge = async () => {
     if (printStep === 'kitchen') {
-      window.print();
-      onComplete?.();
-      setPrintStep('customer');
-      onClose();
+      try {
+        await printReceipt(createReceiptData());
+        onComplete?.();
+        setPrintStep('customer');
+        onClose();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unable to print receipt.';
+        setCheckoutError(message);
+      }
       return;
     }
 
@@ -164,7 +183,7 @@ export function PaymentModal({
           console.error("Critical error during inventory deduction:", err);
         }
       }
-      window.print();
+      await printReceipt(createReceiptData());
       setPrintStep('kitchen');
     } catch (error) {
       const message = error instanceof Error ? error.message : JSON.stringify(error);
