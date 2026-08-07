@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, FileText, Search, X, Receipt, Calendar, DollarSign, Users, TrendingUp, TrendingDown, Printer, Eye, MoreVertical, CheckCircle, AlertCircle } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
+import { IntentLauncher } from '@capgo/capacitor-intent-launcher';
 import { supabase } from '@/lib/supabase/client';
 
 type OrderItem = {
@@ -62,6 +64,12 @@ type EmployeePayrollSummary = {
 
 const filterOptions = ['Today', 'Yesterday', 'This Week'] as const;
 type FilterOption = (typeof filterOptions)[number];
+
+const RAWBT_PACKAGE = 'ru.a402d.rawbtprinter';
+const ACTION_SEND = 'android.intent.action.SEND';
+const MIME_TEXT = 'text/plain';
+const EXTRA_TEXT_KEY = 'android.intent.extra.TEXT';
+const RESULT_CANCELED = 0;
 
 const formatCurrency = (value: number) =>
   `₱${value.toFixed(2)}`;
@@ -249,7 +257,12 @@ export default function HistoryPage() {
       setHasClosedToday(true);
       setIsEodModalOpen(false);
       setPinCode('');
-      window.print();
+      try {
+        await handleSalesReportPrint();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unable to print report.';
+        showHistoryToast(message);
+      }
       return;
     }
 
@@ -275,7 +288,10 @@ export default function HistoryPage() {
 
     // Give React time to unmount the modal before the print dialog blocks the UI thread.
     setTimeout(() => {
-      window.print();
+      void handleSalesReportPrint().catch((error) => {
+        const message = error instanceof Error ? error.message : 'Unable to print report.';
+        showHistoryToast(message);
+      });
     }, 100);
   };
 
@@ -510,6 +526,65 @@ export default function HistoryPage() {
     day: 'numeric',
     year: 'numeric',
   });
+
+  const buildSalesReportTextPayload = () => {
+    const lines: string[] = [
+      '4 prince SNACK ATTACK',
+      'DAILY SALES REPORT',
+      receiptDateLabel,
+      '--------------------------------',
+      `TODAY REVENUE: ₱${todayTotalSales.toFixed(2)}`,
+      `TOTAL EXPENSES: ₱${storeExpenseTotal.toFixed(2)}`,
+      `EMPLOYEE SALARIES: ₱${totalEmployeePayroll.toFixed(2)}`,
+      '--------------------------------',
+    ];
+
+    if (storeExpenses.length > 0) {
+      storeExpenses.forEach((expense) => {
+        lines.push(`${expense.item_name}: ₱${expense.amount.toFixed(2)}`);
+      });
+    } else {
+      lines.push('No store expenses: ₱0.00');
+    }
+
+    lines.push('--------------------------------');
+
+    employeeTotals.forEach((employee) => {
+      lines.push(`${employee.name}: ₱${employee.finalTotal.toFixed(2)}`);
+      lines.push(`Base Salary: ₱${employee.baseSalary.toFixed(2)}`);
+      lines.push(`Deductions: ₱${employee.totalEmployeeExpenses.toFixed(2)}`);
+      lines.push(`Final Payout: ₱${employee.finalTotal.toFixed(2)}`);
+      lines.push('');
+    });
+
+    lines.push('--------------------------------');
+    lines.push(`NET CASH: ₱${netCash.toFixed(2)}`);
+
+    return lines.join('\n');
+  };
+
+  const handleSalesReportPrint = async () => {
+    const isAndroidNative = Capacitor.getPlatform() === 'android' && Capacitor.isNativePlatform();
+
+    if (!isAndroidNative) {
+      window.print();
+      return;
+    }
+
+    const textPayload = buildSalesReportTextPayload();
+    const result = await IntentLauncher.startActivityAsync({
+      action: ACTION_SEND,
+      type: MIME_TEXT,
+      packageName: RAWBT_PACKAGE,
+      extra: {
+        [EXTRA_TEXT_KEY]: textPayload,
+      },
+    });
+
+    if (result.resultCode === RESULT_CANCELED) {
+      throw new Error('Printing canceled by user.');
+    }
+  };
 
   return (
     <>
@@ -837,7 +912,10 @@ export default function HistoryPage() {
                 type="button"
                 onClick={() => {
                   if (hasClosedToday) {
-                    window.print();
+                    void handleSalesReportPrint().catch((error) => {
+                      const message = error instanceof Error ? error.message : 'Unable to print report.';
+                      showHistoryToast(message);
+                    });
                     return;
                   }
                   setPinCode('');
