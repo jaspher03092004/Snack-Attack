@@ -247,9 +247,9 @@ export function PaymentModal({
       <div className="w-full max-w-md lg:max-w-5xl bg-white rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[95dvh] overflow-hidden">
         
         {/* Responsive Inner Layout */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 p-6 md:p-8 flex-1 overflow-hidden h-full">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-8 p-3 md:p-8 flex-1 overflow-hidden h-full">
           
-          {/* --- Column 1: Order Summary (Mobile: Fills remaining height & scrolls) --- */}
+          {/* --- Column 1: Order Summary (Fills remaining height & scrolls) --- */}
           <section className="flex flex-col w-full border-b md:border-b-0 md:border-r pb-2 md:pb-0 md:pr-8 flex-1 min-h-0 overflow-hidden">
             <button 
               onClick={handleCloseModal}
@@ -296,43 +296,46 @@ export function PaymentModal({
             <div className="flex-shrink-0 border-t-2 border-dashed border-slate-100 mt-2 lg:mt-6"></div>
           </section>
 
-          {/* --- Column 2: Amounts (Mobile: Pinned to bottom, flex-shrink-0) --- */}
+          {/* --- Column 2: Amounts (Side-by-side on Mobile) --- */}
           <section className="flex flex-col w-full border-b md:border-b-0 md:border-r pb-2 md:pb-0 md:pr-8 flex-shrink-0">
-            <div className="flex flex-col gap-2 lg:gap-5 flex-1">
-              <div className="bg-slate-50/80 rounded-xl lg:rounded-[20px] p-2 lg:p-6 border border-slate-100/80">
-                <div className="text-[10px] lg:text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Amount Tendered</div>
-                <div className="text-lg sm:text-2xl lg:text-[38px] leading-none font-black text-slate-900 flex items-start tracking-tight">
-                  <span className="text-base sm:text-lg lg:text-2xl mt-0.5 lg:mt-1.5 mr-1 font-sans text-slate-800">₱</span>
+            <div className="flex flex-row md:flex-col gap-2 lg:gap-5 flex-1">
+              
+              {/* Amount Tendered */}
+              <div className="w-1/2 md:w-full bg-slate-50/80 rounded-xl lg:rounded-[20px] p-2 lg:p-6 border border-slate-100/80">
+                <div className="text-[10px] lg:text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Tendered</div>
+                <div className="text-base sm:text-2xl lg:text-[38px] leading-none font-black text-slate-900 flex items-start tracking-tight">
+                  <span className="text-sm sm:text-lg lg:text-2xl mt-0.5 lg:mt-1.5 mr-1 font-sans text-slate-800">₱</span>
                   {amountTendered.toFixed(2)}
                 </div>
               </div>
 
-              <div className={`rounded-xl lg:rounded-[20px] p-2 lg:p-6 border-2 transition-colors duration-300 ${
+              {/* Change Due */}
+              <div className={`w-1/2 md:w-full rounded-xl lg:rounded-[20px] p-2 lg:p-6 border-2 transition-colors duration-300 ${
                 changeDue > 0 ? 'bg-emerald-50/50 border-emerald-200' : 'bg-slate-50/80 border-slate-100/80'
               }`}>
                 <div className={`text-[10px] lg:text-[11px] font-bold uppercase tracking-widest mb-0.5 transition-colors ${
                   changeDue > 0 ? 'text-emerald-600' : 'text-slate-500'
-                }`}>Change Due</div>
-                <div className={`text-xl sm:text-3xl lg:text-[46px] leading-none font-black flex items-start tracking-tight transition-colors ${
+                }`}>Change</div>
+                <div className={`text-lg sm:text-3xl lg:text-[46px] leading-none font-black flex items-start tracking-tight transition-colors ${
                   changeDue > 0 ? 'text-emerald-500' : 'text-slate-900'
                 }`}>
-                  <span className={`text-base sm:text-xl lg:text-3xl mt-1 lg:mt-1.5 mr-1 font-sans ${
+                  <span className={`text-sm sm:text-xl lg:text-3xl mt-1 lg:mt-1.5 mr-1 font-sans ${
                     changeDue > 0 ? 'text-emerald-500' : 'text-slate-800'
                   }`}>₱</span>
                   {changeDue.toFixed(2)}
                 </div>
               </div>
-
-              <button 
-                onClick={handleCloseModal}
-                className="mt-auto w-full py-2 lg:py-4 text-sm lg:text-lg font-bold rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all active:scale-[0.98] border border-slate-200/60 focus:outline-none"
-              >
-                Cancel
-              </button>
             </div>
+
+            <button 
+              onClick={handleCloseModal}
+              className="mt-auto w-full py-1.5 lg:py-4 text-xs lg:text-lg font-bold rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all active:scale-[0.98] border border-slate-200/60 focus:outline-none"
+            >
+              Cancel
+            </button>
           </section>
 
-          {/* --- Column 3: Numpad & Actions (Mobile: Pinned to bottom, flex-shrink-0) --- */}
+          {/* --- Column 3: Numpad & Actions --- */}
           <section className="flex flex-col w-full gap-2 lg:gap-5 flex-shrink-0">
             
             {/* Automated Amounts - HIDDEN ON MOBILE per request */}
@@ -357,7 +360,7 @@ export function PaymentModal({
 
             <button 
               onClick={handleExactAmount}
-              className="w-full py-2 lg:py-4 text-sm lg:text-lg font-bold rounded-xl bg-slate-100 text-slate-700 border-2 border-transparent hover:bg-slate-200 transition-all active:scale-[0.98] focus:outline-none"
+              className="w-full py-1.5 lg:py-4 text-xs lg:text-lg font-bold rounded-xl bg-slate-100 text-slate-700 border-2 border-transparent hover:bg-slate-200 transition-all active:scale-[0.98] focus:outline-none"
             >
               Exact Amount (₱{totalDue.toFixed(2)})
             </button>
@@ -384,25 +387,26 @@ export function PaymentModal({
               </div>
             )}
 
-            <div className="flex flex-col xl:flex-row gap-3 w-full mt-4">
+            {/* Compact Action Buttons (Side-by-side on Mobile) */}
+            <div className="flex flex-row gap-2 w-full mt-1 md:mt-4">
               {printStep === 'customer' && (
                 <button
                   type="button"
                   onClick={handleNoReceiptCheckout}
                   disabled={isSubmitting}
-                  className="w-full py-4 rounded-xl font-bold bg-slate-200 text-slate-800 hover:bg-slate-300 disabled:bg-slate-300 disabled:text-slate-500"
+                  className="flex-1 py-1.5 md:py-4 rounded-xl font-bold bg-slate-200 text-slate-800 hover:bg-slate-300 disabled:bg-slate-300 disabled:text-slate-500 text-[10px] sm:text-xs md:text-base"
                 >
-                  {isSubmitting ? 'PROCESSING...' : 'COMPLETE - NO RECEIPT'}
+                  {isSubmitting ? '...' : 'NO RECEIPT'}
                 </button>
               )}
               <button
                 type="button"
                 onClick={handleDualPrintCheckout}
                 disabled={isSubmitting}
-                className="w-full py-4 rounded-xl font-bold bg-emerald-500 text-white hover:bg-emerald-600 disabled:bg-slate-300 disabled:text-slate-500 flex items-center justify-center gap-2"
+                className="flex-1 py-1.5 md:py-4 rounded-xl font-bold bg-emerald-500 text-white hover:bg-emerald-600 disabled:bg-slate-300 disabled:text-slate-500 flex items-center justify-center gap-1 text-[10px] sm:text-xs md:text-base"
               >
-                <Printer className="w-4 h-4 lg:w-5 lg:h-5 stroke-[2.5px]" />
-                {isSubmitting ? 'PROCESSING...' : printStep === 'customer' ? ' PRINT RECEIPT' : ' PRINT KITCHEN COPY'}
+                <Printer className="w-3 h-3 sm:w-4 sm:h-4 stroke-[2.5px]" />
+                {isSubmitting ? '...' : printStep === 'customer' ? 'PRINT' : 'KITCHEN'}
               </button>
             </div>
           </section>
