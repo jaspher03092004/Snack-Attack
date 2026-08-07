@@ -770,7 +770,7 @@ export default function HistoryPage() {
 
       {/* Sales Report Modal - Refactored UI/UX */}
       {isSalesReportOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 p-2 sm:p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-2 sm:p-4 backdrop-blur-sm">
           <div className="w-full max-w-2xl bg-white rounded-2xl sm:rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[calc(100dvh-1rem)] sm:max-h-[90vh]">
             
             {/* Sticky Header */}
@@ -940,7 +940,7 @@ export default function HistoryPage() {
       )}
 
       {isEodModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl animate-in zoom-in-95 duration-200">
             <h3 className="text-lg font-bold text-slate-900">Close Shop for Today?</h3>
             <p className="mt-2 text-sm text-slate-500">
