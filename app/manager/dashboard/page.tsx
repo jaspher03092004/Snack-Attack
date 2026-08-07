@@ -379,8 +379,8 @@ export default function ManagerDashboard() {
     return (
         <div className="flex h-screen bg-slate-50 font-sans text-slate-900 overflow-hidden">
 
-            {/* Sidebar */}
-            <aside className="w-[240px] bg-white border-r border-slate-200 flex flex-col flex-shrink-0 h-full sticky top-0 z-20">
+            {/* Sidebar - Hidden on Mobile */}
+            <aside className="hidden lg:flex w-[240px] bg-white border-r border-slate-200 flex-col flex-shrink-0 h-full sticky top-0 z-20">
                 <div className="p-6 flex items-center gap-3 mb-4">
                     <div className="w-8 h-8 bg-slate-900 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
                         <div className="w-3 h-3 border-2 border-white rounded-sm" />
@@ -452,157 +452,158 @@ export default function ManagerDashboard() {
                 </div>
             </aside>
 
-            {/* Main Content */}
-            <main className="flex-1 overflow-y-auto p-6 lg:p-8 space-y-8">
+            {/* Main Content - Reduced padding for mobile */}
+            <main className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-8 space-y-6 lg:space-y-8 pb-24 lg:pb-6">
                 {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2.5">
+                        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2.5">
                             <span className="bg-slate-900 text-white p-1.5 rounded-xl">
-                                <LayoutGrid className="w-5 h-5" />
+                                <LayoutGrid className="w-4 h-4 sm:w-5 sm:h-5" />
                             </span>
                             Dashboard
                         </h1>
-                        <p className="text-sm text-slate-500 mt-1 flex items-center gap-2">
-                            <Calendar className="w-4 h-4" />
+                        <p className="text-xs sm:text-sm text-slate-500 mt-1 flex items-center gap-2">
+                            <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
                             {todayDate}
                         </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    {/* Responsive Header Buttons */}
+                    <div className="flex flex-wrap items-center gap-2">
                         <button
                             onClick={() => window.location.reload()}
-                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-medium transition-all shadow-sm"
+                            className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-medium transition-all shadow-sm"
                         >
-                            <RefreshCw className="w-4 h-4" />
-                            Refresh
+                            <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4" />
+                            <span className="hidden sm:inline">Refresh</span>
                         </button>
-                        <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-medium transition-all shadow-sm">
-                            <Download className="w-4 h-4" />
-                            Export
+                        <button className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-medium transition-all shadow-sm">
+                            <Download className="w-3 h-3 sm:w-4 sm:h-4" />
+                            <span className="hidden sm:inline">Export</span>
                         </button>
-                        <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium transition-all shadow-lg shadow-slate-900/10">
-                            <Printer className="w-4 h-4" />
-                            Print Report
+                        <button className="flex items-center gap-1.5 px-3.5 py-1.5 sm:px-5 sm:py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-medium transition-all shadow-lg shadow-slate-900/10">
+                            <Printer className="w-3 h-3 sm:w-4 sm:h-4" />
+                            <span className="hidden sm:inline">Print Report</span>
                         </button>
                     </div>
                 </div>
 
                 {/* KPI Cards */}
                 {isLoading ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-4">
                         {Array.from({ length: 5 }).map((_, i) => (
-                            <div key={i} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 animate-pulse">
-                                <div className="h-4 bg-slate-200 rounded w-1/2 mb-3" />
-                                <div className="h-8 bg-slate-200 rounded w-3/4 mb-2" />
-                                <div className="h-4 bg-slate-200 rounded w-1/3" />
+                            <div key={i} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 animate-pulse">
+                                <div className="h-3 bg-slate-200 rounded w-1/2 mb-2" />
+                                <div className="h-6 bg-slate-200 rounded w-3/4 mb-2" />
+                                <div className="h-3 bg-slate-200 rounded w-1/3" />
                             </div>
                         ))}
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
+                    <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-4">
+                        <div className="bg-white rounded-2xl p-3 sm:p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
                             <div className="flex items-start justify-between">
                                 <div>
-                                    <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Today's Revenue</p>
-                                    <p className="text-2xl font-bold text-slate-900 mt-1">{formatCurrency(orderMetrics.salesToday)}</p>
+                                    <p className="text-[10px] sm:text-xs font-medium uppercase tracking-wider text-slate-400">Today's Revenue</p>
+                                    <p className="text-lg sm:text-2xl font-bold text-slate-900 mt-1">{formatCurrency(orderMetrics.salesToday)}</p>
                                 </div>
-                                <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600">
-                                    <TrendingUp className="w-5 h-5" />
+                                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600">
+                                    <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />
                                 </div>
                             </div>
-                            <p className="text-xs text-slate-500 mt-3">{orderMetrics.totalOrdersToday} orders</p>
+                            <p className="text-[10px] sm:text-xs text-slate-500 mt-2 sm:mt-3">{orderMetrics.totalOrdersToday} orders</p>
                         </div>
 
-                        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
+                        <div className="bg-white rounded-2xl p-3 sm:p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
                             <div className="flex items-start justify-between">
                                 <div>
-                                    <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Yesterday's Revenue</p>
-                                    <p className="text-2xl font-bold text-slate-900 mt-1">{formatCurrency(orderMetrics.salesYesterday)}</p>
+                                    <p className="text-[10px] sm:text-xs font-medium uppercase tracking-wider text-slate-400">Yesterday's Revenue</p>
+                                    <p className="text-lg sm:text-2xl font-bold text-slate-900 mt-1">{formatCurrency(orderMetrics.salesYesterday)}</p>
                                 </div>
-                                <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600">
-                                    <Calendar className="w-5 h-5" />
+                                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600">
+                                    <Calendar className="w-4 h-4 sm:w-5 sm:h-5" />
                                 </div>
                             </div>
-                            <p className="text-xs text-slate-500 mt-3">{orderMetrics.ordersYesterday.length} orders</p>
+                            <p className="text-[10px] sm:text-xs text-slate-500 mt-2 sm:mt-3">{orderMetrics.ordersYesterday.length} orders</p>
                         </div>
 
-                        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
+                        <div className="bg-white rounded-2xl p-3 sm:p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
                             <div className="flex items-start justify-between">
                                 <div>
-                                    <p className="text-xs font-medium uppercase tracking-wider text-slate-400">This Week</p>
-                                    <p className="text-2xl font-bold text-slate-900 mt-1">{formatCurrency(orderMetrics.salesThisWeek)}</p>
+                                    <p className="text-[10px] sm:text-xs font-medium uppercase tracking-wider text-slate-400">This Week</p>
+                                    <p className="text-lg sm:text-2xl font-bold text-slate-900 mt-1">{formatCurrency(orderMetrics.salesThisWeek)}</p>
                                 </div>
-                                <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600">
-                                    <BarChart3 className="w-5 h-5" />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
-                            <div className="flex items-start justify-between">
-                                <div>
-                                    <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Total Revenue</p>
-                                    <p className="text-2xl font-bold text-slate-900 mt-1">{formatCurrency(orderMetrics.salesOverall)}</p>
-                                </div>
-                                <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center text-purple-600">
-                                    <DollarSign className="w-5 h-5" />
+                                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600">
+                                    <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5" />
                                 </div>
                             </div>
                         </div>
 
-                        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
+                        <div className="bg-white rounded-2xl p-3 sm:p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
                             <div className="flex items-start justify-between">
                                 <div>
-                                    <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Net Cash Today</p>
-                                    <p className="text-2xl font-bold text-emerald-600 mt-1">{formatCurrency(netStats.netToday)}</p>
+                                    <p className="text-[10px] sm:text-xs font-medium uppercase tracking-wider text-slate-400">Total Revenue</p>
+                                    <p className="text-lg sm:text-2xl font-bold text-slate-900 mt-1">{formatCurrency(orderMetrics.salesOverall)}</p>
                                 </div>
-                                <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600">
-                                    <Wallet className="w-5 h-5" />
+                                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-purple-100 flex items-center justify-center text-purple-600">
+                                    <DollarSign className="w-4 h-4 sm:w-5 sm:h-5" />
                                 </div>
                             </div>
-                            <p className="text-xs text-slate-500 mt-3">Expenses: {formatCurrency(netStats.expensesToday)}</p>
+                        </div>
+
+                        <div className="col-span-2 sm:col-span-2 lg:col-span-1 bg-white rounded-2xl p-3 sm:p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
+                            <div className="flex items-start justify-between">
+                                <div>
+                                    <p className="text-[10px] sm:text-xs font-medium uppercase tracking-wider text-slate-400">Net Cash Today</p>
+                                    <p className="text-lg sm:text-2xl font-bold text-emerald-600 mt-1">{formatCurrency(netStats.netToday)}</p>
+                                </div>
+                                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600">
+                                    <Wallet className="w-4 h-4 sm:w-5 sm:h-5" />
+                                </div>
+                            </div>
+                            <p className="text-[10px] sm:text-xs text-slate-500 mt-2 sm:mt-3">Expenses: {formatCurrency(netStats.expensesToday)}</p>
                         </div>
                     </div>
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div className="rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 p-6 text-white shadow-lg shadow-orange-500/25">
-                        <p className="text-sm font-semibold uppercase tracking-wider text-white/85">Fried Chicken Sales</p>
-                        <p className="mt-3 text-3xl font-black leading-none">Today: {formatCurrency(specialItemSales.chickenToday)}</p>
-                        <p className="mt-3 text-sm font-medium text-white/85">This Month: {formatCurrency(specialItemSales.chickenMonth)}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                    <div className="rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 p-4 sm:p-6 text-white shadow-lg shadow-orange-500/25">
+                        <p className="text-xs sm:text-sm font-semibold uppercase tracking-wider text-white/85">Fried Chicken Sales</p>
+                        <p className="mt-2 sm:mt-3 text-xl sm:text-3xl font-black leading-none">Today: {formatCurrency(specialItemSales.chickenToday)}</p>
+                        <p className="mt-2 sm:mt-3 text-xs sm:text-sm font-medium text-white/85">This Month: {formatCurrency(specialItemSales.chickenMonth)}</p>
                     </div>
-                    <div className="rounded-2xl bg-gradient-to-br from-pink-400 to-purple-500 p-6 text-white shadow-lg shadow-purple-500/25">
-                        <p className="text-sm font-semibold uppercase tracking-wider text-white/85">Ice Cream Sales</p>
-                        <p className="mt-3 text-3xl font-black leading-none">Today: {formatCurrency(specialItemSales.iceCreamToday)}</p>
-                        <p className="mt-3 text-sm font-medium text-white/85">This Month: {formatCurrency(specialItemSales.iceCreamMonth)}</p>
+                    <div className="rounded-2xl bg-gradient-to-br from-pink-400 to-purple-500 p-4 sm:p-6 text-white shadow-lg shadow-purple-500/25">
+                        <p className="text-xs sm:text-sm font-semibold uppercase tracking-wider text-white/85">Ice Cream Sales</p>
+                        <p className="mt-2 sm:mt-3 text-xl sm:text-3xl font-black leading-none">Today: {formatCurrency(specialItemSales.iceCreamToday)}</p>
+                        <p className="mt-2 sm:mt-3 text-xs sm:text-sm font-medium text-white/85">This Month: {formatCurrency(specialItemSales.iceCreamMonth)}</p>
                     </div>
                 </div>
 
                 {/* Sales Target Progress */}
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-3 sm:mb-4">
                         <div>
-                            <h2 className="text-sm font-semibold text-slate-900">Today's Sales Target</h2>
-                            <p className="text-xs text-slate-500">Progress toward Gold Rush goal</p>
+                            <h2 className="text-xs sm:text-sm font-semibold text-slate-900">Today's Sales Target</h2>
+                            <p className="text-[10px] sm:text-xs text-slate-500">Progress toward Gold Rush goal</p>
                         </div>
-                        <div className="text-sm font-medium text-slate-700">
+                        <div className="text-xs sm:text-sm font-medium text-slate-700">
                             {formatCurrency(orderMetrics.salesToday)} <span className="text-slate-400">/ ₱15,000</span>
                         </div>
                     </div>
                     <div className="relative">
-                        <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                        <div className="w-full bg-slate-100 rounded-full h-2.5 sm:h-3 overflow-hidden">
                             <div
                                 className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all duration-700"
                                 style={{ width: `${Math.min((orderMetrics.salesToday / 15000) * 100, 100)}%` }}
                             />
                         </div>
-                        <div className="flex justify-between mt-2 text-[10px] font-medium text-slate-400">
+                        <div className="flex justify-between mt-1.5 text-[8px] sm:text-[10px] font-medium text-slate-400">
                             <span>₱5k</span>
                             <span>₱10k</span>
                             <span>₱12k</span>
                             <span>₱15k</span>
                         </div>
-                        <div className="flex justify-between mt-1 text-[10px] font-medium text-slate-400">
+                        <div className="flex justify-between mt-0.5 text-[8px] sm:text-[10px] font-medium text-slate-400">
                             <span>Break Even</span>
                             <span>Goal</span>
                             <span>Happy</span>
@@ -612,27 +613,27 @@ export default function ManagerDashboard() {
                 </div>
 
                 {/* Charts Row */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
                     {/* Daily Sales Chart */}
-                    <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                        <div className="flex items-center justify-between mb-6">
+                    <div className="lg:col-span-2 bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200">
+                        <div className="flex items-center justify-between mb-4 sm:mb-6">
                             <div>
-                                <h2 className="text-sm font-semibold text-slate-900">Daily Sales</h2>
-                                <p className="text-xs text-slate-400">Last 7 days</p>
+                                <h2 className="text-xs sm:text-sm font-semibold text-slate-900">Daily Sales</h2>
+                                <p className="text-[10px] sm:text-xs text-slate-400">Last 7 days</p>
                             </div>
                             <div className="flex items-center gap-2">
-                                <span className="w-3 h-3 rounded-full bg-teal-600" />
-                                <span className="text-xs font-medium text-slate-600">Revenue</span>
+                                <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-teal-600" />
+                                <span className="text-[10px] sm:text-xs font-medium text-slate-600">Revenue</span>
                             </div>
                         </div>
-                        <div className="h-64">
+                        <div className="h-48 sm:h-64">
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={salesTrendData} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
-                                    <XAxis dataKey="day" tick={{ fill: '#94A3B8', fontSize: 11 }} axisLine={false} tickLine={false} />
+                                    <XAxis dataKey="day" tick={{ fill: '#94A3B8', fontSize: 10 }} axisLine={false} tickLine={false} />
                                     <YAxis
                                         tickFormatter={(value) => `₱${value >= 1000 ? `${value / 1000}k` : value}`}
-                                        tick={{ fill: '#94A3B8', fontSize: 11 }}
+                                        tick={{ fill: '#94A3B8', fontSize: 10 }}
                                         axisLine={false}
                                         tickLine={false}
                                     />
@@ -647,58 +648,58 @@ export default function ManagerDashboard() {
                     </div>
 
                     {/* Live Feed & Expenses */}
-                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col">
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-sm font-semibold text-slate-900">Live Feed</h2>
-                            <span className="text-[10px] font-medium text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100 flex items-center gap-1.5">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200 flex flex-col">
+                        <div className="flex items-center justify-between mb-3 sm:mb-4">
+                            <h2 className="text-xs sm:text-sm font-semibold text-slate-900">Live Feed</h2>
+                            <span className="text-[9px] sm:text-[10px] font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full border border-emerald-100 flex items-center gap-1.5">
+                                <span className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                                 Live
                             </span>
                         </div>
-                        <div className="flex-1 overflow-y-auto space-y-3 max-h-48 pr-1">
+                        <div className="flex-1 overflow-y-auto space-y-2 sm:space-y-3 max-h-32 sm:max-h-48 pr-1">
                             {orderMetrics.ordersToday.length === 0 ? (
-                                <div className="text-center py-8 text-slate-400 text-sm">
-                                    <Coffee className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                                <div className="text-center py-6 text-slate-400 text-xs sm:text-sm">
+                                    <Coffee className="w-6 h-6 sm:w-8 sm:h-8 mx-auto mb-2 text-slate-300" />
                                     No orders yet today
                                 </div>
                             ) : (
                                 orderMetrics.ordersToday.slice(0, 6).map((order) => (
-                                    <div key={order.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors">
+                                    <div key={order.id} className="flex items-center justify-between p-2 sm:p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors">
                                         <div>
-                                            <p className="text-sm font-medium text-slate-800">{order.order_number}</p>
-                                            <p className="text-[10px] text-slate-400">
+                                            <p className="text-xs sm:text-sm font-medium text-slate-800">{order.order_number}</p>
+                                            <p className="text-[9px] sm:text-[10px] text-slate-400">
                                                 {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                             </p>
                                         </div>
-                                        <span className="text-sm font-bold text-slate-900">{formatCurrency(order.total_amount)}</span>
+                                        <span className="text-xs sm:text-sm font-bold text-slate-900">{formatCurrency(order.total_amount)}</span>
                                     </div>
                                 ))
                             )}
                             {orderMetrics.ordersToday.length > 6 && (
-                                <button className="text-xs text-slate-400 hover:text-slate-600 font-medium w-full text-center py-1">
+                                <button className="text-[10px] sm:text-xs text-slate-400 hover:text-slate-600 font-medium w-full text-center py-1">
                                     View all {orderMetrics.ordersToday.length} orders
                                 </button>
                             )}
                         </div>
 
-                        <div className="mt-4 pt-4 border-t border-slate-100">
-                            <div className="flex items-center justify-between mb-3">
-                                <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Today's Expenses</p>
-                                <span className="text-sm font-bold text-rose-600">{formatCurrency(expensesTotal)}</span>
+                        <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-slate-100">
+                            <div className="flex items-center justify-between mb-2 sm:mb-3">
+                                <p className="text-[10px] sm:text-xs font-medium uppercase tracking-wider text-slate-400">Today's Expenses</p>
+                                <span className="text-xs sm:text-sm font-bold text-rose-600">{formatCurrency(expensesTotal)}</span>
                             </div>
-                            <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
+                            <div className="space-y-1.5 sm:space-y-2 max-h-28 sm:max-h-32 overflow-y-auto pr-1">
                                 {expensesToday.length === 0 ? (
-                                    <p className="text-xs text-slate-400">No expenses logged.</p>
+                                    <p className="text-[10px] sm:text-xs text-slate-400">No expenses logged.</p>
                                 ) : (
                                     expensesToday.slice(0, 4).map((expense) => (
-                                        <div key={expense.id} className="flex items-center justify-between text-xs">
-                                            <span className="text-slate-600 truncate">{expense.item_name || expense.expensed_by}</span>
-                                            <span className="font-medium text-slate-800">{formatCurrency(expense.amount)}</span>
+                                        <div key={expense.id} className="flex items-center justify-between text-[10px] sm:text-xs">
+                                            <span className="text-slate-600 truncate pr-2">{expense.item_name || expense.expensed_by}</span>
+                                            <span className="font-medium text-slate-800 whitespace-nowrap">{formatCurrency(expense.amount)}</span>
                                         </div>
                                     ))
                                 )}
                                 {expensesToday.length > 4 && (
-                                    <button className="text-[10px] text-slate-400 hover:text-slate-600 font-medium w-full text-center">
+                                    <button className="text-[9px] sm:text-[10px] text-slate-400 hover:text-slate-600 font-medium w-full text-center">
                                         +{expensesToday.length - 4} more
                                     </button>
                                 )}
@@ -708,25 +709,25 @@ export default function ManagerDashboard() {
                 </div>
 
                 {/* Net Cash Chart */}
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                    <div className="flex items-center justify-between mb-6">
+                <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200">
+                    <div className="flex items-center justify-between mb-4 sm:mb-6">
                         <div>
-                            <h2 className="text-sm font-semibold text-slate-900">Daily Net Cash</h2>
-                            <p className="text-xs text-slate-400">Last 7 days</p>
+                            <h2 className="text-xs sm:text-sm font-semibold text-slate-900">Daily Net Cash</h2>
+                            <p className="text-[10px] sm:text-xs text-slate-400">Last 7 days</p>
                         </div>
                         <div className="flex items-center gap-2">
-                            <span className="w-3 h-3 rounded-full bg-emerald-500" />
-                            <span className="text-xs font-medium text-slate-600">Net Cash</span>
+                            <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-emerald-500" />
+                            <span className="text-[10px] sm:text-xs font-medium text-slate-600">Net Cash</span>
                         </div>
                     </div>
-                    <div className="h-64">
+                    <div className="h-48 sm:h-64">
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={netChartData} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
-                                <XAxis dataKey="name" tick={{ fill: '#94A3B8', fontSize: 11 }} axisLine={false} tickLine={false} />
+                                <XAxis dataKey="name" tick={{ fill: '#94A3B8', fontSize: 10 }} axisLine={false} tickLine={false} />
                                 <YAxis
                                     tickFormatter={(value) => `₱${value >= 1000 ? `${value / 1000}k` : value}`}
-                                    tick={{ fill: '#94A3B8', fontSize: 11 }}
+                                    tick={{ fill: '#94A3B8', fontSize: 10 }}
                                     axisLine={false}
                                     tickLine={false}
                                 />
@@ -741,26 +742,49 @@ export default function ManagerDashboard() {
                 </div>
 
                 {/* Additional Metrics: Net Income Overview */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                        <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Net Yesterday</p>
-                        <p className="text-xl font-bold text-slate-900 mt-1">{formatCurrency(netStats.netYesterday)}</p>
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
+                    <div className="bg-white rounded-2xl p-3 sm:p-5 shadow-sm border border-slate-200">
+                        <p className="text-[10px] sm:text-xs font-medium uppercase tracking-wider text-slate-400">Net Yesterday</p>
+                        <p className="text-base sm:text-xl font-bold text-slate-900 mt-1">{formatCurrency(netStats.netYesterday)}</p>
                     </div>
-                    <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                        <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Net This Week</p>
-                        <p className="text-xl font-bold text-slate-900 mt-1">{formatCurrency(netStats.netWeek)}</p>
+                    <div className="bg-white rounded-2xl p-3 sm:p-5 shadow-sm border border-slate-200">
+                        <p className="text-[10px] sm:text-xs font-medium uppercase tracking-wider text-slate-400">Net This Week</p>
+                        <p className="text-base sm:text-xl font-bold text-slate-900 mt-1">{formatCurrency(netStats.netWeek)}</p>
                     </div>
-                    <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                        <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Net This Month</p>
-                        <p className="text-xl font-bold text-slate-900 mt-1">{formatCurrency(netStats.netMonth)}</p>
+                    <div className="bg-white rounded-2xl p-3 sm:p-5 shadow-sm border border-slate-200">
+                        <p className="text-[10px] sm:text-xs font-medium uppercase tracking-wider text-slate-400">Net This Month</p>
+                        <p className="text-base sm:text-xl font-bold text-slate-900 mt-1">{formatCurrency(netStats.netMonth)}</p>
                     </div>
-                    <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                        <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Today's Salaries</p>
-                        <p className="text-xl font-bold text-indigo-600 mt-1">{formatCurrency(netStats.salariesToday)}</p>
+                    <div className="bg-white rounded-2xl p-3 sm:p-5 shadow-sm border border-slate-200">
+                        <p className="text-[10px] sm:text-xs font-medium uppercase tracking-wider text-slate-400">Today's Salaries</p>
+                        <p className="text-base sm:text-xl font-bold text-indigo-600 mt-1">{formatCurrency(netStats.salariesToday)}</p>
                     </div>
                 </div>
 
             </main>
+
+            {/* Mobile Bottom Navigation Bar */}
+            <div className="fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 flex items-center justify-around pb-safe pt-2 lg:hidden z-30 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                {navItems.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = activeNav === item.id;
+                    return (
+                        <button
+                            key={item.id}
+                            onClick={() => {
+                                setActiveNav(item.id);
+                                if (item.path) router.push(item.path);
+                            }}
+                            className={`flex flex-col items-center justify-center gap-0.5 py-1 px-2 rounded-xl transition-colors w-full max-w-[70px] ${
+                                isActive ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'
+                            }`}
+                        >
+                            <Icon className={`w-5 h-5 transition-all ${isActive ? 'stroke-[2.5px]' : 'stroke-[2px]'}`} />
+                            <span className="text-[10px] font-medium whitespace-nowrap">{item.label}</span>
+                        </button>
+                    );
+                })}
+            </div>
         </div>
     );
 }
