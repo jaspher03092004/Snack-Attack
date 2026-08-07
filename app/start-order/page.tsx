@@ -58,6 +58,7 @@ export default function StartOrderPage() {
         itemsSold: 0,
         peakHour: 'Calculating...',
     });
+    const [totalExpenses, setTotalExpenses] = useState(0);
     const [isProductInOpen, setIsProductInOpen] = useState(false);
     const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
     const [selectedProductId, setSelectedProductId] = useState('');
@@ -68,6 +69,7 @@ export default function StartOrderPage() {
     const [productInTab, setProductInTab] = useState('Main');
     const [productSearch, setProductSearch] = useState('');
     const [toastMessage, setToastMessage] = useState('');
+    const currentCash = todaysStats.revenue - totalExpenses;
 
     const showToast = (message: string) => {
         setToastMessage(message);
@@ -134,6 +136,7 @@ export default function StartOrderPage() {
                     itemsSold: 0,
                     peakHour: 'No data yet',
                 });
+                setTotalExpenses(0);
                 return;
             }
 
@@ -141,24 +144,55 @@ export default function StartOrderPage() {
             startOfDay.setHours(0, 0, 0, 0);
             const endOfDay = new Date();
             endOfDay.setHours(23, 59, 59, 999);
+            const todayDate = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
 
-            const { data: ordersData, error: ordersError } = await supabase
-                .from('orders')
-                .select('id, total_amount, status, created_at, order_items(quantity)')
-                .gte('created_at', startOfDay.toISOString())
-                .lte('created_at', endOfDay.toISOString())
-                .order('created_at', { ascending: false });
+            const [ordersResult, expensesResult] = await Promise.all([
+                supabase
+                    .from('orders')
+                    .select('id, total_amount, status, created_at, order_items(quantity)')
+                    .gte('created_at', startOfDay.toISOString())
+                    .lte('created_at', endOfDay.toISOString())
+                    .order('created_at', { ascending: false }),
+                supabase
+                    .from('expenses')
+                    .select('*')
+                    .eq('expense_date', todayDate),
+            ]);
 
-            if (ordersError) {
-                console.error('Today stats fetch error:', ordersError);
+            const ordersData = ordersResult.data;
+            const ordersError = ordersResult.error;
+            const expensesData = expensesResult.data;
+            const expensesError = expensesResult.error;
+
+            if (ordersError || expensesError) {
+                console.error('Today stats fetch error:', {
+                    ordersError,
+                    expensesError,
+                });
                 setTodaysStats({
                     orders: 0,
                     revenue: 0,
                     itemsSold: 0,
                     peakHour: 'No data yet',
                 });
+                setTotalExpenses(0);
                 return;
             }
+
+            const expensesToday = (expensesData ?? []).map((expense: any) => ({
+                id: expense.id,
+                expense_date: expense.expense_date,
+                item_name: expense.item_name,
+                amount: Number(expense.amount),
+                expensed_by: expense.expensed_by,
+            }));
+
+            const shopOnlyExpenses = expensesToday.filter(
+                (expense) => String(expense.expensed_by ?? '').trim().toLowerCase() === 'shop',
+            );
+
+            const totalShopExpenses = shopOnlyExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+            setTotalExpenses(totalShopExpenses);
 
             // Mirror dashboard behavior: include completed orders and legacy rows with empty status.
             const completedOrders = (ordersData ?? []).filter((order: any) => {
@@ -426,15 +460,15 @@ export default function StartOrderPage() {
 
             <div className="relative z-10 flex flex-1 flex-col pb-2 md:pb-0">
                 {/* Header */}
-                <header className="flex flex-wrap items-center justify-between gap-2 md:gap-3 p-2 md:p-6 bg-white/80 backdrop-blur-sm border-b border-slate-200/70 shadow-sm">
-                    <div className="flex w-full flex-wrap items-center gap-2 md:gap-3 xl:w-auto">
+                <header className="flex flex-wrap items-center justify-between gap-2 md:gap-3 p-1.5 md:p-6 bg-white/80 backdrop-blur-sm border-b border-slate-200/70 shadow-sm">
+                    <div className="flex w-full flex-wrap items-center gap-1.5 md:gap-3 xl:w-auto">
                         <div className="flex items-center gap-2 md:gap-3 rounded-2xl bg-slate-900 px-2 md:px-4 py-1 md:py-2.5 shadow-lg">
                             <div className="flex h-1.5 w-1.5 md:h-2.5 md:w-2.5 rounded-full bg-emerald-400 shadow-[0_0_0_4px_rgba(16,185,129,0.2)] md:shadow-[0_0_0_6px_rgba(16,185,129,0.2)]" />
                             <span className="text-[8px] md:text-xs font-bold uppercase tracking-[0.1em] md:tracking-[0.2em] text-white/80">
                                 TERMINAL 01 • ONLINE
                             </span>
                         </div>
-                        <div className="flex w-full md:w-auto gap-1 md:gap-2 flex-wrap">
+                        <div className="flex w-full md:w-auto gap-1.5 md:gap-2 flex-wrap">
                             <button
                                 type="button"
                                 onClick={() => {
@@ -525,10 +559,25 @@ export default function StartOrderPage() {
                                 <h2 className="text-xs md:text-sm font-semibold uppercase tracking-wider text-slate-400">
                                     Today's Summary
                                 </h2>
-                                <div className="mt-3 md:mt-4 grid grid-cols-3 gap-2 md:block md:space-y-4">
+                                <div className="mt-3 md:mt-4 grid grid-cols-2 gap-2 md:block md:space-y-4">
                                     <div className="flex flex-col items-center md:flex-row md:items-center md:justify-between border-b-0 md:border-b border-slate-100 pb-0 md:pb-3">
                                         <span className="text-[10px] md:text-sm font-medium text-slate-600">Orders</span>
                                         <span className="text-base md:text-xl font-bold text-slate-900">{todaysStats.orders}</span>
+                                    </div>
+                                    <div className="flex flex-col items-center md:flex-row md:items-center md:justify-between border-b-0 md:border-b border-slate-100 pb-0 md:pb-3">
+                                        <span className="text-[10px] md:text-sm font-medium text-slate-600">Total Expenses</span>
+                                        <span className="text-base md:text-xl font-bold text-rose-600">
+                                            ₱{totalExpenses.toFixed(2)}
+                                        </span>
+                                    </div>
+                                    <div className="flex flex-col items-center md:flex-row md:items-center md:justify-between border-b-0 md:border-b border-slate-100 pb-0 md:pb-3">
+                                        <div className="flex flex-col items-center md:items-start">
+                                            <span className="text-[10px] md:text-sm font-medium text-slate-600">Current Cash</span>
+                                            <span className="text-[8px] md:text-xs text-slate-400">revenue - expenses</span>
+                                        </div>
+                                        <span className="text-base md:text-xl font-bold text-slate-900">
+                                            ₱{currentCash.toFixed(2)}
+                                        </span>
                                     </div>
                                     <div className="flex flex-col items-center md:flex-row md:items-center md:justify-between border-b-0 md:border-b border-slate-100 pb-0 md:pb-3">
                                         <span className="text-[10px] md:text-sm font-medium text-slate-600">Revenue</span>
@@ -536,7 +585,7 @@ export default function StartOrderPage() {
                                             ₱{todaysStats.revenue.toFixed(2)}
                                         </span>
                                     </div>
-                                    <div className="flex flex-col items-center md:flex-row md:items-center md:justify-between">
+                                    <div className="flex flex-col items-center md:flex-row md:items-center md:justify-between col-span-2 md:col-span-1 pt-1 md:pt-0">
                                         <span className="text-[10px] md:text-sm font-medium text-slate-600">Items Sold</span>
                                         <span className="text-base md:text-xl font-bold text-slate-900">{todaysStats.itemsSold}</span>
                                     </div>
@@ -548,7 +597,7 @@ export default function StartOrderPage() {
                                         <TrendingUp className="h-4 w-4 md:h-5 md:w-5" />
                                     </div>
                                     <div>
-                                        <p className="text-xs md:text-sm font-semibold text-slate-800">Peak Hour</p>
+                                        <p className="text-[11px] md:text-sm font-semibold text-slate-800">Peak Hour</p>
                                         <p className="text-[10px] md:text-xs text-slate-400">{todaysStats.peakHour}</p>
                                     </div>
                                 </div>
@@ -557,7 +606,7 @@ export default function StartOrderPage() {
 
                         {/* Right panel: main action */}
                         <div className="lg:col-span-3 flex flex-grow flex-col justify-end items-center">
-                            <div className="relative mt-2 md:mt-8 w-full max-w-lg overflow-hidden rounded-[40px] border border-slate-200/70 bg-white/90 p-4 md:p-10 shadow-2xl backdrop-blur-xl">
+                            <div className="relative mt-2 md:mt-8 w-full max-w-lg overflow-hidden rounded-[40px] border border-slate-200/70 bg-white/90 p-3 md:p-10 shadow-2xl backdrop-blur-xl">
                                 <div className="absolute inset-0 bg-[radial-gradient(circle,_rgba(248,250,252,0.7),_transparent_40%)]" />
                                 <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-slate-100/50 blur-3xl" />
 
@@ -569,14 +618,14 @@ export default function StartOrderPage() {
                                         <h1 className="text-2xl md:text-4xl font-extrabold tracking-tight text-slate-900">
                                             Snack Attack
                                         </h1>
-                                        <p className="mt-2 md:mt-3 text-[10px] md:text-sm font-medium uppercase tracking-[0.1em] md:tracking-[0.2em] text-slate-400">
+                                        <p className="mt-2 md:mt-3 text-[11px] md:text-sm font-medium uppercase tracking-[0.1em] md:tracking-[0.2em] text-slate-400">
                                             Ready for next customer
                                         </p>
                                     </div>
 
                                     <button
                                         onClick={() => setShowOrderTypeSelection(true)}
-                                        className="group inline-flex w-full items-center justify-center gap-2 md:gap-3 rounded-full bg-slate-900 px-6 md:px-10 py-4 md:py-6 text-base md:text-lg font-semibold text-white shadow-xl shadow-slate-900/20 transition-all hover:-translate-y-1 hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-slate-900/10"
+                                        className="group inline-flex w-full items-center justify-center gap-2 md:gap-3 rounded-full bg-slate-900 px-6 md:px-10 py-3 md:py-6 text-base md:text-lg font-semibold text-white shadow-xl shadow-slate-900/20 transition-all hover:-translate-y-1 hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-slate-900/10"
                                     >
                                         Tap to Start Order
                                         <ArrowRight className="h-4 w-4 md:h-5 md:w-5 transition-transform group-hover:translate-x-1" />
