@@ -10,7 +10,6 @@ const RESULT_CANCELED = 0;
 
 export class AndroidIntentProvider implements PrintProvider {
   async print(receipt: ReceiptData): Promise<void> {
-    alert("ANDROID PROVIDER CALLED");
     const textPayload = receiptToPlainText(receipt);
 
     const result = await IntentLauncher.startActivityAsync({
