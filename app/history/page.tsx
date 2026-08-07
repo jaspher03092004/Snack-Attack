@@ -586,18 +586,18 @@ export default function HistoryPage() {
           </div>
         </section>
 
-        {/* Orders Table */}
+        {/* Orders Table - Refactored for better mobile compactness */}
         <section>
           <div className="w-full overflow-x-auto bg-white rounded-xl shadow-sm border border-slate-100">
-            <table className="w-full text-left min-w-[600px]">
-              <thead className="bg-slate-50/80 text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <table className="w-full text-left min-w-[0px] md:min-w-[600px]">
+              <thead className="bg-slate-50/80 text-[10px] md:text-xs font-semibold uppercase tracking-wider text-slate-500">
                 <tr>
-                  <th className="px-4 py-3 text-left whitespace-nowrap">#</th>
-                  <th className="px-4 py-3 text-left whitespace-nowrap">Order #</th>
-                  <th className="px-4 py-3 text-left whitespace-nowrap">Total</th>
-                  <th className="px-4 py-3 text-left whitespace-nowrap">Date</th>
-                  <th className="px-4 py-3 text-left whitespace-nowrap">Status</th>
-                  <th className="px-4 py-3 text-right whitespace-nowrap">Actions</th>
+                  <th className="px-2 md:px-4 py-2 md:py-3 text-left whitespace-nowrap">#</th>
+                  <th className="px-2 md:px-4 py-2 md:py-3 text-left whitespace-nowrap">Order #</th>
+                  <th className="px-2 md:px-4 py-2 md:py-3 text-left whitespace-nowrap">Total</th>
+                  <th className="px-2 md:px-4 py-2 md:py-3 text-left whitespace-nowrap">Date</th>
+                  <th className="px-2 md:px-4 py-2 md:py-3 text-left whitespace-nowrap">Status</th>
+                  <th className="px-2 md:px-4 py-2 md:py-3 text-right whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -605,8 +605,8 @@ export default function HistoryPage() {
                   Array.from({ length: 5 }).map((_, i) => (
                     <tr key={i} className="animate-pulse">
                       {Array.from({ length: 6 }).map((_, j) => (
-                        <td key={j} className="px-4 py-4 whitespace-nowrap">
-                          <div className="h-4 w-20 rounded bg-slate-200" />
+                        <td key={j} className="px-2 md:px-4 py-3 md:py-4 whitespace-nowrap">
+                          <div className="h-4 w-16 md:w-20 rounded bg-slate-200" />
                         </td>
                       ))}
                     </tr>
@@ -630,24 +630,24 @@ export default function HistoryPage() {
                       'bg-emerald-100 text-emerald-700';
                     return (
                       <tr key={order.id} className="hover:bg-slate-50/70 transition-colors">
-                        <td className="px-4 py-4 font-mono text-xs text-slate-500 whitespace-nowrap">{order.id.slice(0, 6)}</td>
-                        <td className="px-4 py-4 font-medium text-slate-900 whitespace-nowrap">{order.order_number}</td>
-                        <td className="px-4 py-4 font-semibold text-slate-800 whitespace-nowrap">{formatCurrency(order.total_amount)}</td>
-                        <td className="px-4 py-4 text-slate-600 whitespace-nowrap">{formatDate(order.created_at)}</td>
-                        <td className="px-4 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${statusColor}`}>
+                        <td className="px-2 md:px-4 py-3 md:py-4 font-mono text-[10px] md:text-xs text-slate-500 whitespace-nowrap">{order.id.slice(0, 6)}</td>
+                        <td className="px-2 md:px-4 py-3 md:py-4 font-medium text-slate-900 whitespace-nowrap text-[11px] md:text-sm">{order.order_number}</td>
+                        <td className="px-2 md:px-4 py-3 md:py-4 font-semibold text-slate-800 whitespace-nowrap text-[11px] md:text-sm">{formatCurrency(order.total_amount)}</td>
+                        <td className="px-2 md:px-4 py-3 md:py-4 text-slate-600 whitespace-nowrap text-[10px] md:text-sm">{formatDate(order.created_at)}</td>
+                        <td className="px-2 md:px-4 py-3 md:py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center rounded-full px-2 md:px-3 py-0.5 md:py-1 text-[9px] md:text-xs font-semibold ${statusColor}`}>
                             {status}
                           </span>
                         </td>
-                        <td className="px-4 py-4 text-right whitespace-nowrap">
-                          <div className="flex items-center justify-end gap-2">
+                        <td className="px-2 md:px-4 py-3 md:py-4 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-1 md:gap-2">
                             <button
                               type="button"
                               onClick={() => setSelectedOrder(order)}
-                              className="rounded-full border border-slate-200 bg-white px-4 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                              className="rounded-full border border-slate-200 bg-white px-2 md:px-4 py-0.5 md:py-1.5 text-[9px] md:text-xs font-medium text-slate-700 transition hover:bg-slate-50"
                             >
-                              <Eye className="inline h-4 w-4 mr-1" />
-                              View
+                              <Eye className="inline h-3 w-3 md:h-4 md:w-4 mr-0.5 md:mr-1" />
+                              <span className="hidden sm:inline">View</span>
                             </button>
                             {status === 'Completed' && (
                               <>
@@ -661,7 +661,7 @@ export default function HistoryPage() {
                                       message: 'Are you sure you want to mark this order as Voided?',
                                     })
                                   }
-                                  className="text-red-500 hover:text-red-700 text-xs font-medium px-2 py-1 rounded-full border border-red-200 hover:bg-red-50 transition"
+                                  className="text-red-500 hover:text-red-700 text-[9px] md:text-xs font-medium px-1.5 md:px-2 py-0.5 md:py-1 rounded-full border border-red-200 hover:bg-red-50 transition"
                                 >
                                   Void
                                 </button>
@@ -675,7 +675,7 @@ export default function HistoryPage() {
                                       message: 'Are you sure you want to mark this order as Refunded?',
                                     })
                                   }
-                                  className="text-amber-500 hover:text-amber-700 text-xs font-medium px-2 py-1 rounded-full border border-amber-200 hover:bg-amber-50 transition"
+                                  className="text-amber-500 hover:text-amber-700 text-[9px] md:text-xs font-medium px-1.5 md:px-2 py-0.5 md:py-1 rounded-full border border-amber-200 hover:bg-amber-50 transition"
                                 >
                                   Refund
                                 </button>
@@ -693,142 +693,146 @@ export default function HistoryPage() {
         </section>
       </div>
 
-      {/* Sales Report Modal */}
+      {/* Sales Report Modal - Refactored UI/UX */}
       {isSalesReportOpen && (
-        <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center bg-slate-900/60 p-0 md:p-4 backdrop-blur-sm">
-          <div className="w-full max-w-2xl bg-white rounded-t-3xl md:rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom-4 duration-300 max-h-[90dvh] flex flex-col">
-            <div className="flex items-start justify-between gap-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 p-2 sm:p-4 backdrop-blur-sm">
+          <div className="w-full max-w-2xl bg-white rounded-2xl sm:rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[calc(100dvh-1rem)] sm:max-h-[90vh]">
+            
+            {/* Sticky Header */}
+            <div className="flex-shrink-0 flex items-start justify-between gap-3 p-4 sm:p-6 border-b border-slate-100">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Daily Summary</p>
-                <h2 className="mt-1 text-2xl font-bold text-slate-900">Sales Report</h2>
-                <p className="text-sm text-slate-500">{receiptDateLabel}</p>
+                <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-slate-400">Daily Summary</p>
+                <h2 className="mt-1 text-xl sm:text-2xl font-bold text-slate-900">Sales Report</h2>
+                <p className="text-xs sm:text-sm text-slate-500">{receiptDateLabel}</p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsSalesReportOpen(false)}
-                className="rounded-full border border-slate-200 p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                className="rounded-full border border-slate-200 p-1.5 sm:p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4 sm:h-5 sm:w-5" />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto pr-2">
-
-            {/* Summary Cards */}
-            <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-lg bg-emerald-100 p-2 text-emerald-600">
-                    <TrendingUp className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium uppercase text-slate-400">Total Sales</p>
-                    <p className="text-xl font-bold text-slate-900">{formatCurrency(todayTotalSales)}</p>
-                  </div>
-                </div>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-lg bg-rose-100 p-2 text-rose-600">
-                    <TrendingDown className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium uppercase text-slate-400">Expenses</p>
-                    <p className="text-xl font-bold text-rose-600">{formatCurrency(storeExpenseTotal)}</p>
-                  </div>
-                </div>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-lg bg-blue-100 p-2 text-blue-600">
-                    <Users className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium uppercase text-slate-400">Salaries</p>
-                    <p className="text-xl font-bold text-slate-900">{formatCurrency(totalEmployeePayroll)}</p>
-                  </div>
-                </div>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-emerald-50 p-4 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-lg bg-emerald-200 p-2 text-emerald-700">
-                    <DollarSign className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium uppercase text-emerald-600">Net Cash</p>
-                    <p className="text-xl font-bold text-emerald-700">{formatCurrency(netCash)}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Detailed Breakdown */}
-            <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h3 className="text-sm font-semibold text-slate-900">Store Expenses</h3>
-                <div className="mt-3 space-y-2">
-                  {storeExpenses.length > 0 ? (
-                    storeExpenses.map((expense) => (
-                      <div key={expense.id} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-sm">
-                        <span className="text-slate-600">{expense.item_name}</span>
-                        <span className="font-semibold text-slate-800">{formatCurrency(expense.amount)}</span>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-slate-400">No store expenses recorded today.</p>
-                  )}
-                  <div className="mt-2 flex items-center justify-between border-t border-slate-200 pt-2 font-semibold">
-                    <span>Total</span>
-                    <span>{formatCurrency(storeExpenseTotal)}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h3 className="text-sm font-semibold text-slate-900">Employee Payouts</h3>
-                <div className="mt-3 space-y-4">
-                  {employeeTotals.map((employee) => (
-                    <div key={employee.name} className="rounded-lg border border-slate-100 bg-slate-50 p-3">
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-slate-800">{employee.name}</span>
-                        <span className="font-bold text-slate-900">{formatCurrency(employee.finalTotal)}</span>
-                      </div>
-                      <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-slate-500">
-                        <div>
-                          <span className="block font-medium text-slate-400">Base</span>
-                          {formatCurrency(employee.baseSalary)}
-                        </div>
-                        <div>
-                          <span className="block font-medium text-slate-400">Incentive</span>
-                          {formatCurrency(employee.incentive)}
-                        </div>
-                        <div>
-                          <span className="block font-medium text-slate-400">Snack</span>
-                          {formatCurrency(employee.snackAllowance)}
-                        </div>
-                      </div>
-                      {employee.employeeExpenses.length > 0 && (
-                        <div className="mt-2 rounded-lg bg-white p-2 text-xs">
-                          <p className="font-medium text-slate-600">Deductions:</p>
-                          {employee.employeeExpenses.map((exp) => (
-                            <div key={exp.id} className="flex justify-between text-slate-500">
-                              <span>{exp.item_name}</span>
-                              <span>-{formatCurrency(exp.amount)}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+            {/* Scrollable Content Area */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
+              {/* Summary Cards */}
+              <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4">
+                <div className="rounded-xl border border-slate-200 bg-white p-2 sm:p-4 shadow-sm">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="rounded-lg bg-emerald-100 p-1.5 sm:p-2 text-emerald-600">
+                      <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5" />
                     </div>
-                  ))}
+                    <div>
+                      <p className="text-[10px] sm:text-xs font-medium uppercase text-slate-400">Total Sales</p>
+                      <p className="text-sm sm:text-xl font-bold text-slate-900">{formatCurrency(todayTotalSales)}</p>
+                    </div>
+                  </div>
                 </div>
-                <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-2 font-semibold">
-                  <span>Total Salaries</span>
-                  <span>{formatCurrency(totalEmployeePayroll)}</span>
+                <div className="rounded-xl border border-slate-200 bg-white p-2 sm:p-4 shadow-sm">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="rounded-lg bg-rose-100 p-1.5 sm:p-2 text-rose-600">
+                      <TrendingDown className="h-4 w-4 sm:h-5 sm:w-5" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] sm:text-xs font-medium uppercase text-slate-400">Expenses</p>
+                      <p className="text-sm sm:text-xl font-bold text-rose-600">{formatCurrency(storeExpenseTotal)}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-2 sm:p-4 shadow-sm">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="rounded-lg bg-blue-100 p-1.5 sm:p-2 text-blue-600">
+                      <Users className="h-4 w-4 sm:h-5 sm:w-5" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] sm:text-xs font-medium uppercase text-slate-400">Salaries</p>
+                      <p className="text-sm sm:text-xl font-bold text-slate-900">{formatCurrency(totalEmployeePayroll)}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-emerald-50 p-2 sm:p-4 shadow-sm">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="rounded-lg bg-emerald-200 p-1.5 sm:p-2 text-emerald-700">
+                      <DollarSign className="h-4 w-4 sm:h-5 sm:w-5" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] sm:text-xs font-medium uppercase text-emerald-600">Net Cash</p>
+                      <p className="text-sm sm:text-xl font-bold text-emerald-700">{formatCurrency(netCash)}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Detailed Breakdown */}
+              <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2">
+                <div className="rounded-xl border border-slate-200 bg-white p-3 sm:p-5 shadow-sm">
+                  <h3 className="text-xs sm:text-sm font-semibold text-slate-900">Store Expenses</h3>
+                  <div className="mt-2 sm:mt-3 space-y-1.5 sm:space-y-2">
+                    {storeExpenses.length > 0 ? (
+                      storeExpenses.map((expense) => (
+                        <div key={expense.id} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-sm">
+                          <span className="text-slate-600 truncate max-w-[80px] sm:max-w-full">{expense.item_name}</span>
+                          <span className="font-semibold text-slate-800 whitespace-nowrap">{formatCurrency(expense.amount)}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-[10px] sm:text-sm text-slate-400">No store expenses recorded today.</p>
+                    )}
+                    <div className="mt-1.5 sm:mt-2 flex items-center justify-between border-t border-slate-200 pt-1.5 sm:pt-2 font-semibold text-[10px] sm:text-sm">
+                      <span>Total</span>
+                      <span>{formatCurrency(storeExpenseTotal)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-white p-3 sm:p-5 shadow-sm">
+                  <h3 className="text-xs sm:text-sm font-semibold text-slate-900">Employee Payouts</h3>
+                  <div className="mt-2 sm:mt-3 space-y-3 sm:space-y-4">
+                    {employeeTotals.map((employee) => (
+                      <div key={employee.name} className="rounded-lg border border-slate-100 bg-slate-50 p-2 sm:p-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs sm:text-sm font-medium text-slate-800">{employee.name}</span>
+                          <span className="text-xs sm:text-sm font-bold text-slate-900">{formatCurrency(employee.finalTotal)}</span>
+                        </div>
+                        <div className="mt-1.5 grid grid-cols-2 gap-1 sm:gap-2 text-[10px] sm:text-xs text-slate-500">
+                          <div>
+                            <span className="block font-medium text-slate-400">Base</span>
+                            {formatCurrency(employee.baseSalary)}
+                          </div>
+                          <div>
+                            <span className="block font-medium text-slate-400">Incentive</span>
+                            {formatCurrency(employee.incentive)}
+                          </div>
+                          <div>
+                            <span className="block font-medium text-slate-400">Snack</span>
+                            {formatCurrency(employee.snackAllowance)}
+                          </div>
+                        </div>
+                        {employee.employeeExpenses.length > 0 && (
+                          <div className="mt-1.5 rounded-lg bg-white p-1.5 sm:p-2 text-[9px] sm:text-xs">
+                            <p className="font-medium text-slate-600">Deductions:</p>
+                            {employee.employeeExpenses.map((exp) => (
+                              <div key={exp.id} className="flex justify-between text-slate-500">
+                                <span className="truncate max-w-[80px] sm:max-w-full">{exp.item_name}</span>
+                                <span>-{formatCurrency(exp.amount)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-2 sm:mt-3 flex items-center justify-between border-t border-slate-200 pt-2 sm:pt-2 font-semibold text-[10px] sm:text-sm">
+                    <span>Total Salaries</span>
+                    <span>{formatCurrency(totalEmployeePayroll)}</span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="mt-6 flex flex-wrap justify-end gap-3">
+            {/* Sticky Footer */}
+            <div className="flex-shrink-0 flex flex-wrap justify-end gap-2 sm:gap-3 p-3 sm:p-6 border-t border-slate-100 bg-white rounded-b-2xl sm:rounded-b-3xl">
               <button
                 type="button"
                 onClick={() => {
@@ -839,19 +843,19 @@ export default function HistoryPage() {
                   setPinCode('');
                   setIsEodModalOpen(true);
                 }}
-                className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+                className="inline-flex items-center gap-1.5 sm:gap-2 rounded-full bg-blue-600 px-3 py-1.5 sm:px-5 sm:py-2.5 text-[10px] sm:text-sm font-semibold text-white transition hover:bg-blue-700"
               >
-                <Printer className="h-4 w-4" />
-                {hasClosedToday ? 'Reprint Report' : 'Close Shop & Print'}
+                <Printer className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">{hasClosedToday ? 'Reprint Report' : 'Close Shop & Print'}</span>
+                <span className="sm:hidden">{hasClosedToday ? 'Reprint' : 'Close & Print'}</span>
               </button>
               <button
                 type="button"
                 onClick={() => setIsSalesReportOpen(false)}
-                className="rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700"
+                className="rounded-full bg-slate-900 px-3 py-1.5 sm:px-5 sm:py-2.5 text-[10px] sm:text-sm font-semibold text-white transition hover:bg-slate-700"
               >
                 Close
               </button>
-            </div>
             </div>
           </div>
         </div>

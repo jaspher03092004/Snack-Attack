@@ -595,8 +595,8 @@ function POSScreenContent() {
       {/* --- Center Main Area (Products) --- */}
       <main className="flex-1 min-w-0 flex flex-col h-full overflow-hidden bg-[#FAFBFF] w-full">
         {/* Header */}
-        <header className="flex items-center justify-between px-8 py-6 bg-white/50 backdrop-blur-sm border-b border-slate-100 sticky top-0 z-10">
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
+        <header className="flex items-center justify-between px-4 py-3 md:px-8 md:py-6 bg-white/50 backdrop-blur-sm border-b border-slate-100 sticky top-0 z-10">
+          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900">
             {CATEGORIES.find(c => c.id === activeCategory)?.name || 'Products'}
           </h1>
           
@@ -606,7 +606,7 @@ function POSScreenContent() {
             </div>
             <input
               type="text"
-              className="pl-11 pr-4 py-3 w-[300px] rounded-full border border-slate-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-transparent transition-all placeholder:text-slate-400 font-medium"
+              className="pl-11 pr-4 py-3 w-32 md:w-64 lg:w-[300px] rounded-full border border-slate-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-transparent transition-all placeholder:text-slate-400 font-medium"
               placeholder="Search items..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -616,7 +616,7 @@ function POSScreenContent() {
 
         <nav
           aria-label="Mobile product categories"
-          className="flex items-center gap-2 overflow-x-auto whitespace-nowrap pb-2 scrollbar-hide w-full lg:hidden"
+          className="flex items-center gap-1.5 overflow-x-auto whitespace-nowrap pb-3 scrollbar-hide w-full lg:hidden px-4 md:px-0"
         >
           {CATEGORIES.map((category) => {
             const isActive = activeCategory === category.id;
@@ -637,8 +637,8 @@ function POSScreenContent() {
         </nav>
 
         {/* Product Grid */}
-        <div className="flex-1 w-full overflow-y-auto p-8 pb-32 lg:pb-8">
-          <div className="grid grid-cols-4 gap-2 md:grid-cols-4 lg:grid-cols-5 md:gap-4 overflow-y-auto pb-24">
+        <div className="flex-1 w-full overflow-y-auto p-4 pb-24 md:p-8 lg:pb-8">
+          <div className="grid grid-cols-3 gap-2 md:grid-cols-4 lg:grid-cols-5 md:gap-4 overflow-y-auto pb-24">
             {filteredProducts.map((product) => {
               const isAvailable = checkAvailability(product as unknown as CartItem, inventoryData);
               const inventoryItem = inventoryData.find(
@@ -665,7 +665,7 @@ function POSScreenContent() {
                 }`}
               >
                 {/* Image Container */}
-                <div className="relative w-full h-16 md:h-32 bg-slate-100">
+                <div className="relative w-full h-20 md:h-32 bg-slate-100">
                   <Image
                     src={product.image}
                     alt={product.name}
@@ -690,11 +690,11 @@ function POSScreenContent() {
 
                 {/* Info Container */}
                 <div className="flex flex-col justify-between flex-1">
-                  <h3 className="p-1 md:p-3 text-[10px] md:text-sm font-bold text-slate-900 leading-tight line-clamp-2">
+                  <h3 className="p-1 md:p-3 text-[11px] md:text-sm font-bold text-slate-900 leading-tight line-clamp-2">
                     {product.name}
                   </h3>
                   {product.description ? (
-                    <p className="px-1 pb-1 md:px-3 md:pb-3 text-[9px] md:text-xs text-slate-500 line-clamp-2 leading-tight">
+                    <p className="px-1 pb-1 md:px-3 md:pb-3 text-[10px] md:text-xs text-slate-500 line-clamp-2 leading-tight">
                       {product.description}
                     </p>
                   ) : null}

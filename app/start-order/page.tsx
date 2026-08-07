@@ -424,27 +424,27 @@ export default function StartOrderPage() {
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(14,165,233,0.08),_transparent_35%)] pointer-events-none" />
             <div className="absolute left-0 bottom-0 h-[500px] w-[500px] -translate-x-1/4 translate-y-1/4 rounded-full bg-slate-200/50 blur-3xl pointer-events-none" />
 
-            <div className="relative z-10 flex flex-1 flex-col pb-8 md:pb-0">
+            <div className="relative z-10 flex flex-1 flex-col pb-2 md:pb-0">
                 {/* Header */}
-                <header className="flex flex-wrap items-center justify-between gap-3 p-4 md:p-6 bg-white/80 backdrop-blur-sm border-b border-slate-200/70 shadow-sm">
-                    <div className="flex w-full flex-wrap items-center gap-3 xl:w-auto">
-                        <div className="flex items-center gap-3 rounded-2xl bg-slate-900 px-4 py-2.5 shadow-lg">
-                            <div className="flex h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_0_6px_rgba(16,185,129,0.2)]" />
-                            <span className="text-xs font-bold uppercase tracking-[0.2em] text-white/80">
+                <header className="flex flex-wrap items-center justify-between gap-2 md:gap-3 p-2 md:p-6 bg-white/80 backdrop-blur-sm border-b border-slate-200/70 shadow-sm">
+                    <div className="flex w-full flex-wrap items-center gap-2 md:gap-3 xl:w-auto">
+                        <div className="flex items-center gap-2 md:gap-3 rounded-2xl bg-slate-900 px-2 md:px-4 py-1 md:py-2.5 shadow-lg">
+                            <div className="flex h-1.5 w-1.5 md:h-2.5 md:w-2.5 rounded-full bg-emerald-400 shadow-[0_0_0_4px_rgba(16,185,129,0.2)] md:shadow-[0_0_0_6px_rgba(16,185,129,0.2)]" />
+                            <span className="text-[8px] md:text-xs font-bold uppercase tracking-[0.1em] md:tracking-[0.2em] text-white/80">
                                 TERMINAL 01 • ONLINE
                             </span>
                         </div>
-                        <div className="flex w-full md:w-auto gap-2 flex-wrap">
+                        <div className="flex w-full md:w-auto gap-1 md:gap-2 flex-wrap">
                             <button
                                 type="button"
                                 onClick={() => {
                                     setExpenseMode('employee');
                                     setIsExpensesModalOpen(true);
                                 }}
-                                className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 hover:shadow-md"
+                                className="flex h-9 md:h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-2 md:px-4 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 hover:shadow-md"
                             >
                                 <Users className="h-4 w-4" />
-                                Staff Expense
+                                <span className="hidden md:inline">Staff Expense</span>
                             </button>
                             <button
                                 type="button"
@@ -452,64 +452,64 @@ export default function StartOrderPage() {
                                     setExpenseMode('shop');
                                     setIsExpensesModalOpen(true);
                                 }}
-                                className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 hover:shadow-md"
+                                className="flex h-9 md:h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-2 md:px-4 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 hover:shadow-md"
                             >
                                 <DollarSign className="h-4 w-4" />
-                                Shop Expense
+                                <span className="hidden md:inline">Shop Expense</span>
                             </button>
                             <button
                                 type="button"
                                 onClick={() => {
                                     void openProductInModal();
                                 }}
-                                className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 hover:shadow-md"
+                                className="flex h-9 md:h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-2 md:px-4 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 hover:shadow-md"
                             >
                                 <PackagePlus className="h-4 w-4" />
-                                Product In
+                                <span className="hidden md:inline">Product In</span>
                             </button>
                             <button
                                 type="button"
                                 onClick={() => {
                                     void openOpenPackModal();
                                 }}
-                                className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 hover:shadow-md"
+                                className="flex h-9 md:h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-2 md:px-4 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 hover:shadow-md"
                             >
                                 <PackageOpen className="h-4 w-4" />
-                                Open Pack
+                                <span className="hidden md:inline">Open Pack</span>
                             </button>
                             <Link
                                 href="/time-in"
-                                className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50 hover:shadow-md"
+                                className="flex h-9 w-9 md:h-11 md:w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50 hover:shadow-md"
                             >
                                 <Clock3 className="h-4 w-4" />
                             </Link>
                         </div>
                     </div>
 
-                    <div className="flex w-full md:w-auto items-center justify-between md:justify-end gap-3">
-                        <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
+                    <div className="flex w-full md:w-auto items-center justify-between md:justify-end gap-2 md:gap-3">
+                        <div className="flex items-center gap-1 md:gap-2 rounded-2xl border border-slate-200 bg-white px-2 md:px-3 py-1 md:py-1.5 shadow-sm">
                             <Link
                                 href="/history"
-                                className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+                                className="flex h-7 w-7 md:h-9 md:w-9 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
                             >
                                 <History className="h-4 w-4" />
                             </Link>
                             <button
                                 type="button"
                                 onClick={() => router.push('/')}
-                                className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+                                className="flex h-7 w-7 md:h-9 md:w-9 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
                             >
                                 <LogOut className="h-4 w-4" />
                             </button>
                         </div>
-                        <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-1.5 shadow-sm">
+                        <div className="flex items-center gap-2 md:gap-3 rounded-2xl border border-slate-200 bg-white px-2 md:px-4 py-1 md:py-1.5 shadow-sm">
                             <div className="text-right">
-                                <p className="text-sm font-bold text-slate-800">{time || ' '}</p>
-                                <p className="text-[10px] font-medium uppercase tracking-wider text-slate-400">
+                                <p className="text-xs md:text-sm font-bold text-slate-800">{time || ' '}</p>
+                                <p className="text-[8px] md:text-[10px] font-medium uppercase tracking-wider text-slate-400">
                                     {cashierName}
                                 </p>
                             </div>
-                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 text-sm font-bold text-white shadow-md">
+                            <div className="flex h-7 w-7 md:h-9 md:w-9 items-center justify-center rounded-full bg-slate-900 text-xs md:text-sm font-bold text-white shadow-md">
                                 {cashierName.charAt(0).toUpperCase()}
                             </div>
                         </div>
@@ -517,39 +517,39 @@ export default function StartOrderPage() {
                 </header>
 
                 {/* Main Content */}
-                <main className="flex flex-1 items-center justify-center px-4 md:px-6 py-6 md:py-8">
-                    <div className="grid w-full max-w-6xl gap-8 lg:grid-cols-5">
+                <main className="flex flex-1 items-center justify-center px-2 md:px-6 py-2 md:py-8">
+                    <div className="grid w-full max-w-6xl gap-4 md:gap-8 lg:grid-cols-5">
                         {/* Left panel: stats and info */}
                         <div className="lg:col-span-2 space-y-3 md:space-y-4">
-                            <div className="rounded-3xl border border-slate-200/80 bg-white/90 p-4 md:p-6 shadow-xl backdrop-blur-sm">
-                                <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-400">
+                            <div className="rounded-3xl border border-slate-200/80 bg-white/90 p-3 md:p-6 shadow-xl backdrop-blur-sm">
+                                <h2 className="text-xs md:text-sm font-semibold uppercase tracking-wider text-slate-400">
                                     Today's Summary
                                 </h2>
-                                <div className="mt-4 space-y-2 md:space-y-4">
-                                    <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                                        <span className="text-sm font-medium text-slate-600">Orders</span>
-                                        <span className="text-xl font-bold text-slate-900">{todaysStats.orders}</span>
+                                <div className="mt-3 md:mt-4 grid grid-cols-3 gap-2 md:block md:space-y-4">
+                                    <div className="flex flex-col items-center md:flex-row md:items-center md:justify-between border-b-0 md:border-b border-slate-100 pb-0 md:pb-3">
+                                        <span className="text-[10px] md:text-sm font-medium text-slate-600">Orders</span>
+                                        <span className="text-base md:text-xl font-bold text-slate-900">{todaysStats.orders}</span>
                                     </div>
-                                    <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                                        <span className="text-sm font-medium text-slate-600">Revenue</span>
-                                        <span className="text-xl font-bold text-emerald-600">
+                                    <div className="flex flex-col items-center md:flex-row md:items-center md:justify-between border-b-0 md:border-b border-slate-100 pb-0 md:pb-3">
+                                        <span className="text-[10px] md:text-sm font-medium text-slate-600">Revenue</span>
+                                        <span className="text-base md:text-xl font-bold text-emerald-600">
                                             ₱{todaysStats.revenue.toFixed(2)}
                                         </span>
                                     </div>
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm font-medium text-slate-600">Items Sold</span>
-                                        <span className="text-xl font-bold text-slate-900">{todaysStats.itemsSold}</span>
+                                    <div className="flex flex-col items-center md:flex-row md:items-center md:justify-between">
+                                        <span className="text-[10px] md:text-sm font-medium text-slate-600">Items Sold</span>
+                                        <span className="text-base md:text-xl font-bold text-slate-900">{todaysStats.itemsSold}</span>
                                     </div>
                                 </div>
                             </div>
-                            <div className="rounded-3xl border border-slate-200/80 bg-gradient-to-br from-slate-50 to-white/90 p-4 md:p-6 shadow-xl backdrop-blur-sm">
-                                <div className="flex items-center gap-3">
-                                    <div className="rounded-2xl bg-emerald-100 p-2.5 text-emerald-700">
-                                        <TrendingUp className="h-5 w-5" />
+                            <div className="rounded-3xl border border-slate-200/80 bg-gradient-to-br from-slate-50 to-white/90 p-3 md:p-6 shadow-xl backdrop-blur-sm">
+                                <div className="flex items-center gap-2 md:gap-3">
+                                    <div className="rounded-2xl bg-emerald-100 p-1.5 md:p-2.5 text-emerald-700">
+                                        <TrendingUp className="h-4 w-4 md:h-5 md:w-5" />
                                     </div>
                                     <div>
-                                        <p className="text-sm font-semibold text-slate-800">Peak Hour</p>
-                                        <p className="text-xs text-slate-400">{todaysStats.peakHour}</p>
+                                        <p className="text-xs md:text-sm font-semibold text-slate-800">Peak Hour</p>
+                                        <p className="text-[10px] md:text-xs text-slate-400">{todaysStats.peakHour}</p>
                                     </div>
                                 </div>
                             </div>
@@ -557,29 +557,29 @@ export default function StartOrderPage() {
 
                         {/* Right panel: main action */}
                         <div className="lg:col-span-3 flex flex-grow flex-col justify-end items-center">
-                            <div className="relative mt-4 md:mt-8 w-full max-w-lg overflow-hidden rounded-[40px] border border-slate-200/70 bg-white/90 p-6 md:p-10 shadow-2xl backdrop-blur-xl">
+                            <div className="relative mt-2 md:mt-8 w-full max-w-lg overflow-hidden rounded-[40px] border border-slate-200/70 bg-white/90 p-4 md:p-10 shadow-2xl backdrop-blur-xl">
                                 <div className="absolute inset-0 bg-[radial-gradient(circle,_rgba(248,250,252,0.7),_transparent_40%)]" />
                                 <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-slate-100/50 blur-3xl" />
 
-                                <div className="relative z-10 flex flex-col items-center gap-8 text-center">
-                                    <div className="flex h-28 w-28 items-center justify-center rounded-3xl bg-slate-900 shadow-xl shadow-slate-900/20">
-                                        <Coffee className="h-12 w-12 text-white" strokeWidth={2} />
+                                <div className="relative z-10 flex flex-col items-center gap-4 md:gap-8 text-center">
+                                    <div className="flex h-20 w-20 md:h-28 md:w-28 items-center justify-center rounded-3xl bg-slate-900 shadow-xl shadow-slate-900/20">
+                                        <Coffee className="h-10 w-10 md:h-12 md:w-12 text-white" strokeWidth={2} />
                                     </div>
                                     <div>
-                                        <h1 className="text-4xl font-extrabold tracking-tight text-slate-900">
+                                        <h1 className="text-2xl md:text-4xl font-extrabold tracking-tight text-slate-900">
                                             Snack Attack
                                         </h1>
-                                        <p className="mt-3 text-sm font-medium uppercase tracking-[0.2em] text-slate-400">
+                                        <p className="mt-2 md:mt-3 text-[10px] md:text-sm font-medium uppercase tracking-[0.1em] md:tracking-[0.2em] text-slate-400">
                                             Ready for next customer
                                         </p>
                                     </div>
 
                                     <button
                                         onClick={() => setShowOrderTypeSelection(true)}
-                                        className="group inline-flex w-full items-center justify-center gap-3 rounded-full bg-slate-900 px-10 py-4 md:py-6 text-lg font-semibold text-white shadow-xl shadow-slate-900/20 transition-all hover:-translate-y-1 hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-slate-900/10"
+                                        className="group inline-flex w-full items-center justify-center gap-2 md:gap-3 rounded-full bg-slate-900 px-6 md:px-10 py-4 md:py-6 text-base md:text-lg font-semibold text-white shadow-xl shadow-slate-900/20 transition-all hover:-translate-y-1 hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-slate-900/10"
                                     >
                                         Tap to Start Order
-                                        <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+                                        <ArrowRight className="h-4 w-4 md:h-5 md:w-5 transition-transform group-hover:translate-x-1" />
                                     </button>
                                 </div>
                             </div>
@@ -588,8 +588,8 @@ export default function StartOrderPage() {
                 </main>
 
                 {/* Footer */}
-                <footer className="py-5 text-center">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-400">
+                <footer className="py-2 md:py-5 text-center">
+                    <p className="text-[8px] md:text-[10px] font-semibold uppercase tracking-[0.1em] md:tracking-[0.3em] text-slate-400">
                         ✓ Database Synced • Local Hub Active
                     </p>
                 </footer>
