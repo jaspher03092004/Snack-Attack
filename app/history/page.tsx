@@ -637,11 +637,11 @@ export default function HistoryPage() {
                       key={filter}
                       type="button"
                       onClick={() => setActiveFilter(filter)}
-                      className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                      className={`rounded-full px-4 py-2 text-sm font-medium transition ${(
                         isActive
                           ? 'bg-slate-900 text-white shadow-sm'
                           : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
+                      )}`}
                     >
                       {filter}
                     </button>
@@ -988,11 +988,11 @@ export default function HistoryPage() {
         </div>
       )}
 
-      {/* Order Details Modal */}
+      {/* Order Details Modal - Fixed Layout */}
       {selectedOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-6 backdrop-blur-sm">
-          <div className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl sm:p-8">
-            <div className="flex items-start justify-between gap-4">
+          <div className="flex w-full max-w-2xl flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl sm:p-8 max-h-[90vh]">
+            <div className="flex-shrink-0 flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Order Details</p>
                 <h2 className="mt-1 text-xl font-bold text-slate-900">{selectedOrder.order_number}</h2>
@@ -1007,24 +1007,24 @@ export default function HistoryPage() {
               </button>
             </div>
 
-            <div className="mt-6 border-t border-slate-200 pt-6">
-              <div className="space-y-3">
+            <div className="mt-4 flex-1 min-h-0 overflow-y-auto border-t border-slate-200 pt-4">
+              <div className="space-y-3 pb-4">
                 {selectedOrder.order_items.map((item, index) => (
-                  <div key={`${selectedOrder.id}-${index}`} className="flex items-start justify-between rounded-lg border border-slate-100 bg-slate-50 p-4">
-                    <div>
-                      <p className="font-medium text-slate-900">{item.quantity}x {item.item_name}</p>
+                  <div key={`${selectedOrder.id}-${index}`} className="flex items-start justify-between rounded-lg border border-slate-100 bg-slate-50 p-3 sm:p-4">
+                    <div className="pr-4">
+                      <p className="text-sm font-medium text-slate-900 sm:text-base">{item.quantity}x {item.item_name}</p>
                       {item.modifiers && item.modifiers.length > 0 && (
-                        <p className="mt-1 text-sm text-slate-500">{item.modifiers.join(', ')}</p>
+                        <p className="mt-1 text-xs text-slate-500 sm:text-sm">{item.modifiers.join(', ')}</p>
                       )}
                     </div>
-                    <span className="font-semibold text-slate-800">{formatCurrency(item.total_price)}</span>
+                    <span className="flex-shrink-0 text-sm font-semibold text-slate-800 sm:text-base">{formatCurrency(item.total_price)}</span>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="mt-6 border-t border-slate-200 pt-6">
-              <div className="flex flex-col gap-2 text-sm">
+            <div className="flex-shrink-0 mt-4 border-t border-slate-200 pt-4">
+              <div className="flex flex-col gap-2 text-sm sm:text-base">
                 <div className="flex justify-between">
                   <span className="text-slate-500">Total</span>
                   <span className="font-bold text-slate-900">{formatCurrency(selectedOrder.total_amount)}</span>
@@ -1038,16 +1038,16 @@ export default function HistoryPage() {
                   <span className="font-bold text-emerald-600">{formatCurrency(selectedOrder.change_due)}</span>
                 </div>
               </div>
-            </div>
 
-            <div className="mt-6 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setSelectedOrder(null)}
-                className="rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700"
-              >
-                Close
-              </button>
+              <div className="mt-6 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setSelectedOrder(null)}
+                  className="rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>
