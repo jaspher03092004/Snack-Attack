@@ -124,50 +124,50 @@ type TransactionTableProps = {
 
 const TransactionTable = ({ title, subtitle, transactions, onSelectTransaction, isLoading }: TransactionTableProps) => (
     <section className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden flex flex-col transition-all hover:shadow-md">
-        <div className="px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
             <div className="flex items-center justify-between">
                 <div>
-                    <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                    <h3 className="text-xs sm:text-sm font-semibold text-slate-800 flex items-center gap-2">
                         <span className="w-1.5 h-1.5 rounded-full bg-slate-400 inline-block" />
                         {title}
                     </h3>
-                    <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>
+                    <p className="text-[10px] sm:text-xs text-slate-400 mt-0.5">{subtitle}</p>
                 </div>
-                <span className="text-xs font-semibold text-slate-500 bg-white px-3 py-1 rounded-full border border-slate-200 shadow-sm">
+                <span className="text-[10px] sm:text-xs font-semibold text-slate-500 bg-white px-2 sm:px-3 py-0.5 sm:py-1 rounded-full border border-slate-200 shadow-sm">
                     {transactions.length}
                 </span>
             </div>
         </div>
         <div className="overflow-x-auto flex-1">
             {isLoading ? (
-                <div className="p-6 space-y-4">
+                <div className="p-4 sm:p-6 space-y-3 sm:space-y-4">
                     {Array.from({ length: 4 }).map((_, i) => (
                         <div key={i} className="animate-pulse flex items-center gap-4">
-                            <div className="h-4 w-16 bg-slate-200 rounded" />
-                            <div className="h-4 w-24 bg-slate-200 rounded" />
-                            <div className="h-4 w-20 bg-slate-200 rounded" />
-                            <div className="h-6 w-16 bg-slate-200 rounded-full" />
-                            <div className="h-4 w-20 bg-slate-200 rounded ml-auto" />
+                            <div className="h-3 sm:h-4 w-12 sm:w-16 bg-slate-200 rounded" />
+                            <div className="h-3 sm:h-4 w-20 sm:w-24 bg-slate-200 rounded" />
+                            <div className="h-3 sm:h-4 w-16 sm:w-20 bg-slate-200 rounded" />
+                            <div className="h-5 sm:h-6 w-12 sm:w-16 bg-slate-200 rounded-full" />
+                            <div className="h-3 sm:h-4 w-16 sm:w-20 bg-slate-200 rounded ml-auto" />
                         </div>
                     ))}
                 </div>
             ) : transactions.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-3">
-                        <FileText className="h-8 w-8" strokeWidth={1.5} />
+                <div className="flex flex-col items-center justify-center py-12 sm:py-16 text-slate-400">
+                    <div className="w-12 sm:w-16 h-12 sm:h-16 bg-slate-100 rounded-full flex items-center justify-center mb-3">
+                        <FileText className="h-6 sm:h-8 w-6 sm:w-8" strokeWidth={1.5} />
                     </div>
                     <p className="text-sm font-medium text-slate-500">No transactions</p>
                     <p className="text-xs text-slate-400 mt-1">Try adjusting your filters</p>
                 </div>
             ) : (
                 <table className="min-w-full">
-                    <thead className="bg-slate-50/60 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    <thead className="bg-slate-50/60 text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-500">
                         <tr>
-                            <th className="px-6 py-3 text-left">Time</th>
-                            <th className="px-6 py-3 text-left">Order ID</th>
-                            <th className="px-6 py-3 text-left">Cashier</th>
-                            <th className="px-6 py-3 text-left">Status</th>
-                            <th className="px-6 py-3 text-right">Total</th>
+                            <th className="px-3 sm:px-6 py-2 sm:py-3 text-left">Time</th>
+                            <th className="px-3 sm:px-6 py-2 sm:py-3 text-left">Order ID</th>
+                            <th className="px-3 sm:px-6 py-2 sm:py-3 text-left">Cashier</th>
+                            <th className="px-3 sm:px-6 py-2 sm:py-3 text-left">Status</th>
+                            <th className="px-3 sm:px-6 py-2 sm:py-3 text-right">Total</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -182,25 +182,25 @@ const TransactionTable = ({ title, subtitle, transactions, onSelectTransaction, 
                                         index % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'
                                     }`}
                                 >
-                                    <td className="px-6 py-4 text-sm text-slate-500 whitespace-nowrap">
+                                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-slate-500 whitespace-nowrap">
                                         <div className="flex items-center gap-2">
-                                            <Clock className="w-3.5 h-3.5 text-slate-400" />
+                                            <Clock className="w-3 h-3 text-slate-400" />
                                             {transaction.time}
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 text-sm font-medium text-slate-800">
+                                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium text-slate-800">
                                         {transaction.orderId}
                                     </td>
-                                    <td className="px-6 py-4 text-sm text-slate-600">{transaction.cashier}</td>
-                                    <td className="px-6 py-4">
+                                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-slate-600">{transaction.cashier}</td>
+                                    <td className="px-3 sm:px-6 py-3 sm:py-4">
                                         <span
-                                            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${statusConfig.bg} ${statusConfig.text} border ${statusConfig.border}`}
+                                            className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 sm:px-3 sm:py-1 text-[10px] sm:text-xs font-semibold ${statusConfig.bg} ${statusConfig.text} border ${statusConfig.border}`}
                                         >
-                                            <StatusIcon className="w-3 h-3" />
+                                            <StatusIcon className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                                             {transaction.status}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 text-right text-sm font-semibold text-slate-800">
+                                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-right text-xs sm:text-sm font-semibold text-slate-800">
                                         {formatCurrency(transaction.totalAmount)}
                                     </td>
                                 </tr>
@@ -456,8 +456,8 @@ export default function TransactionsAuditPage() {
     return (
         <div className="flex h-screen bg-slate-50 font-sans text-slate-900 overflow-hidden">
 
-            {/* Sidebar */}
-            <aside className="w-[240px] bg-white border-r border-slate-200 flex flex-col flex-shrink-0 h-full sticky top-0 z-20 shadow-sm">
+            {/* Sidebar - Hidden on Mobile */}
+            <aside className="hidden lg:flex w-[240px] bg-white border-r border-slate-200 flex-col flex-shrink-0 h-full sticky top-0 z-20 shadow-sm">
                 <div className="p-6 flex items-center gap-3 border-b border-slate-100">
                     <div className="w-9 h-9 bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
                         <div className="w-3.5 h-3.5 border-2 border-white rounded-sm" />
@@ -522,18 +522,18 @@ export default function TransactionsAuditPage() {
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 overflow-y-auto p-6 lg:p-8 space-y-6 bg-slate-50/80">
+            <main className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-8 space-y-4 sm:space-y-6 bg-slate-50/80 pb-24 lg:pb-0">
                 {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2.5">
+                        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2.5">
                             <span className="bg-slate-900 text-white p-1.5 rounded-xl">
-                                <ReceiptText className="w-5 h-5" />
+                                <ReceiptText className="w-4 h-4 sm:w-5 sm:h-5" />
                             </span>
                             Transactions & Audit
                         </h1>
-                        <p className="text-sm text-slate-500 mt-1 flex items-center gap-2">
-                            <Calendar className="w-4 h-4" />
+                        <p className="text-[10px] sm:text-sm text-slate-500 mt-1 flex items-center gap-2">
+                            <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
                             {new Date().toLocaleDateString('en-US', {
                                 weekday: 'long',
                                 year: 'numeric',
@@ -543,36 +543,36 @@ export default function TransactionsAuditPage() {
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
-                        <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-medium transition-all shadow-sm hover:shadow-md">
-                            <FileText className="w-4 h-4" />
-                            Export
+                        <button className="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-medium transition-all shadow-sm hover:shadow-md">
+                            <FileText className="w-3 h-3 sm:w-4 sm:h-4" />
+                            <span className="hidden sm:inline">Export</span>
                         </button>
-                        <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium transition-all shadow-lg shadow-slate-900/10 hover:shadow-xl">
-                            <Printer className="w-4 h-4" />
-                            EOD Reconciliation
+                        <button className="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-medium transition-all shadow-lg shadow-slate-900/10 hover:shadow-xl">
+                            <Printer className="w-3 h-3 sm:w-4 sm:h-4" />
+                            <span className="hidden sm:inline">EOD Reconciliation</span>
                         </button>
                     </div>
                 </div>
 
                 {/* Summary Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
                     {summaryTiles.map((card) => {
                         const Icon = card.icon;
                         return (
-                            <div key={card.label} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 hover:shadow-md transition-all group">
+                            <div key={card.label} className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200/80 hover:shadow-md transition-all group">
                                 <div className="flex items-start justify-between">
                                     <div>
-                                        <p className="text-xs font-medium uppercase tracking-wider text-slate-400">{card.label}</p>
-                                        <p className="text-2xl font-bold text-slate-900 mt-1.5">{card.value}</p>
+                                        <p className="text-[10px] sm:text-xs font-medium uppercase tracking-wider text-slate-400">{card.label}</p>
+                                        <p className="text-lg sm:text-2xl font-bold text-slate-900 mt-1 sm:mt-1.5">{card.value}</p>
                                         {card.trend && (
-                                            <div className={`flex items-center gap-1 mt-2 text-xs font-medium ${card.trendUp ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                                {card.trendUp ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                                            <div className={`flex items-center gap-1 mt-1 sm:mt-2 text-[10px] sm:text-xs font-medium ${card.trendUp ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                                {card.trendUp ? <ArrowUpRight className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> : <ArrowDownRight className="w-2.5 h-2.5 sm:w-3 sm:h-3" />}
                                                 {card.trend}
                                             </div>
                                         )}
                                     </div>
-                                    <div className={`w-11 h-11 rounded-xl ${card.bg} flex items-center justify-center ${card.color} group-hover:scale-105 transition-transform`}>
-                                        <Icon className="w-5 h-5" />
+                                    <div className={`w-9 h-9 sm:w-11 sm:h-11 rounded-xl ${card.bg} flex items-center justify-center ${card.color} group-hover:scale-105 transition-transform`}>
+                                        <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
                                     </div>
                                 </div>
                             </div>
@@ -581,59 +581,59 @@ export default function TransactionsAuditPage() {
                 </div>
 
                 {/* Status Cards - Today vs Overall */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 hover:shadow-md transition-all">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+                    <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/80 hover:shadow-md transition-all">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Completed</p>
-                                <div className="flex items-baseline gap-3 mt-1">
-                                    <span className="text-2xl font-bold text-emerald-600">{statusCounts.todayCompleted}</span>
-                                    <span className="text-sm text-slate-400">today</span>
+                                <p className="text-[10px] sm:text-xs font-medium uppercase tracking-wider text-slate-400">Completed</p>
+                                <div className="flex items-baseline gap-2 sm:gap-3 mt-1">
+                                    <span className="text-xl sm:text-2xl font-bold text-emerald-600">{statusCounts.todayCompleted}</span>
+                                    <span className="text-[10px] sm:text-sm text-slate-400">today</span>
                                 </div>
-                                <p className="text-xs text-slate-500 mt-2">Overall: {statusCounts.overallCompleted}</p>
+                                <p className="text-[10px] sm:text-xs text-slate-500 mt-1 sm:mt-2">Overall: {statusCounts.overallCompleted}</p>
                             </div>
-                            <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
-                                <CheckCircle className="w-5 h-5" />
+                            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+                                <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                             </div>
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 hover:shadow-md transition-all">
+                    <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/80 hover:shadow-md transition-all">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Refunded</p>
-                                <div className="flex items-baseline gap-3 mt-1">
-                                    <span className="text-2xl font-bold text-amber-600">{statusCounts.todayRefunded}</span>
-                                    <span className="text-sm text-slate-400">today</span>
+                                <p className="text-[10px] sm:text-xs font-medium uppercase tracking-wider text-slate-400">Refunded</p>
+                                <div className="flex items-baseline gap-2 sm:gap-3 mt-1">
+                                    <span className="text-xl sm:text-2xl font-bold text-amber-600">{statusCounts.todayRefunded}</span>
+                                    <span className="text-[10px] sm:text-sm text-slate-400">today</span>
                                 </div>
-                                <p className="text-xs text-slate-500 mt-2">Overall: {statusCounts.overallRefunded}</p>
+                                <p className="text-[10px] sm:text-xs text-slate-500 mt-1 sm:mt-2">Overall: {statusCounts.overallRefunded}</p>
                             </div>
-                            <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
-                                <AlertTriangle className="w-5 h-5" />
+                            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
+                                <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5" />
                             </div>
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 hover:shadow-md transition-all">
+                    <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/80 hover:shadow-md transition-all">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Voided</p>
-                                <div className="flex items-baseline gap-3 mt-1">
-                                    <span className="text-2xl font-bold text-rose-600">{statusCounts.todayVoided}</span>
-                                    <span className="text-sm text-slate-400">today</span>
+                                <p className="text-[10px] sm:text-xs font-medium uppercase tracking-wider text-slate-400">Voided</p>
+                                <div className="flex items-baseline gap-2 sm:gap-3 mt-1">
+                                    <span className="text-xl sm:text-2xl font-bold text-rose-600">{statusCounts.todayVoided}</span>
+                                    <span className="text-[10px] sm:text-sm text-slate-400">today</span>
                                 </div>
-                                <p className="text-xs text-slate-500 mt-2">Overall: {statusCounts.overallVoided}</p>
+                                <p className="text-[10px] sm:text-xs text-slate-500 mt-1 sm:mt-2">Overall: {statusCounts.overallVoided}</p>
                             </div>
-                            <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center text-rose-600">
-                                <XCircle className="w-5 h-5" />
+                            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-rose-50 flex items-center justify-center text-rose-600">
+                                <XCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                             </div>
                         </div>
                     </div>
                 </div>
 
                 {/* Filters */}
-                <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80">
-                    <div className="flex flex-col md:flex-row gap-4 md:items-center">
+                <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/80">
+                    <div className="flex flex-col md:flex-row gap-3 md:gap-4 md:items-center">
                         <div className="relative flex-1">
                             <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                             <input
@@ -641,14 +641,14 @@ export default function TransactionsAuditPage() {
                                 placeholder="Search by Order ID or Receipt Number..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-11 pr-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:bg-white focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
+                                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 sm:py-2.5 pl-11 pr-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:bg-white focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
                             />
                         </div>
-                        <div className="relative min-w-[200px]">
+                        <div className="relative min-w-[140px] sm:min-w-[200px]">
                             <select
                                 value={cashierFilter}
                                 onChange={(e) => setCashierFilter(e.target.value)}
-                                className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 pr-9 text-sm text-slate-700 outline-none transition focus:bg-white focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
+                                className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 sm:py-2.5 pr-9 text-sm text-slate-700 outline-none transition focus:bg-white focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
                             >
                                 <option value="all">All Cashiers</option>
                                 {cashierOptions.map((cashier) => (
@@ -664,12 +664,12 @@ export default function TransactionsAuditPage() {
 
                 {/* Transaction Tables */}
                 <div>
-                    <div className="flex items-center gap-4 border-b border-slate-200 mb-6 pb-2 overflow-x-auto">
+                    <div className="flex items-center gap-4 border-b border-slate-200 mb-4 sm:mb-6 pb-2 overflow-x-auto no-scrollbar">
                         {['today', 'yesterday', 'month', 'overall'].map((tab) => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
-                                className={`px-4 py-2 text-sm font-semibold capitalize transition-colors whitespace-nowrap ${
+                                className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold capitalize transition-colors whitespace-nowrap ${
                                     activeTab === tab
                                         ? 'border-b-2 border-slate-900 text-slate-900'
                                         : 'text-slate-400 hover:text-slate-600'
@@ -847,6 +847,29 @@ export default function TransactionsAuditPage() {
                         </button>
                     </div>
                 </aside>
+            </div>
+
+            {/* Mobile Bottom Navigation Bar */}
+            <div className="fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 flex items-center justify-around pb-safe pt-2 lg:hidden z-30 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                {navItems.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = activeNav === item.id;
+                    return (
+                        <button
+                            key={item.id}
+                            onClick={() => {
+                                setActiveNav(item.id);
+                                if (item.path) router.push(item.path);
+                            }}
+                            className={`flex flex-col items-center justify-center gap-0.5 py-1 px-2 rounded-xl transition-colors w-full max-w-[70px] ${
+                                isActive ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'
+                            }`}
+                        >
+                            <Icon className={`w-5 h-5 transition-all ${isActive ? 'stroke-[2.5px]' : 'stroke-[2px]'}`} />
+                            <span className="text-[10px] font-medium whitespace-nowrap">{item.label}</span>
+                        </button>
+                    );
+                })}
             </div>
         </div>
     );

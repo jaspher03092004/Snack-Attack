@@ -412,8 +412,8 @@ export default function InventoryScreen() {
     return (
         <div className="flex h-screen bg-slate-50 font-sans text-slate-900 overflow-hidden">
 
-            {/* ===== SIDEBAR ===== */}
-            <aside className="w-[240px] bg-white border-r border-slate-200 flex flex-col flex-shrink-0 h-full relative z-20">
+            {/* ===== SIDEBAR (Hidden on Mobile) ===== */}
+            <aside className="hidden lg:flex w-[240px] bg-white border-r border-slate-200 flex-col flex-shrink-0 h-full relative z-20">
                 <div className="p-5 flex items-center gap-3 border-b border-slate-100">
                     <div className="w-9 h-9 bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
                         <div className="w-3.5 h-3.5 border-2 border-white rounded-sm" />
@@ -487,48 +487,48 @@ export default function InventoryScreen() {
             </aside>
 
             {/* ===== MAIN CONTENT ===== */}
-            <main className="flex-1 flex flex-col min-w-0 overflow-y-auto bg-slate-50/80">
-                <div className="flex-1 p-6 lg:p-8 max-w-[1600px] w-full mx-auto">
+            <main className="flex-1 flex flex-col min-w-0 overflow-y-auto bg-slate-50/80 pb-24 lg:pb-0">
+                <div className="flex-1 p-3 sm:p-4 lg:p-8 max-w-[1600px] w-full mx-auto">
 
                     {/* Header */}
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 lg:gap-4 mb-5 lg:mb-6">
                         <div>
-                            <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2.5">
+                            <h1 className="text-xl lg:text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2.5">
                                 <span className="bg-slate-900 text-white p-1.5 rounded-xl">
-                                    <Box className="w-5 h-5" />
+                                    <Box className="w-4 h-4 lg:w-5 lg:h-5" />
                                 </span>
                                 Inventory Management
                             </h1>
-                            <p className="text-sm text-slate-500 mt-1 flex items-center gap-2">
+                            <p className="text-[10px] lg:text-sm text-slate-500 mt-1 flex flex-wrap items-center gap-1.5 lg:gap-2">
                                 <span>Auto-deducting 12 ingredients via mapping</span>
-                                <span className="w-1 h-1 rounded-full bg-slate-300" />
-                                <span className="flex items-center gap-1 text-slate-400">
+                                <span className="w-1 h-1 rounded-full bg-slate-300 hidden sm:inline-block" />
+                                <span className="flex items-center gap-1 text-slate-400 hidden sm:flex">
                                     <RefreshCw className="w-3 h-3" />
                                     Live
                                 </span>
                             </p>
                         </div>
-                        <div className="flex items-center gap-2.5">
+                        <div className="flex flex-wrap items-center gap-2 lg:gap-2.5">
                             <button
                                 onClick={() => void fetchInventoryData()}
-                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-slate-200 shadow-sm"
+                                className="flex items-center gap-1.5 lg:gap-2 px-3 py-1.5 lg:px-4 lg:py-2.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs lg:text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-slate-200 shadow-sm"
                             >
-                                <RefreshCw className="w-4 h-4" />
-                                Refresh
+                                <RefreshCw className="w-3 h-3 lg:w-4 lg:h-4" />
+                                <span className="hidden sm:inline">Refresh</span>
                             </button>
-                            <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 text-slate-700 text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-red-200 shadow-sm">
-                                <Trash2 className="w-4 h-4" />
-                                Log Waste
+                            <button className="flex items-center gap-1.5 lg:gap-2 px-3 py-1.5 lg:px-4 lg:py-2.5 rounded-xl bg-white border border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 text-slate-700 text-xs lg:text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-red-200 shadow-sm">
+                                <Trash2 className="w-3 h-3 lg:w-4 lg:h-4" />
+                                <span className="hidden sm:inline">Log Waste</span>
                             </button>
-                            <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-slate-300 shadow-lg shadow-slate-900/10">
-                                <Plus className="w-4 h-4" />
-                                Add Product
+                            <button className="flex items-center gap-1.5 lg:gap-2 px-3.5 py-1.5 lg:px-5 lg:py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs lg:text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-slate-300 shadow-lg shadow-slate-900/10">
+                                <Plus className="w-3 h-3 lg:w-4 lg:h-4" />
+                                <span className="hidden sm:inline">Add Product</span>
                             </button>
                         </div>
                     </div>
 
                     {/* KPI Cards */}
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5 mb-7">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3.5 mb-5 lg:mb-7">
                         {kpiData.map((kpi, idx) => {
                             const Icon = kpi.icon;
                             let trendIcon = null;
@@ -551,22 +551,22 @@ export default function InventoryScreen() {
                             }
 
                             return (
-                                <div key={idx} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80 hover:border-slate-300 transition-all hover:shadow-md group">
+                                <div key={idx} className="bg-white rounded-2xl p-3 lg:p-4 shadow-sm border border-slate-200/80 hover:border-slate-300 transition-all hover:shadow-md group">
                                     <div className="flex items-start justify-between">
-                                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${kpi.color} transition-all group-hover:scale-105`}>
-                                            <Icon className={`w-4 h-4 ${kpi.iconColor}`} />
+                                        <div className={`w-7 h-7 lg:w-8 lg:h-8 rounded-xl flex items-center justify-center ${kpi.color} transition-all group-hover:scale-105`}>
+                                            <Icon className={`w-3.5 h-3.5 lg:w-4 lg:h-4 ${kpi.iconColor}`} />
                                         </div>
                                         {trendIcon && (
-                                            <span className={`${trendColor} flex items-center gap-0.5 text-[10px] font-medium bg-slate-50 px-1.5 py-0.5 rounded-md`}>
+                                            <span className={`${trendColor} flex items-center gap-0.5 text-[9px] lg:text-[10px] font-medium bg-slate-50 px-1.5 py-0.5 rounded-md`}>
                                                 {trendIcon}
                                             </span>
                                         )}
                                     </div>
-                                    <div className="mt-2.5">
-                                        <div className="text-xl font-bold text-slate-900 tracking-tight">
+                                    <div className="mt-2 lg:mt-2.5">
+                                        <div className="text-base lg:text-xl font-bold text-slate-900 tracking-tight">
                                             {typeof kpi.value === 'string' ? kpi.value : kpi.value}
                                         </div>
-                                        <div className="text-[11px] font-medium text-slate-400 uppercase tracking-wide">
+                                        <div className="text-[10px] lg:text-[11px] font-medium text-slate-400 uppercase tracking-wide">
                                             {kpi.label}
                                         </div>
                                     </div>
@@ -576,24 +576,24 @@ export default function InventoryScreen() {
                     </div>
 
                     {/* Filter Bar */}
-                    <div className="flex flex-col sm:flex-row gap-3 mb-5">
+                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-4 lg:mb-5">
                         <div className="relative flex-1">
                             <div className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none">
-                                <Search className="h-4 w-4 text-slate-400" />
+                                <Search className="h-3.5 w-3.5 lg:h-4 lg:w-4 text-slate-400" />
                             </div>
                             <input
                                 type="text"
                                 placeholder="Search products, categories..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-300 shadow-sm transition-all"
+                                className="w-full pl-9 lg:pl-10 pr-4 py-2 lg:py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-300 shadow-sm transition-all"
                             />
                             {searchQuery && (
                                 <button
                                     onClick={() => setSearchQuery('')}
                                     className="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-slate-600"
                                 >
-                                    <XCircle className="w-4 h-4" />
+                                    <XCircle className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
                                 </button>
                             )}
                         </div>
@@ -604,7 +604,7 @@ export default function InventoryScreen() {
                                     <button
                                         key={tab}
                                         onClick={() => setActiveTab(tab)}
-                                        className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all capitalize ${activeTab === tab
+                                        className={`px-3 py-1 lg:px-3.5 lg:py-1.5 rounded-lg text-[10px] lg:text-xs font-medium transition-all capitalize ${activeTab === tab
                                                 ? 'bg-slate-900 text-white shadow-sm'
                                                 : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
                                             }`}
@@ -613,10 +613,10 @@ export default function InventoryScreen() {
                                     </button>
                                 ))}
                             </div>
-                            <button className="flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-50 rounded-xl text-sm font-medium text-slate-700 transition-all border border-slate-200 shadow-sm">
-                                <Filter className="w-4 h-4 text-slate-400" />
-                                Filter
-                                <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                            <button className="flex items-center gap-1.5 lg:gap-2 px-3 py-2 lg:px-4 lg:py-2.5 bg-white hover:bg-slate-50 rounded-xl text-xs lg:text-sm font-medium text-slate-700 transition-all border border-slate-200 shadow-sm">
+                                <Filter className="w-3 h-3 lg:w-4 lg:h-4 text-slate-400" />
+                                <span className="hidden sm:inline">Filter</span>
+                                <ChevronDown className="w-3 h-3 lg:w-3.5 lg:h-3.5 text-slate-400" />
                             </button>
                         </div>
                     </div>
@@ -624,19 +624,19 @@ export default function InventoryScreen() {
                     {/* Inventory Table */}
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                         {/* Table Header with Tabs */}
-                        <div className="flex items-center justify-between px-6 py-3.5 border-b border-slate-100 bg-slate-50/60">
-                            <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-between px-4 lg:px-6 py-2.5 lg:py-3.5 border-b border-slate-100 bg-slate-50/60">
+                            <div className="flex items-center gap-2 lg:gap-3">
                                 <div className="flex items-center gap-2">
-                                    <Layers className="w-4 h-4 text-slate-400" />
-                                    <span className="text-sm font-semibold text-slate-800">
+                                    <Layers className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-slate-400" />
+                                    <span className="text-xs lg:text-sm font-semibold text-slate-800">
                                         {activeTab === 'all' ? 'All Inventory' : activeTab === 'main' ? 'Main Stock' : 'Sub-Inventory'}
                                     </span>
                                 </div>
-                                <span className="text-xs font-medium text-slate-400 bg-white px-2.5 py-0.5 rounded-full border border-slate-200">
+                                <span className="text-[10px] lg:text-xs font-medium text-slate-400 bg-white px-2 py-0.5 lg:px-2.5 lg:py-0.5 rounded-full border border-slate-200">
                                     {filteredInventory.length} items
                                 </span>
                             </div>
-                            <div className="flex items-center gap-2 text-xs text-slate-400">
+                            <div className="hidden sm:flex items-center gap-2 text-xs text-slate-400">
                                 <span>Last updated: {new Date().toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' })}</span>
                             </div>
                         </div>
@@ -645,37 +645,37 @@ export default function InventoryScreen() {
                             <table className="w-full text-left border-collapse">
                                 <thead>
                                     <tr className="border-b border-slate-100 bg-slate-50/40">
-                                        <th className="py-3.5 px-6 text-[11px] font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-slate-600 transition-colors select-none"
+                                        <th className="py-2 lg:py-3.5 px-3 lg:px-6 text-[10px] lg:text-[11px] font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-slate-600 transition-colors select-none"
                                             onClick={() => handleSort('product_name')}>
                                             <div className="flex items-center gap-1.5">
                                                 Product
                                                 <ArrowUpDown className="w-3 h-3" />
                                             </div>
                                         </th>
-                                        <th className="py-3.5 px-6 text-[11px] font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-slate-600 transition-colors select-none"
+                                        <th className="py-2 lg:py-3.5 px-3 lg:px-6 text-[10px] lg:text-[11px] font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-slate-600 transition-colors select-none"
                                             onClick={() => handleSort('category')}>
                                             <div className="flex items-center gap-1.5">
                                                 Category
                                                 <ArrowUpDown className="w-3 h-3" />
                                             </div>
                                         </th>
-                                        <th className="py-3.5 px-6 text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-right">
+                                        <th className="py-2 lg:py-3.5 px-3 lg:px-6 text-[10px] lg:text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-right">
                                             {activeTab === 'sub' ? 'Bulk Stock' : 'Pieces Stock'}
                                         </th>
                                         {activeTab !== 'sub' && (
                                             <>
-                                                <th className="py-3.5 px-6 text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-right">
+                                                <th className="py-2 lg:py-3.5 px-3 lg:px-6 text-[10px] lg:text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-right">
                                                     Base Price
                                                 </th>
-                                                <th className="py-3.5 px-6 text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-right">
+                                                <th className="py-2 lg:py-3.5 px-3 lg:px-6 text-[10px] lg:text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-right">
                                                     Selling Price
                                                 </th>
                                             </>
                                         )}
-                                        <th className="py-3.5 px-6 text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-center">
+                                        <th className="py-2 lg:py-3.5 px-3 lg:px-6 text-[10px] lg:text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-center">
                                             Status
                                         </th>
-                                        <th className="py-3.5 px-6 text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-right">
+                                        <th className="py-2 lg:py-3.5 px-3 lg:px-6 text-[10px] lg:text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-right">
                                             Action
                                         </th>
                                     </tr>
@@ -685,18 +685,18 @@ export default function InventoryScreen() {
                                         Array.from({ length: 5 }).map((_, i) => (
                                             <tr key={i} className="animate-pulse">
                                                 {Array.from({ length: 7 }).map((_, j) => (
-                                                    <td key={j} className="py-4 px-6">
-                                                        <div className="h-4 bg-slate-200 rounded-lg w-20" />
+                                                    <td key={j} className="py-2.5 lg:py-4 px-3 lg:px-6">
+                                                        <div className="h-4 bg-slate-200 rounded-lg w-16 lg:w-20" />
                                                     </td>
                                                 ))}
                                             </tr>
                                         ))
                                     ) : filteredInventory.length === 0 ? (
                                         <tr>
-                                            <td colSpan={7} className="py-16 text-center">
+                                            <td colSpan={7} className="py-12 lg:py-16 text-center">
                                                 <div className="flex flex-col items-center gap-3">
-                                                    <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center">
-                                                        <PackageOpen className="w-7 h-7 text-slate-300" />
+                                                    <div className="w-12 h-12 lg:w-14 lg:h-14 rounded-2xl bg-slate-100 flex items-center justify-center">
+                                                        <PackageOpen className="w-6 h-6 lg:w-7 lg:h-7 text-slate-300" />
                                                     </div>
                                                     <p className="text-sm font-medium text-slate-600">No inventory items found</p>
                                                     <p className="text-xs text-slate-400">Try adjusting your search or filters</p>
@@ -710,74 +710,74 @@ export default function InventoryScreen() {
                                             const isLow = status.variant === 'warning' || status.variant === 'critical';
                                             return (
                                                 <tr key={item.id} className={`hover:bg-slate-50/80 transition-colors group ${isLow ? 'bg-amber-50/30' : ''}`}>
-                                                    <td className="py-3.5 px-6">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold ${isLow ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>
+                                                    <td className="py-2 lg:py-3.5 px-3 lg:px-6">
+                                                        <div className="flex items-center gap-2 lg:gap-3">
+                                                            <div className={`w-6 h-6 lg:w-8 lg:h-8 rounded-xl flex items-center justify-center text-[9px] lg:text-xs font-bold ${isLow ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>
                                                                 {item.product_name.charAt(0).toUpperCase()}
                                                             </div>
                                                             <div>
-                                                                <div className="font-semibold text-sm text-slate-900">{item.product_name}</div>
-                                                                <div className="text-[10px] text-slate-400 font-medium">
+                                                                <div className="font-semibold text-xs lg:text-sm text-slate-900">{item.product_name}</div>
+                                                                <div className="hidden sm:block text-[10px] text-slate-400 font-medium">
                                                                     ID: {item.id.slice(0, 8)}
                                                                 </div>
                                                             </div>
                                                         </div>
                                                     </td>
-                                                    <td className="py-3.5 px-6">
-                                                        <span className="text-xs font-medium text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full">
+                                                    <td className="py-2 lg:py-3.5 px-3 lg:px-6">
+                                                        <span className="text-[10px] lg:text-xs font-medium text-slate-600 bg-slate-100 px-2 py-0.5 lg:px-2.5 lg:py-1 rounded-full">
                                                             {item.category}
                                                         </span>
                                                     </td>
-                                                    <td className="py-3.5 px-6 text-right">
-                                                        <span className={`text-sm font-semibold ${isLow ? 'text-amber-700' : 'text-slate-800'}`}>
+                                                    <td className="py-2 lg:py-3.5 px-3 lg:px-6 text-right">
+                                                        <span className={`text-xs lg:text-sm font-semibold ${isLow ? 'text-amber-700' : 'text-slate-800'}`}>
                                                             {item.pieces_stock}
                                                         </span>
-                                                        <span className="text-[10px] text-slate-400 ml-1 font-medium">
+                                                        <span className="text-[9px] lg:text-[10px] text-slate-400 ml-1 font-medium">
                                                             {activeTab === 'sub'
                                                                 ? (item.product_name.toLowerCase().includes('bun') ? 'Piece' : 'Pack')
                                                                 : item.pieces_unit}
                                                         </span>
                                                         {isLow && (
-                                                            <div className="text-[10px] text-amber-500 font-medium mt-0.5">
+                                                            <div className="text-[9px] lg:text-[10px] text-amber-500 font-medium mt-0.5">
                                                                 ⚠️ Needs restock
                                                             </div>
                                                         )}
                                                     </td>
                                                     {activeTab !== 'sub' && (
                                                         <>
-                                                            <td className="py-3.5 px-6 text-right">
+                                                            <td className="py-2 lg:py-3.5 px-3 lg:px-6 text-right">
                                                                 <input
                                                                     type="number"
                                                                     step="0.01"
                                                                     defaultValue={item.base_price ?? 0}
                                                                     onBlur={(e) => void handlePriceUpdate(item.id, 'base_price', e.target.value)}
-                                                                    className="w-20 bg-transparent border-b border-gray-300 focus:border-blue-500 outline-none text-sm text-right"
+                                                                    className="w-16 lg:w-20 bg-transparent border-b border-gray-300 focus:border-blue-500 outline-none text-xs lg:text-sm text-right"
                                                                 />
                                                             </td>
-                                                            <td className="py-3.5 px-6 text-right">
+                                                            <td className="py-2 lg:py-3.5 px-3 lg:px-6 text-right">
                                                                 <input
                                                                     type="number"
                                                                     step="0.01"
                                                                     defaultValue={item.selling_price ?? 0}
                                                                     onBlur={(e) => void handlePriceUpdate(item.id, 'selling_price', e.target.value)}
-                                                                    className="w-20 bg-transparent border-b border-gray-300 focus:border-blue-500 outline-none text-sm text-right"
+                                                                    className="w-16 lg:w-20 bg-transparent border-b border-gray-300 focus:border-blue-500 outline-none text-xs lg:text-sm text-right"
                                                                 />
                                                             </td>
                                                         </>
                                                     )}
-                                                    <td className="py-3.5 px-6 text-center">
-                                                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium ${config.bg} ${config.text} border ${config.border} shadow-sm ${config.ring}`}>
-                                                            <span className={`w-1.5 h-1.5 rounded-full ${status.dot} ${isLow ? 'animate-pulse' : ''}`} />
+                                                    <td className="py-2 lg:py-3.5 px-3 lg:px-6 text-center">
+                                                        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 lg:px-3 lg:py-1 rounded-lg text-[10px] lg:text-xs font-medium ${config.bg} ${config.text} border ${config.border} shadow-sm ${config.ring}`}>
+                                                            <span className={`w-1 h-1 lg:w-1.5 lg:h-1.5 rounded-full ${status.dot} ${isLow ? 'animate-pulse' : ''}`} />
                                                             {status.label}
                                                         </span>
                                                     </td>
-                                                    <td className="py-3.5 px-6 text-right">
+                                                    <td className="py-2 lg:py-3.5 px-3 lg:px-6 text-right">
                                                         <button
                                                             onClick={() => openRefillModal(item)}
-                                                            className="px-4 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium transition-all shadow-sm hover:shadow-md active:scale-95 flex items-center gap-1.5 ml-auto"
+                                                            className="px-2.5 py-1 lg:px-4 lg:py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[10px] lg:text-xs font-medium transition-all shadow-sm hover:shadow-md active:scale-95 flex items-center gap-1 lg:gap-1.5 ml-auto"
                                                         >
-                                                            <Plus className="w-3.5 h-3.5" />
-                                                            Refill
+                                                            <Plus className="w-3 h-3 lg:w-3.5 lg:h-3.5" />
+                                                            <span className="hidden sm:inline">Refill</span>
                                                         </button>
                                                     </td>
                                                 </tr>
@@ -790,14 +790,14 @@ export default function InventoryScreen() {
 
                         {/* Table Footer */}
                         {filteredInventory.length > 0 && (
-                            <div className="px-6 py-3 border-t border-slate-100 bg-slate-50/40 flex items-center justify-between text-xs text-slate-400">
+                            <div className="px-4 lg:px-6 py-2.5 lg:py-3 border-t border-slate-100 bg-slate-50/40 flex items-center justify-between text-[10px] lg:text-xs text-slate-400">
                                 <span>Showing {filteredInventory.length} of {inventoryItems.length} items</span>
                                 <div className="flex items-center gap-2">
-                                    <button className="px-3 py-1 rounded-lg border border-slate-200 hover:bg-white transition-colors disabled:opacity-40" disabled>
-                                        Previous
+                                    <button className="px-2 py-1 lg:px-3 lg:py-1 rounded-lg border border-slate-200 hover:bg-white transition-colors disabled:opacity-40" disabled>
+                                        Prev
                                     </button>
-                                    <span className="px-2 py-0.5 bg-white border border-slate-200 rounded-lg font-medium text-slate-600">1</span>
-                                    <button className="px-3 py-1 rounded-lg border border-slate-200 hover:bg-white transition-colors disabled:opacity-40" disabled>
+                                    <span className="px-1.5 py-0.5 lg:px-2 lg:py-0.5 bg-white border border-slate-200 rounded-lg font-medium text-slate-600">1</span>
+                                    <button className="px-2 py-1 lg:px-3 lg:py-1 rounded-lg border border-slate-200 hover:bg-white transition-colors disabled:opacity-40" disabled>
                                         Next
                                     </button>
                                 </div>
@@ -805,13 +805,139 @@ export default function InventoryScreen() {
                         )}
                     </div>
 
-                    {/* Spacer for scroll */}
+                    {/* Mobile-only Insights (Collapsed) */}
+                    <div className="lg:hidden mt-6 space-y-6">
+                        <section>
+                            <div className="flex items-center justify-between mb-3.5">
+                                <div className="flex items-center gap-2">
+                                    <AlertCircle className="w-4 h-4 text-slate-400" />
+                                    <h3 className="text-sm font-semibold text-slate-800">Needs Restocking</h3>
+                                </div>
+                                <span className="text-xs font-medium text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                                    {itemsNeedingRestock.length}
+                                </span>
+                            </div>
+                            {itemsNeedingRestock.length === 0 ? (
+                                <div className="bg-emerald-50/60 rounded-xl border border-emerald-100 p-4 text-center">
+                                    <CheckCircle2 className="w-5 h-5 text-emerald-500 mx-auto mb-1.5" />
+                                    <p className="text-sm font-medium text-emerald-700">All stocked up!</p>
+                                    <p className="text-xs text-emerald-500/70">No items need restocking right now.</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-2">
+                                    {itemsNeedingRestock.slice(0, 5).map((item) => {
+                                        const status = getStockStatus(item);
+                                        const isCritical = status.variant === 'critical';
+                                        return (
+                                            <div key={item.id} className={`flex items-center justify-between p-3 rounded-xl border ${isCritical ? 'bg-red-50/60 border-red-100' : 'bg-amber-50/60 border-amber-100'} transition-all hover:shadow-sm`}>
+                                                <div className="flex items-center gap-2.5 min-w-0">
+                                                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${isCritical ? 'bg-red-200 text-red-700' : 'bg-amber-200 text-amber-700'}`}>
+                                                        {item.product_name.charAt(0).toUpperCase()}
+                                                    </div>
+                                                    <span className="text-sm font-medium text-slate-800 truncate">
+                                                        {item.product_name}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-2 flex-shrink-0">
+                                                    <span className={`text-xs font-bold ${isCritical ? 'text-red-600' : 'text-amber-600'}`}>
+                                                        {item.pieces_stock} {item.pieces_unit}
+                                                    </span>
+                                                    <button
+                                                        onClick={() => openRefillModal(item)}
+                                                        className="p-1.5 rounded-lg bg-white/80 hover:bg-white border border-slate-200 shadow-sm text-slate-600 hover:text-slate-900 transition-all"
+                                                    >
+                                                        <Plus className="w-3.5 h-3.5" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                    {itemsNeedingRestock.length > 5 && (
+                                        <button className="text-xs font-medium text-slate-400 hover:text-slate-600 transition-colors w-full text-center py-1">
+                                            +{itemsNeedingRestock.length - 5} more items
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                        </section>
+
+                        <section>
+                            <div className="flex items-center justify-between mb-3.5">
+                                <div className="flex items-center gap-2">
+                                    <Clock className="w-4 h-4 text-slate-400" />
+                                    <h3 className="text-sm font-semibold text-slate-800">Recent Activity</h3>
+                                </div>
+                                <span className="text-xs font-medium text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                                    {recentActivityLogs.length}
+                                </span>
+                            </div>
+
+                            {recentActivityLogs.length === 0 ? (
+                                <div className="bg-slate-50 rounded-xl border border-slate-100 p-4 text-center">
+                                    <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-2">
+                                        <Clock className="w-5 h-5 text-slate-300" />
+                                    </div>
+                                    <p className="text-sm font-medium text-slate-500">No activity today</p>
+                                    <p className="text-xs text-slate-400">Transactions will appear here</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-3 relative before:absolute before:inset-y-2 before:left-[13px] before:w-px before:bg-slate-200 before:rounded-full">
+                                    {recentActivityLogs.slice(0, 6).map((log) => {
+                                        const quantity = Number(log.quantity_changed);
+                                        const isPositive = quantity > 0;
+                                        const quantityLabel = isPositive ? `+${quantity}` : `${quantity}`;
+                                        const actionColors: Record<string, { bg: string; text: string; dot: string }> = {
+                                            'Refill': { bg: 'bg-emerald-50', text: 'text-emerald-600', dot: 'bg-emerald-500' },
+                                            'Stock In': { bg: 'bg-blue-50', text: 'text-blue-600', dot: 'bg-blue-500' },
+                                            'Sold': { bg: 'bg-purple-50', text: 'text-purple-600', dot: 'bg-purple-500' },
+                                            'Waste': { bg: 'bg-red-50', text: 'text-red-600', dot: 'bg-red-500' },
+                                        };
+                                        const colors = actionColors[log.action] ?? { bg: 'bg-slate-50', text: 'text-slate-600', dot: 'bg-slate-400' };
+
+                                        return (
+                                            <div key={log.id} className="relative pl-9">
+                                                <div className={`absolute left-0 top-1.5 w-[26px] h-[26px] rounded-full border-2 border-white flex items-center justify-center ${colors.bg} shadow-sm`}>
+                                                    <div className={`w-1.5 h-1.5 rounded-full ${colors.dot}`} />
+                                                </div>
+                                                <div className="bg-white rounded-xl border border-slate-100 p-3 shadow-sm hover:shadow-md transition-shadow">
+                                                    <div className="flex items-start justify-between">
+                                                        <span className="text-sm font-medium text-slate-800">
+                                                            {inventoryNameById[log.item_id] ?? 'Unknown'}
+                                                        </span>
+                                                        <span className={`text-xs font-bold ${isPositive ? 'text-emerald-600' : 'text-slate-500'}`}>
+                                                            {quantityLabel}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center justify-between mt-1.5">
+                                                        <span className={`text-[10px] font-semibold uppercase tracking-wide ${colors.text}`}>
+                                                            {log.action}
+                                                            <span className="text-slate-400 font-normal ml-1">by {log.action_by}</span>
+                                                        </span>
+                                                        <span className="text-[10px] text-slate-400 font-medium">
+                                                            {formatActivityTime(log.created_at)}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                    {recentActivityLogs.length > 6 && (
+                                        <button className="text-xs font-medium text-slate-400 hover:text-slate-600 transition-colors w-full text-center py-1">
+                                            View all {recentActivityLogs.length} activities
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                        </section>
+                    </div>
+
+                    {/* Spacer for mobile scroll */}
                     <div className="h-4" />
                 </div>
             </main>
 
-            {/* ===== RIGHT SIDEBAR ===== */}
-            <aside className="w-[340px] bg-white border-l border-slate-200 flex flex-col flex-shrink-0 h-full z-10 relative">
+            {/* ===== RIGHT SIDEBAR (Hidden on Mobile) ===== */}
+            <aside className="hidden lg:flex w-[340px] bg-white border-l border-slate-200 flex-col flex-shrink-0 h-full z-10 relative">
                 <div className="p-5 border-b border-slate-100 flex items-center justify-between">
                     <div>
                         <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -965,6 +1091,29 @@ export default function InventoryScreen() {
                     </span>
                 </div>
             </aside>
+
+            {/* ===== MOBILE BOTTOM NAVIGATION ===== */}
+            <div className="fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 flex items-center justify-around pb-safe pt-2 lg:hidden z-30 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                {navItems.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = activeNav === item.id;
+                    return (
+                        <button
+                            key={item.id}
+                            onClick={() => {
+                                setActiveNav(item.id);
+                                if (item.path) router.push(item.path);
+                            }}
+                            className={`flex flex-col items-center justify-center gap-0.5 py-1 px-2 rounded-xl transition-colors w-full max-w-[70px] ${
+                                isActive ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'
+                            }`}
+                        >
+                            <Icon className={`w-5 h-5 transition-all ${isActive ? 'stroke-[2.5px]' : 'stroke-[2px]'}`} />
+                            <span className="text-[10px] font-medium whitespace-nowrap">{item.label}</span>
+                        </button>
+                    );
+                })}
+            </div>
 
             {/* ===== REFILL MODAL ===== */}
             {isRefillModalOpen && selectedItem && (
