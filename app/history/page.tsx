@@ -6,6 +6,8 @@ import { ArrowLeft, FileText, Search, X, Receipt, Calendar, DollarSign, Users, T
 import { Capacitor } from '@capacitor/core';
 import { IntentLauncher } from '@capgo/capacitor-intent-launcher';
 import { supabase } from '@/lib/supabase/client';
+import { buildReceiptData } from '@/lib/printing/build-receipt';
+import { printReceipt } from '@/lib/printing/print-receipt';
 
 type OrderItem = {
   id: string;
@@ -20,6 +22,7 @@ type OrderRecord = {
   id: string;
   order_number: string;
   status?: string;
+  order_type?: string;
   total_amount: number;
   amount_tendered: number;
   change_due: number;
@@ -97,6 +100,18 @@ const formatShortDate = (value: string) =>
     year: 'numeric',
   });
 
+const buildOrderReceiptItems = (order: OrderRecord | null) => {
+  if (!order) return [];
+
+  return order.order_items.map((item) => ({
+    id: item.id,
+    name: item.item_name,
+    price: Number(item.total_price) / Math.max(1, Number(item.quantity)),
+    quantity: Number(item.quantity),
+    modifiers: item.modifiers ?? [],
+  }));
+};
+
 export default function HistoryPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterOption>('Today');
@@ -112,6 +127,7 @@ export default function HistoryPage() {
   const [isEodModalOpen, setIsEodModalOpen] = useState(false);
   const [pinCode, setPinCode] = useState('');
   const [hasClosedToday, setHasClosedToday] = useState(false);
+  const [activePrintJob, setActivePrintJob] = useState<'receipt' | 'report' | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{ isOpen: boolean; type: '' | 'void' | 'refund'; order: OrderRecord | null; message: string }>({
     isOpen: false,
     type: '',
@@ -149,6 +165,7 @@ export default function HistoryPage() {
     const parsedOrders = (data ?? []).map((order) => ({
       ...order,
       status: (order as any).status,
+      order_type: (order as any).order_type,
       total_amount: Number((order as any).total_amount),
       amount_tendered: Number((order as any).amount_tendered),
       change_due: Number((order as any).change_due),
@@ -563,27 +580,92 @@ export default function HistoryPage() {
     return lines.join('\n');
   };
 
-  const handleSalesReportPrint = async () => {
-    const isAndroidNative = Capacitor.getPlatform() === 'android' && Capacitor.isNativePlatform();
+  const createReprintReceiptData = () => {
+    if (!selectedOrder) return null;
 
-    if (!isAndroidNative) {
-      window.print();
+    const receiptItems = buildOrderReceiptItems(selectedOrder);
+
+    return buildReceiptData({
+      orderNumber: selectedOrder.order_number,
+      orderType: selectedOrder.order_type ?? 'Past Order',
+      totalDue: Number(selectedOrder.total_amount),
+      amountTendered: Number(selectedOrder.amount_tendered),
+      items: receiptItems,
+    });
+  };
+
+  const selectedOrderReceiptItems = buildOrderReceiptItems(selectedOrder);
+  const selectedOrderReceiptTotal = selectedOrder ? Number(selectedOrder.total_amount) : 0;
+  const selectedOrderReceiptAmountTendered = selectedOrder ? Number(selectedOrder.amount_tendered) : 0;
+  const selectedOrderReceiptChange = selectedOrder ? Number(selectedOrder.change_due) : 0;
+
+  const handleReprintReceipt = async () => {
+    const receiptData = createReprintReceiptData();
+
+    if (!receiptData) {
+      showHistoryToast('No order selected for reprint.');
       return;
     }
 
-    const textPayload = buildSalesReportTextPayload();
-    const result = await IntentLauncher.startActivityAsync({
-      action: ACTION_SEND,
-      type: MIME_TEXT,
-      packageName: RAWBT_PACKAGE,
-      extra: {
-        [EXTRA_TEXT_KEY]: textPayload,
-      },
-    });
+    setActivePrintJob('receipt');
+    window.setTimeout(() => {
+      const isAndroidNative = Capacitor.getPlatform() === 'android' && Capacitor.isNativePlatform();
 
-    if (result.resultCode === RESULT_CANCELED) {
-      throw new Error('Printing canceled by user.');
-    }
+      if (!isAndroidNative) {
+        window.print();
+        setActivePrintJob(null);
+        return;
+      }
+
+      void printReceipt(receiptData)
+        .then(() => {
+          showHistoryToast('Receipt sent to printer.');
+        })
+        .catch((error) => {
+          const message = error instanceof Error ? error.message : 'Unable to print receipt.';
+          showHistoryToast(message);
+        })
+        .finally(() => {
+          setActivePrintJob(null);
+        });
+    }, 100);
+  };
+
+  const handleSalesReportPrint = async () => {
+    setActivePrintJob('report');
+
+    window.setTimeout(() => {
+      const isAndroidNative = Capacitor.getPlatform() === 'android' && Capacitor.isNativePlatform();
+
+      if (!isAndroidNative) {
+        window.print();
+        setActivePrintJob(null);
+        return;
+      }
+
+      void (async () => {
+        const textPayload = buildSalesReportTextPayload();
+        const result = await IntentLauncher.startActivityAsync({
+          action: ACTION_SEND,
+          type: MIME_TEXT,
+          packageName: RAWBT_PACKAGE,
+          extra: {
+            [EXTRA_TEXT_KEY]: textPayload,
+          },
+        });
+
+        if (result.resultCode === RESULT_CANCELED) {
+          throw new Error('Printing canceled by user.');
+        }
+      })()
+        .catch((error) => {
+          const message = error instanceof Error ? error.message : 'Unable to print report.';
+          showHistoryToast(message);
+        })
+        .finally(() => {
+          setActivePrintJob(null);
+        });
+    }, 100);
   };
 
   return (
@@ -1039,7 +1121,14 @@ export default function HistoryPage() {
                 </div>
               </div>
 
-              <div className="mt-6 flex justify-end">
+              <div className="flex justify-end items-center gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={handleReprintReceipt}
+                  className="px-5 py-2.5 rounded-xl font-bold bg-emerald-500 text-white hover:bg-emerald-600 transition-colors flex items-center gap-2"
+                >
+                  Print Receipt
+                </button>
                 <button
                   type="button"
                   onClick={() => setSelectedOrder(null)}
@@ -1097,8 +1186,63 @@ export default function HistoryPage() {
       )}
     </div>
 
-    {/* Print-only receipt version */}
-    <div className="hidden print:block print:w-[58mm] print:bg-white print:p-0 print:m-0 font-mono text-[10px] leading-tight text-black">
+    {activePrintJob === 'receipt' && selectedOrder && (
+      <div className="hidden print:block print:w-[58mm] print:bg-white print:p-0 print:m-0 font-mono text-[10px] leading-tight text-black">
+        <div className="mx-auto w-full px-2 py-2">
+          <div className="text-center font-bold uppercase">SNACK ATTACK</div>
+          <div className="mt-1 text-center font-semibold uppercase">{selectedOrder.order_type ?? 'PAST ORDER'}</div>
+          <div className="mt-1 text-center">{formatDate(selectedOrder.created_at)}</div>
+          <div className="mt-2 text-center">--------------------------------</div>
+
+          <div className="mt-2 py-2 text-center">
+            <div className="text-lg font-extrabold">{selectedOrder.order_number}</div>
+          </div>
+
+          <div className="mt-2 space-y-3 py-2">
+            {selectedOrderReceiptItems.map((item) => (
+              <div key={item.id}>
+                <div className="flex justify-between gap-2">
+                  <div className="flex-1">
+                    <div className="font-bold">{item.quantity}x {item.name}</div>
+                    {item.modifiers && item.modifiers.length > 0 && (
+                      <div className="mt-1 text-xs font-extrabold text-black">
+                        {item.modifiers.join(', ')}
+                      </div>
+                    )}
+                  </div>
+                  <div className="shrink-0 font-bold">₱{(item.price * item.quantity).toFixed(2)}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-3 border-t border-black border-dashed pt-1" />
+
+          <div className="mt-2 flex justify-between text-sm font-extrabold">
+            <span>TOTAL</span>
+            <span>₱{selectedOrderReceiptTotal.toFixed(2)}</span>
+          </div>
+          <div className="mt-2 flex justify-between">
+            <span>AMOUNT TENDERED</span>
+            <span>₱{selectedOrderReceiptAmountTendered.toFixed(2)}</span>
+          </div>
+          <div className="mt-2 flex justify-between">
+            <span>CHANGE</span>
+            <span>₱{selectedOrderReceiptChange.toFixed(2)}</span>
+          </div>
+
+          <div className="mt-3 border-t border-black border-dashed pt-1" />
+
+          <div className="mt-3 text-center text-[10px] font-extrabold uppercase leading-4">
+            <div>Thank you for your order!</div>
+            <div className="mt-1">Please come again.</div>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {activePrintJob === 'report' && (
+      <div className="hidden print:block print:w-[58mm] print:bg-white print:p-0 print:m-0 font-mono text-[10px] leading-tight text-black">
       <div className="mx-auto w-full px-2 py-2">
         <div className="text-center font-bold uppercase">4 prince SNACK ATTACK</div>
         <div className="mt-1 text-center font-semibold uppercase">DAILY SALES REPORT</div>
@@ -1119,10 +1263,10 @@ export default function HistoryPage() {
             <span>₱{totalEmployeePayroll.toFixed(2)}</span>
           </div>
         </div>
-        <div className="mt-2 flex justify-between gap-2 text-sm font-bold">
-          <span>CASH:</span>
-          <span>₱{netCash.toFixed(2)}</span>
-        </div>
+        <div className="flex justify-between gap-2">
+            <span>TOTAL SALES:</span>
+            <span>₱{todayTotalSales.toFixed(2)}</span>
+          </div>
 
         <div className="mt-2 text-center">--------------------------------</div>
 
@@ -1177,8 +1321,9 @@ export default function HistoryPage() {
             <span>TOTAL SALES:</span>
             <span>₱{todayTotalSales.toFixed(2)}</span>
           </div>
+        </div>
       </div>
-    </div>
+    )}
     </>
   );
 }
