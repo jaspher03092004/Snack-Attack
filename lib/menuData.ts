@@ -338,7 +338,7 @@ const RAW_MENU_ITEMS = [
     id: "drink-water",
     name: "Water",
     category: "Sides & Others",
-    basePrice: 15,
+    basePrice: 20,
   },
   {
     id: "side-fried-chicken",

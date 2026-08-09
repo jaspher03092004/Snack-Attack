@@ -565,7 +565,7 @@ export default function StartOrderPage() {
                                         <span className="text-base md:text-xl font-bold text-slate-900">{todaysStats.orders}</span>
                                     </div>
                                     <div className="flex flex-col items-center md:flex-row md:items-center md:justify-between border-b-0 md:border-b border-slate-100 pb-0 md:pb-3">
-                                        <span className="text-[10px] md:text-sm font-medium text-slate-600">Total Expenses</span>
+                                        <span className="text-[10px] md:text-sm font-medium text-slate-600">Expenses</span>
                                         <span className="text-base md:text-xl font-bold text-rose-600">
                                             ₱{totalExpenses.toFixed(2)}
                                         </span>
@@ -573,14 +573,14 @@ export default function StartOrderPage() {
                                     <div className="flex flex-col items-center md:flex-row md:items-center md:justify-between border-b-0 md:border-b border-slate-100 pb-0 md:pb-3">
                                         <div className="flex flex-col items-center md:items-start">
                                             <span className="text-[10px] md:text-sm font-medium text-slate-600">Current Cash</span>
-                                            <span className="text-[8px] md:text-xs text-slate-400">revenue - expenses</span>
+                                            <span className="text-[8px] md:text-xs text-slate-400">Total - expenses</span>
                                         </div>
                                         <span className="text-base md:text-xl font-bold text-slate-900">
                                             ₱{currentCash.toFixed(2)}
                                         </span>
                                     </div>
                                     <div className="flex flex-col items-center md:flex-row md:items-center md:justify-between border-b-0 md:border-b border-slate-100 pb-0 md:pb-3">
-                                        <span className="text-[10px] md:text-sm font-medium text-slate-600">Revenue</span>
+                                        <span className="text-[10px] md:text-sm font-medium text-slate-600">Total</span>
                                         <span className="text-base md:text-xl font-bold text-emerald-600">
                                             ₱{todaysStats.revenue.toFixed(2)}
                                         </span>
