@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense, useState, useMemo, useEffect } from 'react';
+import React, { Suspense, useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Utensils, 
   CupSoda, 
@@ -305,11 +305,28 @@ function POSScreenContent() {
   const [inventoryData, setInventoryData] = useState<InventoryItem[]>([]);
   const [isIceCreamModalOpen, setIsIceCreamModalOpen] = useState(false);
   const [iceCreamPriceInput, setIceCreamPriceInput] = useState('');
+  
+  // --- New State for UX Flash Effect ---
+  const [justAddedProductId, setJustAddedProductId] = useState<string | null>(null);
+  
+  // --- New State for Popup Count Effect ---
+  const [popups, setPopups] = useState<{ id: string; productId: string; count: number }[]>([]);
+  const timeoutRefs = useRef<Record<string, NodeJS.Timeout>>({});
 
   // Generate order number on client after mount to avoid hydration mismatch.
   useEffect(() => {
     setOrderNumber(generateOrderNumber());
   }, []);
+
+  // --- Effect to clear the "Just Added" highlight after 600ms ---
+  useEffect(() => {
+    if (justAddedProductId) {
+      const timer = setTimeout(() => {
+        setJustAddedProductId(null);
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [justAddedProductId]);
 
   // --- Fetch Inventory Data ---
   useEffect(() => {
@@ -420,6 +437,29 @@ function POSScreenContent() {
     extraModifiers: string[] = [],
     quantity = 1,
   ) => {
+    // --- Trigger UX Flash Effect ---
+    setJustAddedProductId(product.id);
+    
+    // --- Trigger Popup Count Effect (Accumulates on rapid taps) ---
+    const popupId = Date.now().toString() + Math.random().toString(36).substr(2, 5);
+    setPopups(prev => {
+      const existingIndex = prev.findIndex(p => p.productId === product.id);
+      const newCount = existingIndex !== -1 ? prev[existingIndex].count + 1 : 1;
+      // Remove old popup for this product to force a fresh animation reset
+      const filtered = prev.filter(p => p.productId !== product.id);
+      return [...filtered, { id: popupId, productId: product.id, count: newCount }];
+    });
+
+    // Clear any existing timer for this product
+    if (timeoutRefs.current[product.id]) {
+      clearTimeout(timeoutRefs.current[product.id]);
+    }
+    // Set new timer to remove this specific popup after 0.8 seconds
+    timeoutRefs.current[product.id] = setTimeout(() => {
+      setPopups(prev => prev.filter(p => p.id !== popupId));
+      delete timeoutRefs.current[product.id];
+    }, 800);
+
     const finalPrice = getItemPrice(product, customization);
     const modifiers = [
       ...(customization?.sizeLabel ? [`Size: ${customization.sizeLabel}`] : []),
@@ -646,6 +686,14 @@ function POSScreenContent() {
               );
               const isOutOfStock = inventoryItem ? Number(inventoryItem.pieces_stock) <= 0 : false;
               const isCardUnavailable = !isAvailable || isOutOfStock || Boolean(product.soldOut);
+              
+              // Determine if this card just got an item added to trigger the flash effect
+              const isJustAdded = justAddedProductId === product.id && !isCardUnavailable;
+              
+              // Find popup for this product
+              const popup = popups.find(p => p.productId === product.id);
+              const hasPopup = !!popup;
+
               return (
               <div 
                 key={product.id}
@@ -660,8 +708,12 @@ function POSScreenContent() {
                     handleProductClick(product);
                   }
                 }}
-                className={`rounded-xl bg-white shadow-sm overflow-hidden flex flex-col ${
+                className={`relative rounded-xl bg-white shadow-sm overflow-hidden flex flex-col transition-all duration-300 ${
                   isCardUnavailable ? 'opacity-50 grayscale cursor-not-allowed' : 'cursor-pointer'
+                } ${
+                  isJustAdded 
+                    ? 'ring-4 ring-emerald-500 shadow-xl shadow-emerald-500/30 scale-[1.02] z-10' 
+                    : ''
                 }`}
               >
                 {/* Image Container */}
@@ -683,6 +735,15 @@ function POSScreenContent() {
                     <div className="absolute inset-0 bg-slate-900/40 flex items-center justify-center backdrop-blur-[2px]">
                       <span className="bg-slate-900 text-white px-4 py-2 rounded-lg font-bold tracking-wider text-sm">
                         {product.soldOut ? 'SOLD OUT' : 'OUT OF STOCK'}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {/* Popup "+X" Effect */}
+                  {hasPopup && (
+                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                      <span className="popup-animate text-emerald-500 text-2xl md:text-3xl font-extrabold bg-white/80 rounded-full px-2 py-1 shadow-lg">
+                        +{popup.count}
                       </span>
                     </div>
                   )}
@@ -964,11 +1025,11 @@ function POSScreenContent() {
                     <button
                       key={size.label}
                       onClick={() => setSelectedSize(size.label)}
-                      className={`rounded-full border px-4 py-2 text-sm font-semibold transition-all ${
+                      className={`rounded-full border px-4 py-2 text-sm font-semibold transition-all ${(
                         isSelected
                           ? 'border-emerald-500 bg-emerald-50 text-emerald-600'
                           : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
-                      }`}
+                      )}`}
                     >
                       {size.label} · ₱{size.price}
                     </button>
@@ -1247,6 +1308,22 @@ function POSScreenContent() {
         </div>
       </div>
     )}
+    
+    <style jsx>{`
+      @keyframes popUp {
+        0% {
+          opacity: 1;
+          transform: translate(-50%, -50%) scale(1);
+        }
+        100% {
+          opacity: 0;
+          transform: translate(-50%, -150%) scale(1.5);
+        }
+      }
+      .popup-animate {
+        animation: popUp 0.8s ease-out forwards;
+      }
+    `}</style>
     </>
   );
 }

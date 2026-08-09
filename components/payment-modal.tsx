@@ -84,7 +84,7 @@ export function PaymentModal({
 
     const tendered = parseFloat(tenderedStr || '0');
     if (tendered < totalDue) {
-      throw new Error('Amount tendered must cover the total due.');
+      throw new Error('Amount cash must cover the total due.');
     }
 
     // Snapshot cart data at checkout time to avoid state/prop timing issues.
@@ -302,7 +302,7 @@ export function PaymentModal({
               
               {/* Amount Tendered */}
               <div className="w-1/2 md:w-full bg-slate-50/80 rounded-xl lg:rounded-[20px] p-2 lg:p-6 border border-slate-100/80">
-                <div className="text-[10px] lg:text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Tendered</div>
+                <div className="text-[10px] lg:text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Cash Recieved</div>
                 <div className="text-base sm:text-2xl lg:text-[38px] leading-none font-black text-slate-900 flex items-start tracking-tight">
                   <span className="text-sm sm:text-lg lg:text-2xl mt-0.5 lg:mt-1.5 mr-1 font-sans text-slate-800">₱</span>
                   {amountTendered.toFixed(2)}

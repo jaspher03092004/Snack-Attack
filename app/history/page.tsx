@@ -1106,18 +1106,22 @@ export default function HistoryPage() {
         <div className="mt-2 text-center">--------------------------------</div>
 
         <div className="mt-2 space-y-1">
-          <div className="flex justify-between gap-2">
-            <span>TODAY REVENUE:</span>
-            <span>₱{todayTotalSales.toFixed(2)}</span>
+            <div className="mt-2 flex justify-between gap-2 text-sm font-bold">
+            <span>CASH:</span>
+            <span>₱{netCash.toFixed(2)}</span>
           </div>
           <div className="flex justify-between gap-2">
-            <span>TOTAL EXPENSES:</span>
+            <span>EXPENSES:</span>
             <span>₱{storeExpenseTotal.toFixed(2)}</span>
           </div>
           <div className="flex justify-between gap-2">
             <span>EMPLOYEE SALARIES:</span>
             <span>₱{totalEmployeePayroll.toFixed(2)}</span>
           </div>
+        </div>
+        <div className="mt-2 flex justify-between gap-2 text-sm font-bold">
+          <span>CASH:</span>
+          <span>₱{netCash.toFixed(2)}</span>
         </div>
 
         <div className="mt-2 text-center">--------------------------------</div>
@@ -1162,13 +1166,17 @@ export default function HistoryPage() {
             </div>
           ))}
         </div>
+        <div className="mt-2 text-center">--------------------------------</div>
+        <div className="flex justify-between gap-2">
+            <span>EMPLOYEE SALARIES:</span>
+            <span>₱{totalEmployeePayroll.toFixed(2)}</span>
+          </div>
 
         <div className="mt-2 text-center">--------------------------------</div>
-
-        <div className="mt-2 flex justify-between gap-2 text-sm font-bold">
-          <span>NET CASH:</span>
-          <span>₱{netCash.toFixed(2)}</span>
-        </div>
+        <div className="flex justify-between gap-2">
+            <span>TOTAL SALES:</span>
+            <span>₱{todayTotalSales.toFixed(2)}</span>
+          </div>
       </div>
     </div>
     </>
