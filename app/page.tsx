@@ -1,15 +1,157 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Store, Delete } from 'lucide-react';
+import { Store, Delete, PackagePlus, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
+
+type InventoryItem = {
+  id: string;
+  product_name: string;
+  category: string;
+  pieces_stock: number;
+  inventory_type?: string;
+};
 
 export default function EntrancePage() {
   const [pin, setPin] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isClockingIn, setIsClockingIn] = useState(false);
+  const [isProductInOpen, setIsProductInOpen] = useState(false);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [selectedProductId, setSelectedProductId] = useState('');
+  const [addBulk, setAddBulk] = useState('0');
+  const [addPieces, setAddPieces] = useState('0');
+  const [productInTab, setProductInTab] = useState('Main');
+  const [productSearch, setProductSearch] = useState('');
   const router = useRouter();
+
+  const getBulkMultiplier = (productName: string) => {
+    const name = (productName || '').toLowerCase();
+    if (name.includes('cup')) return 100;
+    if (name.includes('halo-halo')) return 50;
+    if (name.includes('egg') || name.includes('itlog')) return 30;
+    if (name.includes('pizza')) return 5;
+    if (name.includes('fries')) return 4;
+    if (name.includes('hotdog') || name.includes('cheese')) return 12;
+    if (name.includes('siomai')) return 60;
+    if (name.includes('patty') || name.includes('7up') || name.includes('coke') || name.includes('pepsi') || name.includes('water')) return 24;
+    if (name.includes('chips')) return 10;
+    return 1;
+  };
+
+  const getBulkLabel = (productName: string) => {
+    const name = (productName || '').toLowerCase();
+    if (name.includes('halo-halo')) return '(1 pack = 50 cups)';
+    if (name.includes('hotdog')) return '(1 pack = 12 pcs)';
+    if (name.includes('egg') || name.includes('itlog')) return '(1 tray = 30 pcs)';
+    if (name.includes('pizza')) return '(1 pack = 5 pcs)';
+    if (name.includes('fries')) return '(1kg pack = 4 servings)';
+    if (name.includes('siomai')) return '(1 pack = 60 pcs)';
+    if (name.includes('7up') || name.includes('coke') || name.includes('pepsi') || name.includes('water')) return '(1 case = 24 pcs)';
+    if (name.includes('chips')) return '(1 pack = 10 pcs)';
+    return '(Bulk)';
+  };
+
+      const openProductInModal = async () => {
+    if (!supabase) {
+      alert('Supabase client is not configured.');
+      return;
+    }
+
+    // Products to EXCLUDE from fetching
+    const excludedProducts = [
+      '7up', 'Coke', 'Ice Cream', 'Itlog/Egg', 'Pepsi', 'Water',
+      'Burger Buns', 'Footlong Buns',
+    ];
+
+    try {
+      // 1. Fetch ALL inventory products (to avoid Supabase .not().in() parsing issues)
+      const { data, error } = await supabase
+        .from('inventory')
+        .select('id, product_name, category, inventory_type, pieces_stock')
+        .order('product_name', { ascending: true });
+
+      if (error) {
+        console.error('Inventory fetch error details:', JSON.stringify(error, null, 2));
+        alert('Failed to load inventory products. Please check the console for more details.');
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        alert('No products found in inventory.');
+        return;
+      }
+
+      const items = (data ?? []) as InventoryItem[];
+
+      // 2. Perform the EXCLUDE filtering in JavaScript (Client-side)
+      const filteredItems = items.filter(item => !excludedProducts.includes(item.product_name));
+
+      if (filteredItems.length === 0) {
+        alert('No available products found after filtering.');
+        return;
+      }
+
+      // 3. Set state with the client-side filtered list
+      setInventoryItems(filteredItems);
+      setSelectedProductId(filteredItems[0]?.id ?? '');
+      setAddBulk('0');
+      setAddPieces('0');
+      setProductInTab('Main');
+      setProductSearch('');
+      setIsProductInOpen(true);
+      
+    } catch (err) {
+      console.error('Unexpected error during inventory fetch:', err);
+      alert('An unexpected error occurred while connecting to the server.');
+    }
+  };
+
+  const handleProductInSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (!supabase || !selectedProductId) return;
+
+    const selectedItem = inventoryItems.find((item) => item.id === selectedProductId);
+    if (!selectedItem) return;
+
+    const addedPiecesFromBulk = Number(addBulk || 0) * getBulkMultiplier(selectedItem.product_name);
+    const newTotalPieces = Number(selectedItem.pieces_stock || 0) + addedPiecesFromBulk + Number(addPieces || 0);
+
+    const { error } = await supabase
+      .from('inventory')
+      .update({ pieces_stock: newTotalPieces })
+      .eq('id', selectedProductId);
+
+    if (error) {
+      console.error('Product In update error:', error);
+      alert('Failed to update stock.');
+      return;
+    }
+
+    alert('Product stock updated successfully.');
+    setIsProductInOpen(false);
+    setSelectedProductId('');
+    setAddBulk('0');
+    setAddPieces('0');
+  };
+
+  const selectedProduct = inventoryItems.find((item) => item.id === selectedProductId) ?? null;
+  const isSubInventory = selectedProduct?.category?.toLowerCase() !== 'main inventory' && selectedProduct?.category?.toLowerCase() !== 'main';
+  const isBun = selectedProduct?.product_name?.toLowerCase().includes('bun');
+  const isBulkOnly = isSubInventory && !isBun;
+  const filteredInventory = inventoryItems.filter((item) => {
+    const normalizedCategory = (item.category || '').toLowerCase();
+    const normalizedType = (item.inventory_type || '').toLowerCase();
+    const matchesTab = productInTab === 'Main'
+      ? normalizedCategory === 'main inventory' || normalizedType === 'main'
+      : normalizedCategory !== 'main inventory' && normalizedType !== 'main';
+
+    const matchesSearch = item.product_name.toLowerCase().includes(productSearch.toLowerCase());
+
+    return matchesTab && matchesSearch;
+  });
 
   const handlePinSubmit = async (enteredPin: string) => {
     setErrorMessage('');
@@ -60,8 +202,18 @@ export default function EntrancePage() {
   return (
     <div className="relative flex flex-col items-center justify-center min-h-screen bg-white text-slate-900 font-sans selection:bg-none">
       
-      {/* Top Right Admin Button */}
-      <div className="absolute top-4 right-4 md:top-8 md:right-8">
+      {/* Top Right Actions */}
+      <div className="absolute top-4 right-4 md:top-8 md:right-8 flex items-center gap-2">
+        <button
+          onClick={() => {
+            void openProductInModal();
+          }}
+          className="flex h-12 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 hover:shadow-md focus:outline-none"
+          aria-label="Product In"
+        >
+          <PackagePlus className="w-4 h-4" />
+          <span className="uppercase tracking-wide">Product In</span>
+        </button>
         <button 
           onClick={() => router.push('/admin')}
           className="flex flex-col items-center justify-center w-[72px] bg-slate-100 hover:bg-slate-200 rounded-xl py-3 px-4 transition-colors focus:outline-none border-none cursor-pointer"
@@ -169,6 +321,139 @@ export default function EntrancePage() {
         </div>
         
       </div>
+
+      {isProductInOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-start justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900">Product In</h2>
+                <p className="mt-1 text-sm text-slate-500">Select a product and add stock.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsProductInOpen(false)}
+                className="rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleProductInSubmit} className="mt-6 space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-slate-700">Product</label>
+                <div className="mt-1.5 space-y-3">
+                  <div className="flex gap-2 rounded-xl bg-slate-100 p-1">
+                    <button
+                      type="button"
+                      onClick={() => setProductInTab('Main')}
+                      className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition ${(
+                        productInTab === 'Main'
+                          ? 'bg-slate-900 text-white'
+                          : 'bg-transparent text-slate-600 hover:bg-slate-200'
+                      )}`}
+                    >
+                      Main Inventory
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setProductInTab('Sub')}
+                      className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition ${(
+                        productInTab === 'Sub'
+                          ? 'bg-slate-900 text-white'
+                          : 'bg-transparent text-slate-600 hover:bg-slate-200'
+                      )}`}
+                    >
+                      Sub Inventory
+                    </button>
+                  </div>
+
+                  <input
+                    type="text"
+                    value={productSearch}
+                    onChange={(e) => setProductSearch(e.target.value)}
+                    placeholder="Search product..."
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200"
+                  />
+
+                  <div className="max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-2">
+                    {filteredInventory.length > 0 ? (
+                      filteredInventory.map((item) => {
+                        const isSelected = selectedProductId === item.id;
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedProductId(item.id);
+                              setAddBulk('0');
+                              setAddPieces('0');
+                            }}
+                            className={`mb-2 w-full rounded-lg border px-3 py-2 text-left transition last:mb-0 ${(
+                              isSelected
+                                ? 'border-emerald-400 bg-emerald-50'
+                                : 'border-slate-200 bg-white hover:border-slate-300'
+                            )}`}
+                          >
+                            <p className="text-sm font-semibold text-slate-900">{item.product_name}</p>
+                            <p className="text-xs text-slate-500">Current: {Number(item.pieces_stock || 0)} pcs</p>
+                          </button>
+                        );
+                      })
+                    ) : (
+                      <p className="px-2 py-3 text-sm text-slate-500">No matching products found.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700">
+                  Add Bulk {getBulkLabel(selectedProduct?.product_name || '')}
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={addBulk}
+                  onChange={(e) => setAddBulk(e.target.value)}
+                  className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200"
+                />
+              </div>
+
+              {!isBulkOnly && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">Add Pieces</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={addPieces}
+                    onChange={(e) => setAddPieces(e.target.value)}
+                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200"
+                  />
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsProductInOpen(false)}
+                  className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 focus:ring-4 focus:ring-slate-200"
+                >
+                  Save Stock
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
