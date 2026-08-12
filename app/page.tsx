@@ -26,6 +26,11 @@ export default function EntrancePage() {
   const [productSearch, setProductSearch] = useState('');
   const router = useRouter();
 
+  // --- New states for password protection ---
+  const [isPasswordPromptOpen, setIsPasswordPromptOpen] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+
   const getBulkMultiplier = (productName: string) => {
     const name = (productName || '').toLowerCase();
     if (name.includes('cup')) return 100;
@@ -53,7 +58,8 @@ export default function EntrancePage() {
     return '(Bulk)';
   };
 
-      const openProductInModal = async () => {
+  // --- Actual product fetching after password ---
+  const openProductInModalAfterPassword = async () => {
     if (!supabase) {
       alert('Supabase client is not configured.');
       return;
@@ -66,7 +72,7 @@ export default function EntrancePage() {
     ];
 
     try {
-      // 1. Fetch ALL inventory products (to avoid Supabase .not().in() parsing issues)
+      // 1. Fetch ALL inventory products
       const { data, error } = await supabase
         .from('inventory')
         .select('id, product_name, category, inventory_type, pieces_stock')
@@ -85,7 +91,7 @@ export default function EntrancePage() {
 
       const items = (data ?? []) as InventoryItem[];
 
-      // 2. Perform the EXCLUDE filtering in JavaScript (Client-side)
+      // 2. Perform the EXCLUDE filtering in JavaScript
       const filteredItems = items.filter(item => !excludedProducts.includes(item.product_name));
 
       if (filteredItems.length === 0) {
@@ -105,6 +111,88 @@ export default function EntrancePage() {
     } catch (err) {
       console.error('Unexpected error during inventory fetch:', err);
       alert('An unexpected error occurred while connecting to the server.');
+    }
+  };
+
+  // --- Open password prompt ---
+  const openProductInModal = () => {
+    setIsPasswordPromptOpen(true);
+    setPasswordInput('');
+    setPasswordError('');
+  };
+
+  // --- Password keypad handlers (Auto-submit on 6th digit) ---
+  const handlePasswordKeyPress = (digit: string) => {
+    if (passwordInput.length < 6) {
+      const newInput = passwordInput + digit;
+      setPasswordInput(newInput);
+      setPasswordError('');
+
+      // Automatically check password when 6 digits are entered
+      if (newInput.length === 6) {
+        if (newInput === '041380') {
+          setIsPasswordPromptOpen(false);
+          setPasswordInput('');
+          setPasswordError('');
+          void openProductInModalAfterPassword();
+        } else {
+          setPasswordError('Incorrect password');
+          setPasswordInput('');
+        }
+      }
+    }
+  };
+
+  const handlePasswordDelete = () => {
+    if (passwordInput.length > 0) {
+      setPasswordInput(prev => prev.slice(0, -1));
+      setPasswordError('');
+    }
+  };
+
+  // --- Existing PIN handlers ---
+  const handlePinSubmit = async (enteredPin: string) => {
+    setErrorMessage('');
+
+    if (!supabase) {
+      setErrorMessage('Authentication service is unavailable.');
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('staff')
+      .select('id, name')
+      .eq('pin_code', enteredPin)
+      .limit(1)
+      .single();
+
+    if (error || !data) {
+      setErrorMessage('Invalid PIN');
+      setPin('');
+      return;
+    }
+
+    localStorage.setItem('activeCashier', data.name);
+    localStorage.setItem('activeCashierId', data.id);
+    router.push('/start-order');
+  };
+
+  const handleKeyPress = (digit: string) => {
+    setErrorMessage('');
+
+    if (pin.length < 4) {
+      const newPin = pin + digit;
+      setPin(newPin);
+
+      if (newPin.length === 4) {
+        void handlePinSubmit(newPin);
+      }
+    }
+  };
+
+  const handleDelete = () => {
+    if (pin.length > 0) {
+      setPin(pin.slice(0, -1));
     }
   };
 
@@ -152,52 +240,6 @@ export default function EntrancePage() {
 
     return matchesTab && matchesSearch;
   });
-
-  const handlePinSubmit = async (enteredPin: string) => {
-    setErrorMessage('');
-
-    if (!supabase) {
-      setErrorMessage('Authentication service is unavailable.');
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from('staff')
-      .select('id, name')
-      .eq('pin_code', enteredPin)
-      .limit(1)
-      .single();
-
-    if (error || !data) {
-      setErrorMessage('Invalid PIN');
-      setPin('');
-      return;
-    }
-
-    localStorage.setItem('activeCashier', data.name);
-    localStorage.setItem('activeCashierId', data.id);
-    router.push('/start-order');
-  };
-
-  const handleKeyPress = (digit: string) => {
-    setErrorMessage('');
-
-    if (pin.length < 4) {
-      const newPin = pin + digit;
-      setPin(newPin);
-
-      if (newPin.length === 4) {
-        void handlePinSubmit(newPin);
-      }
-    }
-  };
-
-  // Handle backspace/delete
-  const handleDelete = () => {
-    if (pin.length > 0) {
-      setPin(pin.slice(0, -1));
-    }
-  };
 
   return (
     <div className="relative flex flex-col items-center justify-center min-h-screen bg-white text-slate-900 font-sans selection:bg-none">
@@ -322,6 +364,66 @@ export default function EntrancePage() {
         
       </div>
 
+      {/* --- Password Prompt Modal (Auto-submit enabled) --- */}
+      {isPasswordPromptOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col items-center gap-4">
+            <div className="flex items-center justify-between w-full">
+              <h2 className="text-xl font-bold text-slate-900">Enter Password</h2>
+              <button
+                onClick={() => setIsPasswordPromptOpen(false)}
+                className="rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="text-sm text-slate-500 -mt-2">Enter the 6-digit password to access Product In.</p>
+
+            {/* Password display (6 circles) */}
+            <div className="flex justify-center gap-3 mb-2" aria-live="polite">
+              {[...Array(6)].map((_, i) => (
+                <div
+                  key={i}
+                  className={`h-4 w-4 rounded-full transition-all duration-100 border-2 ${
+                    i < passwordInput.length
+                      ? 'bg-slate-400 border-slate-400'
+                      : 'bg-transparent border-slate-200'
+                  }`}
+                />
+              ))}
+            </div>
+            {passwordError && <p className="text-sm text-rose-600 -mt-2">{passwordError}</p>}
+
+            {/* Password keypad (same style as PIN) */}
+            <div className="grid grid-cols-3 gap-3 w-full max-w-[240px]">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                <button
+                  key={num}
+                  onClick={() => handlePasswordKeyPress(num.toString())}
+                  className="h-12 w-12 text-xl bg-slate-100 hover:bg-slate-200 rounded-xl flex items-center justify-center font-semibold text-slate-900 transition-colors active:bg-slate-300 focus:outline-none select-none border-none cursor-pointer"
+                >
+                  {num}
+                </button>
+              ))}
+              <div className="h-12 w-12" /> {/* empty spacer */}
+              <button
+                onClick={() => handlePasswordKeyPress('0')}
+                className="h-12 w-12 text-xl bg-slate-100 hover:bg-slate-200 rounded-xl flex items-center justify-center font-semibold text-slate-900 transition-colors active:bg-slate-300 focus:outline-none select-none border-none cursor-pointer"
+              >
+                0
+              </button>
+              <button
+                onClick={handlePasswordDelete}
+                className="h-12 w-12 bg-slate-100 hover:bg-slate-200 rounded-xl flex items-center justify-center transition-colors active:bg-slate-300 focus:outline-none border-none cursor-pointer"
+              >
+                <Delete className="w-6 h-6 text-slate-900 stroke-[2px] pointer-events-none fill-transparent" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- Product In Modal --- */}
       {isProductInOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-2xl animate-in zoom-in-95 duration-200">
