@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Store, Delete, PackagePlus, X, Box, Search } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Store, Delete, PackagePlus, X, Box, Search, CheckCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 
@@ -30,6 +30,18 @@ export default function EntrancePage() {
   const [isPasswordPromptOpen, setIsPasswordPromptOpen] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState('');
+
+  // --- New states for Toast and Session Logs ---
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [sessionLogs, setSessionLogs] = useState<Array<{ productName: string; qty: number }>>([]);
+
+  // --- Auto-clear toast notification after 3 seconds ---
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
   const getBulkMultiplier = (productName: string) => {
     const name = (productName || '').toLowerCase();
@@ -218,9 +230,12 @@ export default function EntrancePage() {
       return;
     }
 
-    alert('Product stock updated successfully.');
-    setIsProductInOpen(false);
-    setSelectedProductId('');
+    // --- Updated UI/UX: Toast Notification, keep modal open, add to session preview ---
+    const totalAdded = addedPiecesFromBulk + Number(addPieces || 0);
+    setSessionLogs(prev => [...prev, { productName: selectedItem.product_name, qty: totalAdded }]);
+    setToast({ message: `Successfully added ${totalAdded} pcs to ${selectedItem.product_name}.`, type: 'success' });
+    
+    // Reset input fields for next refill, but keep the modal open!
     setAddBulk('0');
     setAddPieces('0');
   };
@@ -423,10 +438,10 @@ export default function EntrancePage() {
         </div>
       )}
 
-      {/* --- Product In Modal (Refined UI/UX) --- */}
+      {/* --- Product In Modal (Refined UI/UX with Preview & Toast) --- */}
       {isProductInOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col gap-5 sm:p-6">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col gap-4 sm:p-6">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100">
@@ -439,7 +454,10 @@ export default function EntrancePage() {
               </div>
               <button
                 type="button"
-                onClick={() => setIsProductInOpen(false)}
+                onClick={() => {
+                  setIsProductInOpen(false);
+                  setSessionLogs([]); // Clear session logs when modal closes
+                }}
                 className="rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
               >
                 <X className="h-5 w-5" />
@@ -455,22 +473,22 @@ export default function EntrancePage() {
                     <button
                       type="button"
                       onClick={() => setProductInTab('Main')}
-                      className={`flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${
+                      className={`flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${(
                         productInTab === 'Main'
                           ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
                           : 'text-slate-500 hover:text-slate-700'
-                      }`}
+                      )}`}
                     >
                       Main Inventory
                     </button>
                     <button
                       type="button"
                       onClick={() => setProductInTab('Sub')}
-                      className={`flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${
+                      className={`flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${(
                         productInTab === 'Sub'
                           ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
                           : 'text-slate-500 hover:text-slate-700'
-                      }`}
+                      )}`}
                     >
                       Sub Inventory
                     </button>
@@ -502,11 +520,11 @@ export default function EntrancePage() {
                               setAddBulk('0');
                               setAddPieces('0');
                             }}
-                            className={`w-full rounded-lg border px-3 py-2.5 text-left transition-all ${
+                            className={`w-full rounded-lg border px-3 py-2.5 text-left transition-all ${(
                               isSelected
                                 ? 'border-emerald-400 bg-emerald-50/50 ring-1 ring-emerald-400'
                                 : 'border-slate-200 bg-white hover:border-slate-300'
-                            }`}
+                            )}`}
                           >
                             <p className="text-sm font-medium text-slate-900">{item.product_name}</p>
                             <p className="text-[11px] text-slate-400">
@@ -556,14 +574,32 @@ export default function EntrancePage() {
                 )}
               </div>
 
+              {/* --- Recently Added Preview Section --- */}
+              {sessionLogs.length > 0 && (
+                <div className="border-t border-slate-100 pt-3 mt-1">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Recently Added</p>
+                  <div className="max-h-28 overflow-y-auto space-y-1.5 custom-scrollbar">
+                    {sessionLogs.map((log, idx) => (
+                      <div key={idx} className="flex justify-between items-center text-sm bg-slate-50 px-3 py-1.5 rounded-md border border-slate-100">
+                        <span className="text-slate-700 font-medium truncate pr-2">{log.productName}</span>
+                        <span className="font-semibold text-emerald-600 whitespace-nowrap">+{log.qty} pcs</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Footer Actions */}
-              <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-2">
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-2 border-t border-slate-100 mt-1">
                 <button
                   type="button"
-                  onClick={() => setIsProductInOpen(false)}
+                  onClick={() => {
+                    setIsProductInOpen(false);
+                    setSessionLogs([]);
+                  }}
                   className="flex-1 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
                 >
-                  Cancel
+                  Close
                 </button>
                 <button
                   type="submit"
@@ -577,6 +613,14 @@ export default function EntrancePage() {
         </div>
       )}
       
+      {/* --- Toast Notification (Fixed bottom center) --- */}
+      {toast && (
+        <div className="fixed bottom-10 left-1/2 z-[999] flex -translate-x-1/2 items-center gap-3 rounded-full bg-slate-900 px-6 py-3 text-sm font-medium text-white shadow-2xl animate-in slide-in-from-bottom-5 fade-in duration-300">
+          <CheckCircle className="h-5 w-5 text-emerald-400" />
+          {toast.message}
+        </div>
+      )}
+
       <style jsx>{`
         .custom-scrollbar::-webkit-scrollbar {
           width: 4px;
