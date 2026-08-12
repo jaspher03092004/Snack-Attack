@@ -870,6 +870,7 @@ export default function StartOrderPage() {
                                         step="1"
                                         value={addBulk}
                                         onChange={(e) => setAddBulk(e.target.value)}
+                                        onFocus={() => { if (addBulk === '0') setAddBulk(''); }} // Clears 0 on focus
                                         className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200"
                                     />
                                 </div>
@@ -884,6 +885,7 @@ export default function StartOrderPage() {
                                         step="1"
                                         value={addPieces}
                                         onChange={(e) => setAddPieces(e.target.value)}
+                                        onFocus={() => { if (addPieces === '0') setAddPieces(''); }} // Clears 0 on focus
                                         className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200"
                                     />
                                 </div>
