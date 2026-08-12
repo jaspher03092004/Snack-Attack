@@ -621,9 +621,9 @@ export default function InventoryScreen() {
                         </div>
                     </div>
 
-                    {/* Inventory Table */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                        {/* Table Header with Tabs */}
+                    {/* --- Inventory Card Grid (Replaces Table) --- */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+                        {/* Grid Header with Tabs */}
                         <div className="flex items-center justify-between px-4 lg:px-6 py-2.5 lg:py-3.5 border-b border-slate-100 bg-slate-50/60">
                             <div className="flex items-center gap-2 lg:gap-3">
                                 <div className="flex items-center gap-2">
@@ -641,156 +641,146 @@ export default function InventoryScreen() {
                             </div>
                         </div>
 
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="border-b border-slate-100 bg-slate-50/40">
-                                        <th className="py-2 lg:py-3.5 px-3 lg:px-6 text-[10px] lg:text-[11px] font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-slate-600 transition-colors select-none"
-                                            onClick={() => handleSort('product_name')}>
-                                            <div className="flex items-center gap-1.5">
-                                                Product
-                                                <ArrowUpDown className="w-3 h-3" />
-                                            </div>
-                                        </th>
-                                        <th className="py-2 lg:py-3.5 px-3 lg:px-6 text-[10px] lg:text-[11px] font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-slate-600 transition-colors select-none"
-                                            onClick={() => handleSort('category')}>
-                                            <div className="flex items-center gap-1.5">
-                                                Category
-                                                <ArrowUpDown className="w-3 h-3" />
-                                            </div>
-                                        </th>
-                                        <th className="py-2 lg:py-3.5 px-3 lg:px-6 text-[10px] lg:text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-right">
-                                            {activeTab === 'sub' ? 'Bulk Stock' : 'Pieces Stock'}
-                                        </th>
-                                        {activeTab !== 'sub' && (
-                                            <>
-                                                <th className="py-2 lg:py-3.5 px-3 lg:px-6 text-[10px] lg:text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-right">
-                                                    Base Price
-                                                </th>
-                                                <th className="py-2 lg:py-3.5 px-3 lg:px-6 text-[10px] lg:text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-right">
-                                                    Selling Price
-                                                </th>
-                                            </>
-                                        )}
-                                        <th className="py-2 lg:py-3.5 px-3 lg:px-6 text-[10px] lg:text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-center">
-                                            Status
-                                        </th>
-                                        <th className="py-2 lg:py-3.5 px-3 lg:px-6 text-[10px] lg:text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-right">
-                                            Action
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-50">
-                                    {isLoading ? (
-                                        Array.from({ length: 5 }).map((_, i) => (
-                                            <tr key={i} className="animate-pulse">
-                                                {Array.from({ length: 7 }).map((_, j) => (
-                                                    <td key={j} className="py-2.5 lg:py-4 px-3 lg:px-6">
-                                                        <div className="h-4 bg-slate-200 rounded-lg w-16 lg:w-20" />
-                                                    </td>
-                                                ))}
-                                            </tr>
-                                        ))
-                                    ) : filteredInventory.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={7} className="py-12 lg:py-16 text-center">
-                                                <div className="flex flex-col items-center gap-3">
-                                                    <div className="w-12 h-12 lg:w-14 lg:h-14 rounded-2xl bg-slate-100 flex items-center justify-center">
-                                                        <PackageOpen className="w-6 h-6 lg:w-7 lg:h-7 text-slate-300" />
+                        {/* Product Grid */}
+                        <div className="p-4 sm:p-6">
+                            {isLoading ? (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                    {Array.from({ length: 8 }).map((_, i) => (
+                                        <div key={i} className="bg-slate-50 rounded-2xl p-5 border border-slate-200 animate-pulse">
+                                            <div className="flex items-start justify-between">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 bg-slate-200 rounded-xl" />
+                                                    <div className="space-y-1.5">
+                                                        <div className="h-4 w-24 bg-slate-200 rounded" />
+                                                        <div className="h-3 w-12 bg-slate-200 rounded" />
                                                     </div>
-                                                    <p className="text-sm font-medium text-slate-600">No inventory items found</p>
-                                                    <p className="text-xs text-slate-400">Try adjusting your search or filters</p>
                                                 </div>
-                                            </td>
-                                        </tr>
-                                    ) : (
-                                        filteredInventory.map((item) => {
-                                            const status = getStockStatus(item);
-                                            const config = statusConfig[status.variant];
-                                            const isLow = status.variant === 'warning' || status.variant === 'critical';
-                                            return (
-                                                <tr key={item.id} className={`hover:bg-slate-50/80 transition-colors group ${isLow ? 'bg-amber-50/30' : ''}`}>
-                                                    <td className="py-2 lg:py-3.5 px-3 lg:px-6">
-                                                        <div className="flex items-center gap-2 lg:gap-3">
-                                                            <div className={`w-6 h-6 lg:w-8 lg:h-8 rounded-xl flex items-center justify-center text-[9px] lg:text-xs font-bold ${isLow ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>
-                                                                {item.product_name.charAt(0).toUpperCase()}
-                                                            </div>
-                                                            <div>
-                                                                <div className="font-semibold text-xs lg:text-sm text-slate-900">{item.product_name}</div>
-                                                                <div className="hidden sm:block text-[10px] text-slate-400 font-medium">
-                                                                    ID: {item.id.slice(0, 8)}
-                                                                </div>
-                                                            </div>
+                                                <div className="h-6 w-16 bg-slate-200 rounded-full" />
+                                            </div>
+                                            <div className="mt-4 grid grid-cols-2 gap-4">
+                                                <div className="space-y-1.5">
+                                                    <div className="h-3 w-12 bg-slate-200 rounded" />
+                                                    <div className="h-5 w-full bg-slate-200 rounded" />
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <div className="h-3 w-12 bg-slate-200 rounded" />
+                                                    <div className="h-5 w-full bg-slate-200 rounded" />
+                                                </div>
+                                            </div>
+                                            <div className="mt-4 pt-4 border-t border-slate-200 flex justify-end">
+                                                <div className="h-8 w-16 bg-slate-200 rounded-lg" />
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : filteredInventory.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-16 text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
+                                    <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
+                                        <PackageOpen className="w-7 h-7 text-slate-300" />
+                                    </div>
+                                    <p className="text-sm font-medium text-slate-600">No inventory items found</p>
+                                    <p className="text-xs text-slate-400">Try adjusting your search or filters</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                    {filteredInventory.map((item) => {
+                                        const status = getStockStatus(item);
+                                        const config = statusConfig[status.variant];
+                                        const isLow = status.variant === 'warning' || status.variant === 'critical';
+                                        const isSub = activeTab === 'sub';
+
+                                        return (
+                                            <div key={item.id} className={`flex flex-col rounded-2xl border p-4 sm:p-5 shadow-sm hover:shadow-md transition-all bg-white ${isLow ? 'border-amber-300 bg-amber-50/30' : 'border-slate-200'}`}>
+                                                {/* Top Section: Name & Status */}
+                                                <div className="flex items-start justify-between mb-4">
+                                                    <div className="flex items-center gap-3 min-w-0 pr-2">
+                                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0 ${isLow ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>
+                                                            {item.product_name.charAt(0).toUpperCase()}
                                                         </div>
-                                                    </td>
-                                                    <td className="py-2 lg:py-3.5 px-3 lg:px-6">
-                                                        <span className="text-[10px] lg:text-xs font-medium text-slate-600 bg-slate-100 px-2 py-0.5 lg:px-2.5 lg:py-1 rounded-full">
+                                                        <div className="min-w-0">
+                                                            <h3 className="font-semibold text-sm sm:text-base text-slate-900 truncate">{item.product_name}</h3>
+                                                            <span className="text-[10px] text-slate-400 font-medium block">ID: {item.id.slice(0, 8)}</span>
+                                                        </div>
+                                                    </div>
+                                                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-medium flex-shrink-0 ${config.bg} ${config.text} border ${config.border} shadow-sm ${config.ring}`}>
+                                                        <span className={`w-1.5 h-1.5 rounded-full ${status.dot} ${isLow ? 'animate-pulse' : ''}`} />
+                                                        {status.label}
+                                                    </span>
+                                                </div>
+
+                                                {/* Middle Section: Details */}
+                                                <div className={`grid ${isSub ? 'grid-cols-1' : 'grid-cols-2'} gap-x-4 gap-y-3 text-sm mb-4`}>
+                                                    {/* Category */}
+                                                    <div className={isSub ? "" : ""}>
+                                                        <span className="text-xs text-slate-400 font-medium block mb-0.5">Category</span>
+                                                        <span className="text-[10px] lg:text-xs font-medium text-slate-600 bg-slate-50 px-2 py-1 rounded border border-slate-100 inline-block">
                                                             {item.category}
                                                         </span>
-                                                    </td>
-                                                    <td className="py-2 lg:py-3.5 px-3 lg:px-6 text-right">
-                                                        <span className={`text-xs lg:text-sm font-semibold ${isLow ? 'text-amber-700' : 'text-slate-800'}`}>
-                                                            {item.pieces_stock}
-                                                        </span>
-                                                        <span className="text-[9px] lg:text-[10px] text-slate-400 ml-1 font-medium">
-                                                            {activeTab === 'sub'
-                                                                ? (item.product_name.toLowerCase().includes('bun') ? 'Piece' : 'Pack')
-                                                                : item.pieces_unit}
-                                                        </span>
-                                                        {isLow && (
-                                                            <div className="text-[9px] lg:text-[10px] text-amber-500 font-medium mt-0.5">
-                                                                ⚠️ Needs restock
-                                                            </div>
-                                                        )}
-                                                    </td>
-                                                    {activeTab !== 'sub' && (
+                                                    </div>
+
+                                                    {/* Base & Selling Price (Hidden for Sub) */}
+                                                    {!isSub && (
                                                         <>
-                                                            <td className="py-2 lg:py-3.5 px-3 lg:px-6 text-right">
+                                                            <div>
+                                                                <span className="text-xs text-slate-400 font-medium block mb-0.5">Base Price</span>
                                                                 <input
                                                                     type="number"
                                                                     step="0.01"
                                                                     defaultValue={item.base_price ?? 0}
                                                                     onBlur={(e) => void handlePriceUpdate(item.id, 'base_price', e.target.value)}
-                                                                    className="w-16 lg:w-20 bg-transparent border-b border-gray-300 focus:border-blue-500 outline-none text-xs lg:text-sm text-right"
+                                                                    className="w-full bg-transparent border-b border-gray-300 focus:border-blue-500 outline-none text-sm text-right sm:text-left"
                                                                 />
-                                                            </td>
-                                                            <td className="py-2 lg:py-3.5 px-3 lg:px-6 text-right">
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-xs text-slate-400 font-medium block mb-0.5">Selling Price</span>
                                                                 <input
                                                                     type="number"
                                                                     step="0.01"
                                                                     defaultValue={item.selling_price ?? 0}
                                                                     onBlur={(e) => void handlePriceUpdate(item.id, 'selling_price', e.target.value)}
-                                                                    className="w-16 lg:w-20 bg-transparent border-b border-gray-300 focus:border-blue-500 outline-none text-xs lg:text-sm text-right"
+                                                                    className="w-full bg-transparent border-b border-gray-300 focus:border-blue-500 outline-none text-sm text-right sm:text-left"
                                                                 />
-                                                            </td>
+                                                            </div>
                                                         </>
                                                     )}
-                                                    <td className="py-2 lg:py-3.5 px-3 lg:px-6 text-center">
-                                                        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 lg:px-3 lg:py-1 rounded-lg text-[10px] lg:text-xs font-medium ${config.bg} ${config.text} border ${config.border} shadow-sm ${config.ring}`}>
-                                                            <span className={`w-1 h-1 lg:w-1.5 lg:h-1.5 rounded-full ${status.dot} ${isLow ? 'animate-pulse' : ''}`} />
-                                                            {status.label}
-                                                        </span>
-                                                    </td>
-                                                    <td className="py-2 lg:py-3.5 px-3 lg:px-6 text-right">
-                                                        <button
-                                                            onClick={() => openRefillModal(item)}
-                                                            className="px-2.5 py-1 lg:px-4 lg:py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[10px] lg:text-xs font-medium transition-all shadow-sm hover:shadow-md active:scale-95 flex items-center gap-1 lg:gap-1.5 ml-auto"
-                                                        >
-                                                            <Plus className="w-3 h-3 lg:w-3.5 lg:h-3.5" />
-                                                            <span className="hidden sm:inline">Refill</span>
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })
-                                    )}
-                                </tbody>
-                            </table>
+
+                                                    {/* Stock Info */}
+                                                    <div className={isSub ? "col-span-1" : ""}>
+                                                        <span className="text-xs text-slate-400 font-medium block mb-0.5">Stock</span>
+                                                        <div className="flex items-baseline gap-1">
+                                                            <span className={`text-sm font-semibold ${isLow ? 'text-amber-700' : 'text-slate-800'}`}>
+                                                                {item.pieces_stock}
+                                                            </span>
+                                                            <span className="text-[10px] text-slate-400 font-medium">
+                                                                {isSub ? (item.product_name.toLowerCase().includes('bun') ? 'Piece' : 'Pack') : item.pieces_unit}
+                                                            </span>
+                                                            {isLow && (
+                                                                <span className="text-[10px] text-amber-500 font-medium ml-1">⚠️ Needs Restock</span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Bottom Section: Action */}
+                                                <div className="mt-auto pt-3 border-t border-slate-100 flex justify-end">
+                                                    <button
+                                                        onClick={() => openRefillModal(item)}
+                                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium transition-all shadow-sm hover:shadow-md active:scale-95"
+                                                    >
+                                                        <Plus className="w-3.5 h-3.5" />
+                                                        Refill
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
 
                         {/* Table Footer */}
                         {filteredInventory.length > 0 && (
-                            <div className="px-4 lg:px-6 py-2.5 lg:py-3 border-t border-slate-100 bg-slate-50/40 flex items-center justify-between text-[10px] lg:text-xs text-slate-400">
+                            <div className="px-4 lg:px-6 py-3 border-t border-slate-100 bg-slate-50/40 flex items-center justify-between text-[10px] lg:text-xs text-slate-400">
                                 <span>Showing {filteredInventory.length} of {inventoryItems.length} items</span>
                                 <div className="flex items-center gap-2">
                                     <button className="px-2 py-1 lg:px-3 lg:py-1 rounded-lg border border-slate-200 hover:bg-white transition-colors disabled:opacity-40" disabled>
