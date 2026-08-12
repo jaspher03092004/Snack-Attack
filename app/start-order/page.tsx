@@ -277,9 +277,18 @@ export default function StartOrderPage() {
             return;
         }
 
+        // Isolate fetching to only the specific main/sub inventory products requested
+        const targetProducts = [
+            // Main Inventory
+            '7up', 'Coke', 'Ice Cream', 'Itlog/Egg', 'Pepsi', 'Water',
+            // Sub Inventory
+            'Burger Buns', 'Footlong Buns'
+        ];
+
         const { data, error } = await supabase
             .from('inventory')
-            .select('id, product_name, category, pieces_stock')
+            .select('id, product_name, category, inventory_type, pieces_stock') // Added inventory_type to ensure tab switching works correctly
+            .in('product_name', targetProducts)
             .order('product_name', { ascending: true });
 
         if (error) {
