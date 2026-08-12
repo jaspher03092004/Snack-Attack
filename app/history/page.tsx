@@ -550,9 +550,10 @@ export default function HistoryPage() {
       'DAILY SALES REPORT',
       receiptDateLabel,
       '--------------------------------',
-      `TODAY REVENUE: ₱${todayTotalSales.toFixed(2)}`,
-      `TOTAL EXPENSES: ₱${storeExpenseTotal.toFixed(2)}`,
+      `CASH: ₱${netCash.toFixed(2)}`,
+      `EXPENSES: ₱${storeExpenseTotal.toFixed(2)}`,
       `EMPLOYEE SALARIES: ₱${totalEmployeePayroll.toFixed(2)}`,
+      `TOTAL SALES: ₱${todayTotalSales.toFixed(2)}`,
       '--------------------------------',
     ];
 
@@ -575,7 +576,6 @@ export default function HistoryPage() {
     });
 
     lines.push('--------------------------------');
-    lines.push(`NET CASH: ₱${netCash.toFixed(2)}`);
 
     return lines.join('\n');
   };

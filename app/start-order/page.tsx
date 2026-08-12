@@ -20,6 +20,7 @@ import {
     AlertCircle,
     PackagePlus,
     PackageOpen,
+    Search, // Added Search icon
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
@@ -70,6 +71,9 @@ export default function StartOrderPage() {
     const [productSearch, setProductSearch] = useState('');
     const [toastMessage, setToastMessage] = useState('');
     const currentCash = todaysStats.revenue - totalExpenses;
+
+    // New state for Open Pack search
+    const [searchPackQuery, setSearchPackQuery] = useState('');
 
     const showToast = (message: string) => {
         setToastMessage(message);
@@ -350,6 +354,7 @@ export default function StartOrderPage() {
         });
 
         setSelectedPackId(subInventoryItems[0]?.id ?? '');
+        setSearchPackQuery(''); // Reset search on modal open
         setIsOpenPackModalOpen(true);
     };
 
@@ -451,6 +456,11 @@ export default function StartOrderPage() {
             closeExpensesModal();
         }, 1000);
     };
+
+    // Filter sub-inventory items based on search for the Open Pack modal
+    const filteredPackItems = subInventoryItems.filter((item) =>
+        item.product_name.toLowerCase().includes(searchPackQuery.toLowerCase())
+    );
 
     return (
         <div className="relative min-h-screen flex flex-col w-full overflow-y-auto overflow-x-hidden bg-slate-50 font-sans text-slate-900">
@@ -779,22 +789,22 @@ export default function StartOrderPage() {
                                         <button
                                             type="button"
                                             onClick={() => setProductInTab('Main')}
-                                            className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition ${
+                                            className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition ${(
                                                 productInTab === 'Main'
                                                     ? 'bg-slate-900 text-white'
                                                     : 'bg-transparent text-slate-600 hover:bg-slate-200'
-                                            }`}
+                                            )}`}
                                         >
                                             Main Inventory
                                         </button>
                                         <button
                                             type="button"
                                             onClick={() => setProductInTab('Sub')}
-                                            className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition ${
+                                            className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition ${(
                                                 productInTab === 'Sub'
                                                     ? 'bg-slate-900 text-white'
                                                     : 'bg-transparent text-slate-600 hover:bg-slate-200'
-                                            }`}
+                                            )}`}
                                         >
                                             Sub Inventory
                                         </button>
@@ -821,11 +831,11 @@ export default function StartOrderPage() {
                                                             setAddBulk('0');
                                                             setAddPieces('0');
                                                         }}
-                                                        className={`mb-2 w-full rounded-lg border px-3 py-2 text-left transition last:mb-0 ${
+                                                        className={`mb-2 w-full rounded-lg border px-3 py-2 text-left transition last:mb-0 ${(
                                                             isSelected
                                                                 ? 'border-emerald-400 bg-emerald-50'
                                                                 : 'border-slate-200 bg-white hover:border-slate-300'
-                                                        }`}
+                                                        )}`}
                                                     >
                                                         <p className="text-sm font-semibold text-slate-900">{item.product_name}</p>
                                                         <p className="text-xs text-slate-500">Current: {Number(item.pieces_stock || 0)} pcs</p>
@@ -887,13 +897,19 @@ export default function StartOrderPage() {
                 </div>
             )}
 
+            {/* Open Pack Modal - Updated with Search & Tiles */}
             {isOpenPackModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+                    <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col gap-4 sm:gap-5">
                         <div className="flex items-start justify-between">
-                            <div>
-                                <h2 className="text-2xl font-bold text-slate-900">Open Pack</h2>
-                                <p className="mt-1 text-sm text-slate-500">Select a sub-inventory flavor to deduct 1 pack.</p>
+                            <div className="flex items-center gap-3">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                                    <PackageOpen className="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-bold text-slate-900">Open Pack</h2>
+                                    <p className="text-sm text-slate-500">Deduct 1 pack from sub-inventory.</p>
+                                </div>
                             </div>
                             <button
                                 type="button"
@@ -904,41 +920,58 @@ export default function StartOrderPage() {
                             </button>
                         </div>
 
-                        <div className="mt-6 space-y-5">
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700">Sub-Inventory Item</label>
-                                <select
-                                    value={selectedPackId}
-                                    onChange={(e) => setSelectedPackId(e.target.value)}
-                                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200"
-                                >
-                                    {subInventoryItems.length === 0 ? (
-                                        <option value="" disabled>No sub-inventory items found</option>
-                                    ) : (
-                                        subInventoryItems.map((item) => (
-                                            <option key={item.id} value={item.id}>
-                                                {item.product_name} (Current: {Number(item.pieces_stock || 0)} packs)
-                                            </option>
-                                        ))
-                                    )}
-                                </select>
+                        <div className="flex flex-col gap-4">
+                            {/* Search Bar */}
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                                <input
+                                    type="text"
+                                    value={searchPackQuery}
+                                    onChange={(e) => setSearchPackQuery(e.target.value)}
+                                    placeholder="Search items..."
+                                    className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200 placeholder:text-slate-400"
+                                />
                             </div>
 
-                            <div className="flex justify-end gap-3 pt-2">
+                            {/* Tile Grid */}
+                            <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
+                                {filteredPackItems.length > 0 ? (
+                                    filteredPackItems.map((item) => {
+                                        const isSelected = selectedPackId === item.id;
+                                        return (
+                                            <button
+                                                key={item.id}
+                                                type="button"
+                                                onClick={() => setSelectedPackId(item.id)}
+                                                className={`flex flex-col rounded-xl border px-3 py-3 text-left transition-all ${
+                                                    isSelected
+                                                        ? 'border-emerald-400 bg-emerald-50 ring-1 ring-emerald-400/20'
+                                                        : 'border-slate-200 bg-white hover:border-slate-300'
+                                                }`}
+                                            >
+                                                <span className="text-sm font-medium text-slate-900 truncate">{item.product_name}</span>
+                                                <span className="text-xs text-slate-500 mt-0.5">{Number(item.pieces_stock || 0)} packs</span>
+                                            </button>
+                                        );
+                                    })
+                                ) : (
+                                    <p className="col-span-full py-4 text-center text-sm text-slate-500">No matching items found.</p>
+                                )}
+                            </div>
+
+                            <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-2">
                                 <button
                                     type="button"
                                     onClick={() => setIsOpenPackModalOpen(false)}
-                                    className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                                    className="flex-1 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => {
-                                        void handleOpenPackSubmit();
-                                    }}
+                                    onClick={() => { void handleOpenPackSubmit(); }}
                                     disabled={!selectedPackId || subInventoryItems.length === 0}
-                                    className="rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 focus:ring-4 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-slate-300"
+                                    className="flex-1 rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 focus:ring-4 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-slate-300"
                                 >
                                     Open Pack
                                 </button>
@@ -1013,6 +1046,16 @@ export default function StartOrderPage() {
                 }
                 .zoom-in-95 {
                     animation-name: zoom-in-95;
+                }
+                .custom-scrollbar::-webkit-scrollbar {
+                    width: 4px;
+                }
+                .custom-scrollbar::-webkit-scrollbar-track {
+                    background: transparent;
+                }
+                .custom-scrollbar::-webkit-scrollbar-thumb {
+                    background: #e2e8f0;
+                    border-radius: 99px;
                 }
             `}</style>
         </div>
