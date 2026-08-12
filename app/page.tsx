@@ -57,15 +57,34 @@ export default function EntrancePage() {
     return 1;
   };
 
+  // --- Updated dynamic label for the bulk input ---
+  const getBulkInputLabel = (productName: string) => {
+    const name = (productName || '').toLowerCase();
+    if (name.includes('cup')) return 'Add Pack';
+    if (name.includes('halo-halo')) return 'Add Bulk';
+    if (name.includes('pizza')) return 'Add Pack';
+    if (name.includes('fries')) return 'Add Pack';
+    if (name.includes('hotdog')) return 'Add Pack';
+    if (name.includes('cheese')) return 'Add Pack';
+    if (name.includes('siomai')) return 'Add Pack';
+    if (name.includes('patty')) return 'Add Box';
+    if (name.includes('7up') || name.includes('coke') || name.includes('pepsi') || name.includes('water')) return 'Add Case';
+    if (name.includes('chips')) return 'Add Pack';
+    return 'Add Bulk';
+  };
+
+  // --- Updated help text suffix for the bulk input ---
   const getBulkLabel = (productName: string) => {
     const name = (productName || '').toLowerCase();
+    if (name.includes('cup')) return '(1 pack = 100 cups)';
     if (name.includes('halo-halo')) return '(1 pack = 50 cups)';
-    if (name.includes('hotdog')) return '(1 pack = 12 pcs)';
-    if (name.includes('egg') || name.includes('itlog')) return '(1 tray = 30 pcs)';
     if (name.includes('pizza')) return '(1 pack = 5 pcs)';
     if (name.includes('fries')) return '(1kg pack = 4 servings)';
+    if (name.includes('hotdog')) return '(1 pack = 12 pcs)';
+    if (name.includes('cheese')) return '(1 pack = 12 slices)';
     if (name.includes('siomai')) return '(1 pack = 60 pcs)';
-    if (name.includes('7up') || name.includes('coke') || name.includes('pepsi') || name.includes('water')) return '(1 case = 24 pcs)';
+    if (name.includes('patty')) return '(1 Box = 24 patties)';
+    if (name.includes('7up') || name.includes('coke') || name.includes('pepsi') || name.includes('water')) return '(1 case = 24 bottles)';
     if (name.includes('chips')) return '(1 pack = 10 pcs)';
     return '(Bulk)';
   };
@@ -365,14 +384,14 @@ export default function EntrancePage() {
                 setIsClockingIn(!isClockingIn);
               }
             }}
-            className={`relative w-14 h-8 rounded-full cursor-pointer transition-colors duration-200 ease-in-out ${
+            className={`relative w-14 h-8 rounded-full cursor-pointer transition-colors duration-200 ease-in-out ${(
               isClockingIn ? 'bg-emerald-500' : 'bg-slate-200'
-            }`}
+            )}`}
           >
             <div 
-              className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow-sm transition-transform duration-200 ease-in-out ${
+              className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow-sm transition-transform duration-200 ease-in-out ${(
                 isClockingIn ? 'translate-x-6' : 'translate-x-0'
-              }`} 
+              )}`} 
             />
           </div>
         </div>
@@ -399,11 +418,11 @@ export default function EntrancePage() {
               {[...Array(6)].map((_, i) => (
                 <div
                   key={i}
-                  className={`h-4 w-4 rounded-full transition-all duration-100 border-2 ${
+                  className={`h-4 w-4 rounded-full transition-all duration-100 border-2 ${(
                     i < passwordInput.length
                       ? 'bg-slate-400 border-slate-400'
                       : 'bg-transparent border-slate-200'
-                  }`}
+                  )}`}
                 />
               ))}
             </div>
@@ -542,11 +561,17 @@ export default function EntrancePage() {
 
               {/* Inputs */}
               <div className="space-y-3">
-                {/* --- Updated Add Bulk logic: Hide entirely for Ice Cream OR Sub-Inventory Buns --- */}
-                {selectedProduct && !(selectedProduct.product_name === 'Ice Cream' || (isSubInventory && isBun)) && (
+                {/* --- Updated Add Bulk logic: Hide entirely for Ice Cream, Fried Chicken, Nachos, and Sub-Inventory Buns --- */}
+                {selectedProduct && !(
+                    selectedProduct.product_name === 'Ice Cream' ||
+                    selectedProduct.product_name === 'Fried Chicken' ||
+                    selectedProduct.product_name === 'Nachos' ||
+                    (isSubInventory && isBun)
+                ) && (
                   <div>
                     <label className="block text-sm font-medium text-slate-700">
-                      Add Bulk <span className="font-normal text-slate-400 text-xs ml-1">{getBulkLabel(selectedProduct?.product_name || '')}</span>
+                      {getBulkInputLabel(selectedProduct.product_name)}
+                      <span className="font-normal text-slate-400 text-xs ml-1">{getBulkLabel(selectedProduct.product_name)}</span>
                     </label>
                     <input
                       type="number"
