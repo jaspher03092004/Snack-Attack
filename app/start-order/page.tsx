@@ -858,19 +858,22 @@ export default function StartOrderPage() {
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700">
-                                    Add Bulk {getBulkLabel(selectedProduct?.product_name || '')}
-                                </label>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    step="1"
-                                    value={addBulk}
-                                    onChange={(e) => setAddBulk(e.target.value)}
-                                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200"
-                                />
-                            </div>
+                            {/* --- Updated Add Bulk logic: Hide entirely for Ice Cream OR Sub-Inventory Buns --- */}
+                            {selectedProduct && !(selectedProduct.product_name === 'Ice Cream' || (isSubInventory && isBun)) && (
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700">
+                                        Add Bulk {getBulkLabel(selectedProduct?.product_name || '')}
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="1"
+                                        value={addBulk}
+                                        onChange={(e) => setAddBulk(e.target.value)}
+                                        className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200"
+                                    />
+                                </div>
+                            )}
 
                             {!isBulkOnly && (
                                 <div>

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Store, Delete, PackagePlus, X } from 'lucide-react';
+import { Store, Delete, PackagePlus, X, Box, Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 
@@ -423,62 +423,73 @@ export default function EntrancePage() {
         </div>
       )}
 
-      {/* --- Product In Modal --- */}
+      {/* --- Product In Modal (Refined UI/UX) --- */}
       {isProductInOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col gap-5 sm:p-6">
             <div className="flex items-start justify-between">
-              <div>
-                <h2 className="text-2xl font-bold text-slate-900">Product In</h2>
-                <p className="mt-1 text-sm text-slate-500">Select a product and add stock.</p>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100">
+                  <Box className="h-5 w-5 text-slate-700" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900">Product In</h2>
+                  <p className="text-sm text-slate-500">Select a product and add stock.</p>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => setIsProductInOpen(false)}
-                className="rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                className="rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form onSubmit={handleProductInSubmit} className="mt-6 space-y-5">
-              <div>
-                <label className="block text-sm font-medium text-slate-700">Product</label>
-                <div className="mt-1.5 space-y-3">
-                  <div className="flex gap-2 rounded-xl bg-slate-100 p-1">
+            <form onSubmit={handleProductInSubmit} className="flex flex-col gap-4">
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-slate-700">Product</label>
+                <div className="space-y-3">
+                  {/* Tabs */}
+                  <div className="flex gap-2 rounded-lg bg-slate-50 p-1 border border-slate-200">
                     <button
                       type="button"
                       onClick={() => setProductInTab('Main')}
-                      className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition ${(
+                      className={`flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${
                         productInTab === 'Main'
-                          ? 'bg-slate-900 text-white'
-                          : 'bg-transparent text-slate-600 hover:bg-slate-200'
-                      )}`}
+                          ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
+                          : 'text-slate-500 hover:text-slate-700'
+                      }`}
                     >
                       Main Inventory
                     </button>
                     <button
                       type="button"
                       onClick={() => setProductInTab('Sub')}
-                      className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition ${(
+                      className={`flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${
                         productInTab === 'Sub'
-                          ? 'bg-slate-900 text-white'
-                          : 'bg-transparent text-slate-600 hover:bg-slate-200'
-                      )}`}
+                          ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
+                          : 'text-slate-500 hover:text-slate-700'
+                      }`}
                     >
                       Sub Inventory
                     </button>
                   </div>
 
-                  <input
-                    type="text"
-                    value={productSearch}
-                    onChange={(e) => setProductSearch(e.target.value)}
-                    placeholder="Search product..."
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200"
-                  />
+                  {/* Search Input */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={productSearch}
+                      onChange={(e) => setProductSearch(e.target.value)}
+                      placeholder="Search products..."
+                      className="w-full rounded-lg border border-slate-200 bg-slate-50 pl-9 pr-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-300 focus:bg-white focus:ring-2 focus:ring-slate-200 placeholder:text-slate-400"
+                    />
+                  </div>
 
-                  <div className="max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-2">
+                  {/* Product List */}
+                  <div className="max-h-48 overflow-y-auto rounded-lg border border-slate-200 bg-white p-1.5 space-y-1 custom-scrollbar">
                     {filteredInventory.length > 0 ? (
                       filteredInventory.map((item) => {
                         const isSelected = selectedProductId === item.id;
@@ -491,63 +502,72 @@ export default function EntrancePage() {
                               setAddBulk('0');
                               setAddPieces('0');
                             }}
-                            className={`mb-2 w-full rounded-lg border px-3 py-2 text-left transition last:mb-0 ${(
+                            className={`w-full rounded-lg border px-3 py-2.5 text-left transition-all ${
                               isSelected
-                                ? 'border-emerald-400 bg-emerald-50'
+                                ? 'border-emerald-400 bg-emerald-50/50 ring-1 ring-emerald-400'
                                 : 'border-slate-200 bg-white hover:border-slate-300'
-                            )}`}
+                            }`}
                           >
-                            <p className="text-sm font-semibold text-slate-900">{item.product_name}</p>
-                            <p className="text-xs text-slate-500">Current: {Number(item.pieces_stock || 0)} pcs</p>
+                            <p className="text-sm font-medium text-slate-900">{item.product_name}</p>
+                            <p className="text-[11px] text-slate-400">
+                              Current: <span className="font-medium text-slate-600">{item.pieces_stock || 0}</span> pcs
+                            </p>
                           </button>
                         );
                       })
                     ) : (
-                      <p className="px-2 py-3 text-sm text-slate-500">No matching products found.</p>
+                      <p className="px-3 py-4 text-center text-sm text-slate-500">No matching products found.</p>
                     )}
                   </div>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700">
-                  Add Bulk {getBulkLabel(selectedProduct?.product_name || '')}
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={addBulk}
-                  onChange={(e) => setAddBulk(e.target.value)}
-                  className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200"
-                />
+              {/* Inputs */}
+              <div className="space-y-3">
+                {/* --- Updated Add Bulk logic: Hide entirely for Ice Cream OR Sub-Inventory Buns --- */}
+                {selectedProduct && !(selectedProduct.product_name === 'Ice Cream' || (isSubInventory && isBun)) && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700">
+                      Add Bulk <span className="font-normal text-slate-400 text-xs ml-1">{getBulkLabel(selectedProduct?.product_name || '')}</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={addBulk}
+                      onChange={(e) => setAddBulk(e.target.value)}
+                      className="mt-1.5 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-300 focus:bg-white focus:ring-2 focus:ring-slate-200"
+                    />
+                  </div>
+                )}
+
+                {!isBulkOnly && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700">Add Pieces</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={addPieces}
+                      onChange={(e) => setAddPieces(e.target.value)}
+                      className="mt-1.5 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-300 focus:bg-white focus:ring-2 focus:ring-slate-200"
+                    />
+                  </div>
+                )}
               </div>
 
-              {!isBulkOnly && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700">Add Pieces</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={addPieces}
-                    onChange={(e) => setAddPieces(e.target.value)}
-                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200"
-                  />
-                </div>
-              )}
-
-              <div className="flex justify-end gap-3 pt-2">
+              {/* Footer Actions */}
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => setIsProductInOpen(false)}
-                  className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                  className="flex-1 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 focus:ring-4 focus:ring-slate-200"
+                  className="flex-1 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 focus:ring-4 focus:ring-slate-200 shadow-sm"
                 >
                   Save Stock
                 </button>
@@ -556,6 +576,19 @@ export default function EntrancePage() {
           </div>
         </div>
       )}
+      
+      <style jsx>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #e2e8f0;
+          border-radius: 99px;
+        }
+      `}</style>
     </div>
   );
 }
