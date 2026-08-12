@@ -579,6 +579,7 @@ export default function EntrancePage() {
                       step="1"
                       value={addBulk}
                       onChange={(e) => setAddBulk(e.target.value)}
+                      onFocus={() => { if (addBulk === '0') setAddBulk(''); }} // Clears 0 on focus
                       className="mt-1.5 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-300 focus:bg-white focus:ring-2 focus:ring-slate-200"
                     />
                   </div>
@@ -593,6 +594,7 @@ export default function EntrancePage() {
                       step="1"
                       value={addPieces}
                       onChange={(e) => setAddPieces(e.target.value)}
+                      onFocus={() => { if (addPieces === '0') setAddPieces(''); }} // Clears 0 on focus
                       className="mt-1.5 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-300 focus:bg-white focus:ring-2 focus:ring-slate-200"
                     />
                   </div>
